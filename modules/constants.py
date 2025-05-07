@@ -29,3 +29,24 @@ class Bastion:
     ec2_ami = 'ami-058a8a5ab36292159'
     instance_name = 'pm_bastion_host'
 
+class Cognito:
+    stack_name = 'PmCognitoStack'
+    pool_name = 'pm_user_pool'
+    client = 'pm_client'
+    ver_email_subj = 'Please, verify your email'
+    ver_email_body = 'Thanks for signing up! Your verification code is {####}'
+
+class Async:
+    stack_name = 'PmAsyncStack'
+    text_processing_queue_name = 'pm_text_processing'
+    image_processing_queue_name = 'pm_image_processing'
+    nutrients_extraction_queue_name = 'pm_nutrients'
+    csv_processing_queue_name = 'pm_csv_processing'
+    errors_handling_queue_name = 'pm_csv_errors'
+    media_bucket_name = 'predictedme-bucket-media'
+    csv_bucket_name = 'predictedme-bucket-csv'
+    filter_media = 'uploads/*'
+
+
+class Func:
+    stack_name = 'PmFuncStack'
