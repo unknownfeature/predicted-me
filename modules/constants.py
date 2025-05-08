@@ -4,6 +4,8 @@ db_user='DB_USER'
 db_pass='DB_PASS'
 db_name='DB_NAME'
 bastion_instance_key_name='BASTION_INSTANCE_KEY_NAME'
+regional_domain_name='REGIONAL_DOMAIN_NAME'
+regional_hosted_zone_id='REGIONAL_HOSTED_ZONE_ID'
 
 class Vpc:
     stack_name = 'PmVpcStack'
@@ -50,3 +52,9 @@ class Async:
 
 class Func:
     stack_name = 'PmFuncStack'
+
+class Api:
+    stack_name = 'PmApiStack'
+    name = 'predictedme-api'
+    authorizer = 'predictedme-authorizer'
+    api_url = 'api.predicted.me'

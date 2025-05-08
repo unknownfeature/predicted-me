@@ -7,7 +7,7 @@ from aws_cdk import (
     aws_ec2 as ec2)
 from constructs import Construct
 
-from constants import *
+from modules.constants import *
 from modules.vpc_stack import PmVpcStack
 
 
@@ -26,6 +26,7 @@ class PmDbStack(Stack):
         self.db_creds = rds.Credentials.from_secret(self.db_secret)
 
         self.db_subnet_group = rds.SubnetGroup(self, Db.subnet_group,
+                                               description= Db.subnet_group,
                                                vpc=vpc_stack.vpc, removal_policy=cdk.RemovalPolicy.DESTROY,
                                                subnet_group_name=Db.subnet_group,
                                                vpc_subnets=ec2.SubnetSelection(

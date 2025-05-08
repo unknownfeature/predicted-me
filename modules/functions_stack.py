@@ -1,7 +1,7 @@
 from aws_cdk import (
     Stack
 )
-from constants import *
+from modules.constants import *
 from constructs import Construct
 
 

@@ -3,7 +3,7 @@ from aws_cdk import (
     aws_ec2 as ec2)
 from constructs import Construct
 
-from constants import *
+from modules.constants import *
 
 
 class PmVpcStack(Stack):

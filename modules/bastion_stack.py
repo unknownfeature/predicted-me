@@ -5,7 +5,7 @@ from aws_cdk import (
     aws_ec2 as ec2)
 from constructs import Construct
 from modules.vpc_stack import PmVpcStack
-from constants import *
+from modules.constants import *
 
 
 class PmBastionStack(Stack):

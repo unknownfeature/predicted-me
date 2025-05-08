@@ -5,7 +5,7 @@ from aws_cdk import (
     aws_s3_notifications as s3n, RemovalPolicy, Duration
 )
 from constructs import Construct
-from constants import *
+from modules.constants import *
 
 
 class PmAsyncStack(Stack):
@@ -55,4 +55,4 @@ class PmAsyncStack(Stack):
                                     )
         self.csv_bucket.add_event_notification(s3.EventType.OBJECT_CREATED,
                                                s3n.SqsDestination(self.csv_processing_queue),
-                                               s3.NotificationKeyFilter(prefix=filter_media))
+                                               s3.NotificationKeyFilter(prefix=Async.filter_media))
