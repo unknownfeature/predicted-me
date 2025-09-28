@@ -49,9 +49,14 @@ class PmImageProcessingStack(Stack):
                         "type": "string",
                         "description": "The overall mood or sentiment of the image (e.g., 'Calm', 'Busy', 'Dramatic', 'Neutral').",
                         "inference_type": "GENERATIVE_FIELD"
+                    },
+                    "image_text": {
+                        "type": "string",
+                        "description": "Extract rellevant text from the image",
+                        "inference_type": "GENERATIVE_FIELD"
                     }
                 },
-                "required": ["main_description", "detected_objects", "detected_activities", "image_sentiment"]
+                "required": ["main_description", "detected_objects", "detected_activities", "image_sentiment", "image_text"]
             }
         }
 
