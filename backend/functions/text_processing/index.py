@@ -2,13 +2,14 @@ import os
 import json
 import traceback
 from typing import List, Dict, Any
-from sqlalchemy import create_engine, insert, select
+from sqlalchemy import create_engine, insert, select, column, literal_column, bindparam
 from sqlalchemy.dialects.mysql import insert as mysql_insert
+from sqlalchemy.sql import expression as sql
 
-from db import Metrics, Message, MetricOrigin
+from db import Metrics, Message, MetricOrigin, Data
 from db.util import begin_session
 import boto3
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 sns_client = boto3.client('sns')
 sns_topic_arn = os.environ.get('TAGGING_TOPIC_ARN')
@@ -90,18 +91,35 @@ def process_record(session, record):
         .values(metrics_to_insert)
 
         .on_duplicate_key_update(
-            value=func.greatest(Metrics.__table__.c.value, mysql_insert.inserted.value),
-            units=func.if_(
-                Metrics.__table__.c.units.is_(None),
-                mysql_insert.inserted.units,
-                Metrics.__table__.c.units
-            ),
-            tagged=Metrics.__table__.c.tagged,
-            origin=Metrics.__table__.c.origin
-        )
+        id=Metrics.__table__.c.id
+    )
     )
     session.execute(upsert_stmt)
-    print(f"Successfully upserted {len(metrics_to_insert)} text metrics for ID {message_id}.")
+    select_columns = [
+        Metrics.__table__.c.id,
+        bindparam('message_id', value=message_id),
+        bindparam('value'),
+        bindparam('units'),
+        bindparam('origin')
+    ]
+
+    case_insensitive_join = func.lower(Metrics.__table__.c.name) == func.lower(bindparam('name'))
+
+    subquery_select = (
+        select(*select_columns)
+        .select_from(Metrics.__table__)
+        .where(case_insensitive_join)
+    )
+
+    insert_data_stmt = (
+        insert(Data.__table__)
+        .from_select(
+            ['metrics_id', 'message_id', 'value', 'units', 'origin'],
+            subquery_select
+        )
+    )
+
+    session.execute(insert_data_stmt, metrics_to_insert)
 
     sns_client.publish(
         TopicArn=sns_topic_arn,

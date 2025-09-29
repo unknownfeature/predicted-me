@@ -8,8 +8,7 @@ from sqlalchemy import create_engine, select, update, insert, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-# --- CRITICAL ASSUMED IMPORTS ---
-from db import Metrics, Message, MetricOrigin, metrics_tags_association
+from db import Metrics, Message, MetricOrigin, metrics_tags_association, Data
 from db.util import begin_session
 
 
@@ -83,11 +82,9 @@ def handler(event, context):
 
             print(f"Starting tagging process for Message ID: {message_id}")
 
-            metrics_query = select(Metrics).where(
-                (Metrics.message_id == message_id) &
-                (Metrics.tagged == False)
-            )
-            untagged_metrics = session.scalars(metrics_query).all()
+            query = select(Metrics).join(Data, Metrics.data_points).where(Data.message_id == message_id)
+
+            untagged_metrics =  session.scalars(query).all()
 
             if not untagged_metrics:
                 print(f"All metrics for ID {message_id} are already tagged. Skipping.")
