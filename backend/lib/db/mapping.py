@@ -10,7 +10,9 @@ from sqlalchemy import (
     Numeric,
     Table,
     Column,
-    Enum as SQLEnum
+    Enum as SQLEnum,
+    UniqueConstraint,
+    Index
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -19,8 +21,10 @@ from sqlalchemy.orm import (
     relationship
 )
 
+
 class Base(DeclarativeBase):
     pass
+
 
 metrics_tags_association = Table(
     "metrics_tags",
@@ -38,7 +42,6 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
-
 
     parent_user: Mapped["User"] = relationship(
         remote_side=[id],  # Specifies the local column to link to (the parent's ID)
@@ -68,13 +71,12 @@ class Message(Base):
     audio_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     image_described: Mapped[bool] = mapped_column(Boolean, default=False)
     audio_transcribed: Mapped[bool] = mapped_column(Boolean, default=False)
-    image_text:  Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     from_user: Mapped[bool] = mapped_column(Boolean, default=False)
     response_to_id: Mapped[int | None] = mapped_column(ForeignKey("message.id"), nullable=True)
     time: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-
 
     user: Mapped["User"] = relationship(back_populates="messages")
 
@@ -97,29 +99,30 @@ class Message(Base):
 
 class MetricOrigin(str, Enum):
     text = 'text'
-    audio = 'audio'
+    audio = 'audio_text'
     img_desc = 'img_desc'
     img_text = 'img_text'
 
 
 class Metrics(Base):
     __tablename__ = "metrics"
-
+    __table_args__ = (
+        UniqueConstraint('message_id', 'name', name='uq_message_metric'),
+        Index('idx_message_name', 'message_id', 'name'),
+    )
     # Columns
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    normalized_name: Mapped[str] = mapped_column(String(1000))
-    original_name: Mapped[str] = mapped_column(String(1000))
+    name: Mapped[str] = mapped_column(String(1000))
     value: Mapped[float] = mapped_column(Numeric)
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     message_id: Mapped[int | None] = mapped_column(ForeignKey("message.id"), nullable=True)
-    origin: Mapped[str] = mapped_column(String(100)) #text/text_from_audio, img desc, img text
     is_recurrent: Mapped[bool] = mapped_column(Boolean, default=False)
     recurrence_schedule: Mapped[str | None] = mapped_column(String(50), nullable=True)
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)
     origin: Mapped[MetricOrigin] = mapped_column(
         SQLEnum(MetricOrigin),
-        default=MetricOrigin.IMG_DESC,
+        default=MetricOrigin.text,
         nullable=False
     )
     message: Mapped["Message"] = relationship(back_populates="metrics")
@@ -133,4 +136,4 @@ class Metrics(Base):
     )
 
     def __repr__(self) -> str:
-        return f"Metrics(id={self.id!r}, name={self.normalized_name!r}, value={self.value!r})"
+        return f"Metrics(id={self.id!r}, name={self.name!r}, value={self.value!r})"

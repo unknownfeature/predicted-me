@@ -14,7 +14,7 @@ from modules.db_stack import PmDbStack
 from modules.vpc_stack import PmVpcStack
 from modules.constants import *
 
-from infra.modules.text_processing_stack import PmTextStack
+from modules.text_processing_stack import PmTextStack
 
 
 class PmImageProcessingStack(Stack):

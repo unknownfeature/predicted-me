@@ -67,8 +67,20 @@ class Text:
     text_processing_func_code_path = 'text_processing'
     text_processing_func_role_name = 'pm_text_processing_func_role'
     text_queue_name = 'pm_metrics_extraction_queue'
-    text_queue_visibility_timeout = Duration.minutes(5)
+    text_queue_visibility_timeout = Duration.minutes(2)
     text_processor_role = 'pm_text_processor_writer_role'
+
+class Tagging:
+    stack_name = 'PmTaggingStack'
+    tagging_topic_name = 'pm_tagging_topic'
+    tagging_queue_name = 'pm_tagging_queue'
+    tagging_queue_visibility_timeout = Duration.minutes(2)
+    tagging_role = 'pm_tagging_writer_role'
+    tagging_func_name = 'pm_tagging_func'
+    tagging_func_timeout = Duration.minutes(1)
+    tagging_func_memory_size = 2048
+    tagging_func_code_path = 'metrics_tagging'
+    tagging_func_role_name = 'pm_tagging_writer_role'
 
 class Async:
     stack_name = 'PmAsyncStack'

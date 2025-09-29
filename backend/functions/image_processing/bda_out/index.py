@@ -5,15 +5,13 @@ import traceback
 from urllib.parse import unquote_plus
 
 import boto3
-from lib.db.mapping import Metrics, Message, MetricOrigin
-from lib.db.util import begin_session
+from db.mapping import Metrics, Message, MetricOrigin
+from db.util import begin_session
 from sqlalchemy import select, update, insert
 
 s3_client = boto3.client('s3')
 sns_client = boto3.client('sns')
-
-
-SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
+sns_topic_arn = os.environ.get('SNS_TOPIC_ARN')
 
 #  maybe pass blueprint attributes via env too todo
 
@@ -96,7 +94,7 @@ def send_text_to_sns(image_description, message_id, origin):
         }
 
         sns_client.publish(
-            TopicArn=SNS_TOPIC_ARN,
+            TopicArn=sns_topic_arn,
             Message=json.dumps(sns_payload),
             Subject='Media Processing Complete for Categorization'
         )
