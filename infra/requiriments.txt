@@ -4,3 +4,7 @@ aws-cdk.aws-apigatewayv2-integrations-alpha
 aws-cdk.aws-lambda-python-alpha
 aws-cdk.aws_apigatewayv2_authorizers-alpha
 python-dotenv
+
+sqlalchemy
+mysql-connector-python
+pymysql

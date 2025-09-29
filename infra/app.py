@@ -3,6 +3,7 @@ import os
 import aws_cdk as cdk
 from dotenv import load_dotenv
 
+from modules.text_processing_stack import PmTextStack
 from modules.image_processing_stack import PmImageProcessingStack
 from modules.api_stack import PmApiStack
 from modules.async_stack import PmAsyncStack
@@ -24,6 +25,7 @@ cognito_stack = PmCognitoStack(app, env=env)
 async_stack = PmAsyncStack(app, env=env)
 functions_stack = PmFunctionsStack(app, env=env)
 api_stack = PmApiStack(app, cognito_stack, env=env)
-image_processing_stack = PmImageProcessingStack(app, vpc_stack, db_stack, env=env)
+text_processing_stack = PmTextStack(app, vpc_stack, db_stack, env=env)
+image_processing_stack = PmImageProcessingStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
 
 app.synth()

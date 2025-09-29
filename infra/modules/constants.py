@@ -56,8 +56,19 @@ class Image:
     func_bda_out_timeout = Duration.minutes(1)
     func_bda_out_memory_size = 2048
     func_bda_out_code_path = 'image_processing/bda_out'
-    func_bda_out_role_name = ' DbWriterRole'
+    func_bda_out_role_name = 'pm_bda_out_db_writer_role'
 
+class Text:
+    stack_name = 'PmTextStack'
+    text_topic_name = 'pm_text_processing_topic'
+    text_processing_func_name = 'pm_text_processing'
+    text_processing_func_timeout = Duration.minutes(1)
+    text_processing_func_memory_size = 1024
+    text_processing_func_code_path = 'text_processing'
+    text_processing_func_role_name = 'pm_text_processing_func_role'
+    text_queue_name = 'pm_metrics_extraction_queue'
+    text_queue_visibility_timeout = Duration.minutes(5)
+    text_processor_role = 'pm_text_processor_writer_role'
 
 class Async:
     stack_name = 'PmAsyncStack'

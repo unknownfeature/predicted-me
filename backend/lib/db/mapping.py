@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -8,7 +9,8 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     Table,
-    Column
+    Column,
+    Enum as SQLEnum
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -67,6 +69,7 @@ class Message(Base):
     image_described: Mapped[bool] = mapped_column(Boolean, default=False)
     audio_transcribed: Mapped[bool] = mapped_column(Boolean, default=False)
     image_text:  Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     from_user: Mapped[bool] = mapped_column(Boolean, default=False)
     response_to_id: Mapped[int | None] = mapped_column(ForeignKey("message.id"), nullable=True)
@@ -92,7 +95,13 @@ class Message(Base):
         return f"Message(id={self.id!r}, user_id={self.user_id!r}, time={self.time.isoformat()})"
 
 
-# todo add recurrent config
+class MetricOrigin(str, Enum):
+    text = 'text'
+    audio = 'audio'
+    img_desc = 'img_desc'
+    img_text = 'img_text'
+
+
 class Metrics(Base):
     __tablename__ = "metrics"
 
@@ -104,10 +113,15 @@ class Metrics(Base):
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     message_id: Mapped[int | None] = mapped_column(ForeignKey("message.id"), nullable=True)
+    origin: Mapped[str] = mapped_column(String(100)) #text/text_from_audio, img desc, img text
     is_recurrent: Mapped[bool] = mapped_column(Boolean, default=False)
     recurrence_schedule: Mapped[str | None] = mapped_column(String(50), nullable=True)
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)
-
+    origin: Mapped[MetricOrigin] = mapped_column(
+        SQLEnum(MetricOrigin),
+        default=MetricOrigin.IMG_DESC,
+        nullable=False
+    )
     message: Mapped["Message"] = relationship(back_populates="metrics")
 
     tags: Mapped[list[str]] = relationship(

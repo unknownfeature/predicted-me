@@ -14,49 +14,34 @@ from modules.db_stack import PmDbStack
 from modules.vpc_stack import PmVpcStack
 from modules.constants import *
 
+from infra.modules.text_processing_stack import PmTextStack
+
 
 class PmImageProcessingStack(Stack):
 
-    def __init__(self, scope: Construct,  vpc_stack: PmVpcStack, db_stack: PmDbStack,
+    def __init__(self, scope: Construct, vpc_stack: PmVpcStack, db_stack: PmDbStack, text_stack: PmTextStack,
                  **kwargs) -> None:
         super().__init__(scope, Image.stack_name, **kwargs)
 
         # pre setup blueprint for BDA
         blueprint_schema = {
             "class": "ImageDescription",
-            "description": "The user wants a concise, detailed, and objective summary of the image content for cataloging purposes.",
+            "description": "The user wants a concise, detailed, and objective summary of the image content for cataloging purposes. And relevant image text extraction where possible.",
             "inference_schema": {
                 "type": "object",
                 "properties": {
-                    "main_description": {
+                    "image_description": {
                         "type": "string",
                         "description": "A single, detailed paragraph describing the image's main subject, scene, colors, lighting, and any obvious actions.",
                         "inference_type": "GENERATIVE_FIELD"
                     },
-                    "detected_objects": {
-                        "type": "array",
-                        "description": "A list of the three most important objects or concepts visible in the image.",
-                        "items": {"type": "string"},
-                        "inference_type": "GENERATIVE_FIELD"
-                    },
-                    "detected_activities": {
-                        "type": "array",
-                        "description": "Identify and list all distinct human or animal activities (verbs) taking place in the image. If none, return an empty array.",
-                        "items": {"type": "string"},
-                        "inference_type": "GENERATIVE_FIELD"
-                    },
-                    "image_sentiment": {
-                        "type": "string",
-                        "description": "The overall mood or sentiment of the image (e.g., 'Calm', 'Busy', 'Dramatic', 'Neutral').",
-                        "inference_type": "GENERATIVE_FIELD"
-                    },
                     "image_text": {
                         "type": "string",
-                        "description": "Extract rellevant text from the image",
+                        "description": "Extract relevant text from the image",
                         "inference_type": "GENERATIVE_FIELD"
                     }
                 },
-                "required": ["main_description", "detected_objects", "detected_activities", "image_sentiment", "image_text"]
+                "required": ["image_description", "image_text"]
             }
         }
 
@@ -68,13 +53,13 @@ class PmImageProcessingStack(Stack):
         )
 
         # create buckets for images
-        image_bucket = s3.Bucket(
+        self.image_bucket = s3.Bucket(
             self, Image.images_bucket_name,
             removal_policy=RemovalPolicy.DESTROY, auto_delete_objects=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL
         )
         # and for BDA output
-        bda_output_bucket = s3.Bucket(
+        self.bda_output_bucket = s3.Bucket(
             self, Image.bda_output_bucket_name,
             removal_policy=RemovalPolicy.DESTROY, auto_delete_objects=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL
@@ -94,8 +79,8 @@ class PmImageProcessingStack(Stack):
             )
         )
 
-        image_bucket.grant_read(bda_role)
-        bda_output_bucket.grant_write(bda_role)
+        self.image_bucket.grant_read(bda_role)
+        self.bda_output_bucket.grant_write(bda_role)
 
         lambda_role = iam.Role(
             self, Image.func_bda_in_role_name,
@@ -113,19 +98,19 @@ class PmImageProcessingStack(Stack):
             )
         )
 
-        image_processing_function = lmbd.DockerImageFunction(self, Image.func_bda_in_name,
-                                                             timeout=Image.func_bda_in_timeout,
-                                                             code=lmbd.DockerImageCode.from_image_asset(
-                                                                 directory=os.path.join(functions_root,
-                                                                                        Image.func_bda_in_code_path),
-                                                                 file='Dockerfile'),
-                                                             memory_size=Image.func_bda_in_memory_size,
-                                                             environment={
-                                                                 'OUTPUT_BUCKET_NAME': bda_output_bucket.bucket_name,
-                                                                 'JOB_EXECUTION_ROLE_ARN': bda_role.role_arn,
-                                                                 'BLUEPRINT_NAME': image_blueprint.blueprint_name,
-                                                                 'BDA_MODEL_NAME': Image.bda_model_name
-                                                             })
+        self.image_processing_function = lmbd.DockerImageFunction(self, Image.func_bda_in_name,
+                                                                  timeout=Image.func_bda_in_timeout,
+                                                                  code=lmbd.DockerImageCode.from_image_asset(
+                                                                      directory=os.path.join(functions_root,
+                                                                                             Image.func_bda_in_code_path),
+                                                                      file='Dockerfile'),
+                                                                  memory_size=Image.func_bda_in_memory_size,
+                                                                  environment={
+                                                                      'OUTPUT_BUCKET_NAME': self.bda_output_bucket.bucket_name,
+                                                                      'JOB_EXECUTION_ROLE_ARN': bda_role.role_arn,
+                                                                      'BLUEPRINT_NAME': image_blueprint.blueprint_name,
+                                                                      'BDA_MODEL_NAME': Image.bda_model_name
+                                                                  })
 
         # setup role for BDA output processing lambda
 
@@ -137,9 +122,8 @@ class PmImageProcessingStack(Stack):
             ]
         )
 
-
         # grant readfrom output bucket
-        bda_output_bucket.grant_read(db_writer_role)
+        self.bda_output_bucket.grant_read(db_writer_role)
 
         # allow read DN secret
         db_stack.db_secret.grant_read(db_writer_role)
@@ -152,25 +136,27 @@ class PmImageProcessingStack(Stack):
             )
         )
 
-        bda_out_processing_function = lmbd.DockerImageFunction(self, Image.func_bda_out_name,
-                                                             timeout=Image.func_bda_out_timeout,
-                                                             code=lmbd.DockerImageCode.from_image_asset(
-                                                                 directory=os.path.join(functions_root,
-                                                                                        Image.func_bda_out_code_path),
-                                                                 file='Dockerfile'),
-                                                             memory_size=Image.func_bda_out_memory_size,
-                                                               vpc=vpc_stack.vpc,
-                                                               security_groups=[db_stack.db_sec_group],
-                                                             environment={
-                                                                 'DB_SECRET_ARN': db_stack.db_secret.secret_full_arn,
-                                                                 'DB_ENDPOINT': db_stack.db_instance.db_instance_endpoint_address,
-                                                                 'DB_NAME': db_stack.db_instance.instance_identifier,
-                                                             })
-
+        self.bda_out_processing_function = lmbd.DockerImageFunction(self, Image.func_bda_out_name,
+                                                                    timeout=Image.func_bda_out_timeout,
+                                                                    code=lmbd.DockerImageCode.from_image_asset(
+                                                                        directory=os.path.join(functions_root,
+                                                                                               Image.func_bda_out_code_path),
+                                                                        file='Dockerfile'),
+                                                                    memory_size=Image.func_bda_out_memory_size,
+                                                                    vpc=vpc_stack.vpc,
+                                                                    security_groups=[db_stack.db_sec_group],
+                                                                    environment={
+                                                                        'DB_SECRET_ARN': db_stack.db_secret.secret_full_arn,
+                                                                        'DB_ENDPOINT': db_stack.db_instance.db_instance_endpoint_address,
+                                                                        'DB_NAME': db_stack.db_instance.instance_identifier,
+                                                                        'SNS_TOPIC_ARN':  text_stack.text_processing_topic.topic_arn
+                                                                    })
 
         # and setup the trigger
-        bda_output_bucket.add_event_notification(
+        self.bda_output_bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
-            s3n.LambdaDestination(bda_out_processing_function),
+            s3n.LambdaDestination(self.bda_out_processing_function),
             s3.NotificationKeyFilter(suffix=".jsonl")
         )
+
+        text_stack.text_processing_topic.grant_publish(self.bda_out_processing_function)
