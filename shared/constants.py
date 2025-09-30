@@ -9,6 +9,22 @@ bastion_instance_key_name='BASTION_INSTANCE_KEY_NAME'
 regional_domain_name='REGIONAL_DOMAIN_NAME'
 regional_hosted_zone_id='REGIONAL_HOSTED_ZONE_ID'
 functions_root = '../backend/functions/'
+
+
+class Env:
+    'DB_SECRET_ARN'
+    'DB_ENDPOINT'
+    'DB_NAME'
+    'TEXT_EXTRACTION_MODEL'
+    'TAGGING_TOPIC_ARN'
+    'BDA_OUTPUT_BUCKET_NAME'
+    'BDA_JOB_EXECUTION_ROLE_ARN'
+    'BLUEPRINT_NAME'
+    'BDA_MODEL_NAME'
+    'TRANSCRIBE_BUCKET_IN'
+    'TRANSCRIBE_BUCKET_OUT'
+
+
 class Vpc:
     stack_name = 'PmVpcStack'
     cidr = '10.0.0.0/24'
@@ -50,12 +66,12 @@ class Image:
     func_bda_in_name = 'pm_image_processing_bda_in'
     func_bda_in_timeout = Duration.seconds(30)
     func_bda_in_memory_size = 1024
-    func_bda_in_code_path = 'image_processing/bda_in'
+    func_bda_in_code_path = 'image_processing/transcribe_in'
     func_bda_in_role_name = 'pm_image_processing_func_role'
     func_bda_out_name = 'pm_image_processing_bda_out'
     func_bda_out_timeout = Duration.minutes(1)
     func_bda_out_memory_size = 2048
-    func_bda_out_code_path = 'image_processing/bda_out'
+    func_bda_out_code_path = 'image_processing/transcribe_out'
     func_bda_out_role_name = 'pm_bda_out_db_writer_role'
 
 class Text:

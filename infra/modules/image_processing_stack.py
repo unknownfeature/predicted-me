@@ -12,10 +12,8 @@ from constructs import Construct
 
 from modules.db_stack import PmDbStack
 from modules.vpc_stack import PmVpcStack
-from modules.constants import *
-
+from shared.constants import *
 from modules.text_processing_stack import PmTextStack
-
 
 class PmImageProcessingStack(Stack):
 
@@ -53,7 +51,7 @@ class PmImageProcessingStack(Stack):
         )
 
         # create buckets for images
-        self.image_bucket = s3.Bucket(
+        self.bda_input_bucket = s3.Bucket(
             self, Image.images_bucket_name,
             removal_policy=RemovalPolicy.DESTROY, auto_delete_objects=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL
@@ -79,7 +77,7 @@ class PmImageProcessingStack(Stack):
             )
         )
 
-        self.image_bucket.grant_read(bda_role)
+        self.bda_input_bucket.grant_read(bda_role)
         self.bda_output_bucket.grant_write(bda_role)
 
         lambda_role = iam.Role(

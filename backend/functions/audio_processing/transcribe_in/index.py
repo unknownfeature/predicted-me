@@ -9,10 +9,10 @@ bda_client = boto3.client(
     region_name=os.environ.get('AWS_REGION', 'us-east-1')
 )
 
-output_bucket = os.environ['OUTPUT_BUCKET_NAME']
-job_execution_role = os.environ['JOB_EXECUTION_ROLE_ARN']
-blueprint_name = os.environ['BLUEPRINT_NAME']
-bda_model_name = os.environ['BDA_MODEL_NAME']
+OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET_NAME']
+JOB_EXECUTION_ROLE = os.environ['JOB_EXECUTION_ROLE_ARN']
+BLUEPRINT_NAME = os.environ['BLUEPRINT_NAME']
+BDA_MODEL_NAME = os.environ['BDA_MODEL_NAME']
 
 
 def handler(event, context):
@@ -22,19 +22,19 @@ def handler(event, context):
         input_key = record['s3']['object']['key']
 
         input_s3_uri = f"s3://{input_bucket}/{input_key}"
-        output_s3_uri = f"s3://{output_bucket}/{input_key}/"
+        output_s3_uri = f"s3://{OUTPUT_BUCKET}/{input_key}/"
 
         response = bda_client.start_data_automation_job(
             jobName=f"image-analysis-{context.aws_request_id}",
-            executionRoleArn=job_execution_role,
+            executionRoleArn=JOB_EXECUTION_ROLE,
             inputDataConfig={
                 's3Uri': input_s3_uri
             },
             outputDataConfig={
                 's3Uri': output_s3_uri
             },
-            blueprintName=blueprint_name,
-            modelIdentifier=bda_model_name
+            blueprintName=BLUEPRINT_NAME,
+            modelIdentifier=BDA_MODEL_NAME
         )
 
         print(f"BDA Job started successfully. Job ID: {response['jobId']}")

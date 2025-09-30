@@ -10,13 +10,11 @@ from aws_cdk import (
     aws_sns_subscriptions as subs)
 
 from constructs import Construct
-from modules.constants import *
+from shared.constants import *
 
 from modules.db_stack import PmDbStack
 from modules.vpc_stack import PmVpcStack
 
-
-# class FanoutConfig
 
 class PmTaggingStack(Stack):
 

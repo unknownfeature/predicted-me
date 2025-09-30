@@ -13,7 +13,7 @@ from modules.cognito_stack import PmCognitoStack
 from modules.db_stack import PmDbStack
 from modules.functions_stack import PmFunctionsStack
 from modules.vpc_stack import PmVpcStack
-from modules.constants import *
+from shared.constants import *
 
 load_dotenv()
 

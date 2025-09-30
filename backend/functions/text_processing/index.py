@@ -1,15 +1,13 @@
-import os
 import json
+import os
 import traceback
 from typing import List, Dict, Any
-from sqlalchemy import create_engine, insert, select, column, literal_column, bindparam
-from sqlalchemy.dialects.mysql import insert as mysql_insert
-from sqlalchemy.sql import expression as sql
 
+import boto3
 from db import Metrics, Message, MetricOrigin, Data
 from db.util import begin_session
-import boto3
-from sqlalchemy import func, text
+from sqlalchemy import func
+from sqlalchemy import insert, select, bindparam
 
 sns_client = boto3.client('sns')
 sns_topic_arn = os.environ.get('TAGGING_TOPIC_ARN')
