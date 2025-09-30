@@ -63,7 +63,6 @@ class User(Base):
 class Message(Base):
     __tablename__ = "message"
 
-    # Columns
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -74,26 +73,15 @@ class Message(Base):
     image_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    from_user: Mapped[bool] = mapped_column(Boolean, default=False)
-    response_to_id: Mapped[int | None] = mapped_column(ForeignKey("message.id"), nullable=True)
     time: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     user: Mapped["User"] = relationship(back_populates="messages")
 
-    original_message: Mapped["Message"] = relationship(
-        remote_side=[id],
-        back_populates="responses",
-        lazy="joined"
-    )
-
     data_points: Mapped[list["Data"]] = relationship(
+        lazy=True,
         back_populates="message",
         cascade="all, delete-orphan"
     )
-
-    responses: Mapped[list["Message"]] = relationship(back_populates="original_message")
-
-
 
     def __repr__(self) -> str:
         return f"Message(id={self.id!r}, user_id={self.user_id!r}, time={self.time.isoformat()})"
