@@ -1,18 +1,19 @@
 import os
 import json
-import re
 
 import boto3
 
+from shared.variables import Common, Env
+
 bda_client = boto3.client(
     service_name='bedrock-data-automation',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1')
+    region_name=os.getenv(Env.aws_region, Common.default_region)
 )
 
-OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET_NAME']
-JOB_EXECUTION_ROLE = os.environ['JOB_EXECUTION_ROLE_ARN']
-BLUEPRINT_NAME = os.environ['BLUEPRINT_NAME']
-BDA_MODEL_NAME = os.environ['BDA_MODEL_NAME']
+output_bucket = os.getenv(Env.bda_output_bucket_name)
+job_execution_role = os.getenv(Env.bda_job_execution_role_arn)
+blueprint_name = os.getenv(Env.bda_blueprint_name)
+bda_model_name = os.getenv(Env.bda_model_name)
 
 
 def handler(event, context):
@@ -22,19 +23,19 @@ def handler(event, context):
         input_key = record['s3']['object']['key']
 
         input_s3_uri = f"s3://{input_bucket}/{input_key}"
-        output_s3_uri = f"s3://{OUTPUT_BUCKET}/{input_key}/"
+        output_s3_uri = f"s3://{output_bucket}/{input_key}/"
 
         response = bda_client.start_data_automation_job(
             jobName=f"image-analysis-{context.aws_request_id}",
-            executionRoleArn=JOB_EXECUTION_ROLE,
+            executionRoleArn=job_execution_role,
             inputDataConfig={
                 's3Uri': input_s3_uri
             },
             outputDataConfig={
                 's3Uri': output_s3_uri
             },
-            blueprintName=BLUEPRINT_NAME,
-            modelIdentifier=BDA_MODEL_NAME
+            blueprintName=blueprint_name,
+            modelIdentifier=bda_model_name
         )
 
         print(f"BDA Job started successfully. Job ID: {response['jobId']}")

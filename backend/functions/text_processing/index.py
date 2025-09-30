@@ -1,20 +1,21 @@
-import os
 import json
+import os
 import traceback
 from typing import List, Dict, Any
-from sqlalchemy import create_engine, insert, select, column, literal_column, bindparam
-from sqlalchemy.dialects.mysql import insert as mysql_insert
-from sqlalchemy.sql import expression as sql
 
-from db import Metrics, Message, MetricOrigin, Data
-from db.util import begin_session
 import boto3
-from sqlalchemy import func, text
+
+from backend.lib.db import Metrics, Message, MetricOrigin, Data
+from backend.lib.db.util import begin_session
+from sqlalchemy import func
+from sqlalchemy import insert, select, bindparam
+
+from shared.variables import Env
 
 sns_client = boto3.client('sns')
-sns_topic_arn = os.environ.get('TAGGING_TOPIC_ARN')
+sns_topic_arn = os.getenv(Env.tagging_topic_arn)
 
-text_extraction_model = os.environ.get('TEXT_EXTRACTION_MODEL')
+text_extraction_model = os.getenv(Env.generative_model)
 
 metrics_schema = {
     "type": "array",
