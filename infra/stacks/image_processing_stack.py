@@ -6,10 +6,10 @@ from aws_cdk import (
     aws_s3_notifications as s3n,
     aws_bedrock as bedrock)
 from constructs import Construct
-from infra.modules.db_stack import PmDbStack
-from infra.modules.text_processing_stack import PmTextStack
-from infra.modules.util import docker_code_asset
-from infra.modules.vpc_stack import PmVpcStack
+from .db_stack import PmDbStack
+from .text_processing_stack import PmTextStack
+from .util import docker_code_asset
+from .vpc_stack import PmVpcStack
 
 from shared.variables import Env, Common, Image
 
@@ -106,7 +106,7 @@ class PmImageProcessingStack(Stack):
                                                                    environment={
                                                                        Env.bda_output_bucket_name: self.bda_output_bucket.bucket_name,
                                                                        Env.bda_job_execution_role_arn: bda_role.role_arn,
-                                                                       Env.bda_blueprint_name: image_blueprint.bda_blueprint_name,
+                                                                       Env.bda_blueprint_name: image_blueprint.blueprint_name,
                                                                        Env.bda_model_name: Image.bda_model_name
                                                                    })
 
@@ -140,7 +140,7 @@ class PmImageProcessingStack(Stack):
                                                                     code=docker_code_asset(
                                                                         build_args={
                                                                             Common.func_dir_arg: Image.func_bda_out_code_path,
-                                                                            Common.install_mysql_arg: True,
+                                                                            Common.install_mysql_arg: 'True',
                                                                         }
                                                                     ),
                                                                     memory_size=Image.func_bda_out_memory_size,

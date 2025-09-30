@@ -8,9 +8,9 @@ from aws_cdk import (
     aws_sns_subscriptions as subs)
 from constructs import Construct
 
-from infra.modules.db_stack import PmDbStack
-from infra.modules.util import docker_code_asset
-from infra.modules.vpc_stack import PmVpcStack
+from .db_stack import PmDbStack
+from .util import docker_code_asset
+from .vpc_stack import PmVpcStack
 from shared.variables import Env, Common, Tagging
 
 
@@ -63,7 +63,7 @@ class PmTaggingStack(Stack):
                                                          code=docker_code_asset(
                                                              build_args={
                                                                  Common.func_dir_arg: Tagging.tagging_func_code_path,
-                                                                 Common.install_mysql_arg: True,
+                                                                 Common.install_mysql_arg: 'True',
                                                              }
                                                          ),
                                                          memory_size=Tagging.tagging_func_memory_size,

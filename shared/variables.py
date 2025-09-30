@@ -44,11 +44,11 @@ class Common:
     lib_dir_arg = 'LIB_PATH'
     shared_path_arg = 'SHARED_PATH'
     func_dir_arg = 'FUNC_DIR'
+    backend_dir_arg = 'BACKEND_DIR'
     install_mysql_arg = 'INSTALL_MYSQL'
     lib_path = os.path.join(backend_dir, lib_dir)
     shared_path = os.path.join(backend_dir, shared_dir)
-    func_dir = os.path.join(backend_dir, functions_dir)
-    docker_path = os.path.join(backend_dir, docker_file_dir)
+    docker_path = docker_file_dir
 
     default_region = 'us-east-1'
     generative_model = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -95,13 +95,13 @@ class Audio:
     func_transcribe_in_name = 'pm_audio_processing_transcribe_in'
     func_transcribe_in_timeout = Duration.seconds(30)
     func_transcribe_in_memory_size = 1024
-    func_transcribe_in_code_path = os.path.join(Common.func_dir,
+    func_transcribe_in_code_path = os.path.join(Common.functions_dir,
                                                 'audio_processing/transcribe_in')
     func_transcribe_in_role_name = 'pm_audio_processing_func_role'
     func_transcribe_out_name = 'pm_audio_processing_transcribe_out'
     func_transcribe_out_timeout = Duration.minutes(1)
     func_transcribe_out_memory_size = 2048
-    func_transcribe_out_code_path = os.path.join(Common.func_dir,
+    func_transcribe_out_code_path = os.path.join(Common.functions_dir,
                                                  'audio_processing/transcribe_out')
     func_transcribe_out_role_name = 'pm_transcribe_out_function_role'
 
@@ -116,12 +116,12 @@ class Image:
     func_bda_in_name = 'pm_image_processing_bda_in'
     func_bda_in_timeout = Duration.seconds(30)
     func_bda_in_memory_size = 1024
-    func_bda_in_code_path = os.path.join(Common.func_dir, 'image_processing/bda_in')
+    func_bda_in_code_path = os.path.join(Common.functions_dir, 'image_processing/bda_in')
     func_bda_in_role_name = 'pm_bda_in_function'
     func_bda_out_name = 'pm_image_processing_bda_out'
     func_bda_out_timeout = Duration.minutes(1)
     func_bda_out_memory_size = 2048
-    func_bda_out_code_path = os.path.join(Common.func_dir, 'image_processing/bda_out')
+    func_bda_out_code_path = os.path.join(Common.functions_dir, 'image_processing/bda_out')
     func_bda_out_role_name = 'pm_bda_out_function'
 
 
@@ -131,7 +131,7 @@ class Text:
     text_processing_func_name = 'pm_text_processing'
     text_processing_func_timeout = Duration.minutes(1)
     text_processing_func_memory_size = 1024
-    text_processing_func_code_path = os.path.join(Common.func_dir, 'text_processing')
+    text_processing_func_code_path = os.path.join(Common.functions_dir, 'text_processing')
     text_processing_func_role_name = 'pm_text_processing_func_role'
     text_queue_name = 'pm_metrics_extraction_queue'
     text_queue_visibility_timeout = Duration.minutes(2)
@@ -148,7 +148,7 @@ class Tagging:
     tagging_func_name = 'pm_tagging_func'
     tagging_func_timeout = Duration.minutes(1)
     tagging_func_memory_size = 2048
-    tagging_func_code_path = os.path.join(Common.func_dir, 'metrics_tagging')
+    tagging_func_code_path = os.path.join(Common.functions_dir, 'metrics_tagging')
     tagging_func_role_name = 'pm_tagging_writer_role'
     tagging_model_name = Common.generative_model
 

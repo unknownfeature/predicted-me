@@ -2,18 +2,19 @@ import os
 
 import aws_cdk as cdk
 
-
-from modules.tagging_stack import PmTaggingStack
-from modules.text_processing_stack import PmTextStack
-from modules.image_processing_stack import PmImageProcessingStack
-from modules.api_stack import PmApiStack
-from modules.bastion_stack import PmBastionStack
-from modules.cognito_stack import PmCognitoStack
-from modules.db_stack import PmDbStack
-from modules.vpc_stack import PmVpcStack
+from stacks.tagging_stack import PmTaggingStack
+from stacks.text_processing_stack import PmTextStack
+from stacks.image_processing_stack import PmImageProcessingStack
+from stacks.api_stack import PmApiStack
+from stacks.bastion_stack import PmBastionStack
+from stacks.cognito_stack import PmCognitoStack
+from stacks.db_stack import PmDbStack
+from stacks.vpc_stack import PmVpcStack
 from shared.variables import Env
 
 
+# export PYTHONPATH=$PYTHONPATH:./infra=/modules:./shared:./backend
+#  cdk synth --app  "python infra/app.py"
 
 app = cdk.App()
 env = cdk.Environment(account=os.getenv(Env.aws_account), region=os.getenv(Env.aws_region))
@@ -28,3 +29,4 @@ text_processing_stack = PmTextStack(app, vpc_stack, db_stack, tagging_stack, env
 image_processing_stack = PmImageProcessingStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
 
 app.synth()
+

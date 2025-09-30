@@ -4,8 +4,8 @@ from aws_cdk import (
     Stack,
     aws_ec2 as ec2)
 from constructs import Construct
-from modules.vpc_stack import PmVpcStack
-from modules.constants import *
+from .vpc_stack import PmVpcStack
+from shared.variables import Env, Bastion
 
 
 class PmBastionStack(Stack):
@@ -24,5 +24,5 @@ class PmBastionStack(Stack):
                          subnet_type=ec2.SubnetType.PUBLIC
                      ),
                      security_group=sec_group,
-                     key_name=os.getenv(Bastion.bastion_instance_key_name)
+                     key_name=os.getenv(Bastion.instance_key_name)
                      )

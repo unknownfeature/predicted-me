@@ -7,8 +7,8 @@ from aws_cdk import (
     aws_ec2 as ec2)
 from constructs import Construct
 
-from modules.constants import *
-from modules.vpc_stack import PmVpcStack
+from shared.variables import Env, Vpc, Db
+from .vpc_stack import PmVpcStack
 
 
 class PmDbStack(Stack):
@@ -21,7 +21,7 @@ class PmDbStack(Stack):
         self.db_sec_group.add_ingress_rule(ec2.Peer.ipv4(Vpc.cidr), ec2.Port.tcp(Db.port))
 
         self.db_secret = rds.DatabaseSecret(self, Db.secret,
-                                            username=os.getenv(db_user)
+                                            username=os.getenv(Env.db_user)
                                             )
         self.db_creds = rds.Credentials.from_secret(self.db_secret)
 
@@ -41,7 +41,7 @@ class PmDbStack(Stack):
                                                                                   ec2.InstanceSize.XLARGE),
                                                 vpc=vpc_stack.vpc,
                                                 security_groups=[self.db_sec_group],
-                                                database_name=os.getenv(db_name),
+                                                database_name=os.getenv(Env.db_name),
                                                 credentials=self.db_creds,
                                                 subnet_group=self.db_subnet_group,
 

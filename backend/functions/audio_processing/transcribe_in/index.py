@@ -1,46 +1,43 @@
+import logging
 import os
-import json
-import re
+from typing import Dict, Any
+from urllib.parse import unquote_plus
 
 import boto3
 
-bda_client = boto3.client(
-    service_name='bedrock-data-automation',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1')
-)
+from shared.variables import Env
 
-OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET_NAME']
-JOB_EXECUTION_ROLE = os.environ['JOB_EXECUTION_ROLE_ARN']
-BLUEPRINT_NAME = os.environ['BLUEPRINT_NAME']
-BDA_MODEL_NAME = os.environ['BDA_MODEL_NAME']
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+s3_client = boto3.client('s3')
+transcribe_client = boto3.client('transcribe')
+
+input_bucket_name = os.environ.get(Env.transcribe_bucket_in)
+output_bucket_name = os.environ.get(Env.transcribe_bucket_out)
 
 
-def handler(event, context):
+
+def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
+
     try:
         record = event['Records'][0]
-        input_bucket = record['s3']['bucket']['name']
-        input_key = record['s3']['object']['key']
+        input_key = unquote_plus(record['s3']['object']['key'])
 
-        input_s3_uri = f"s3://{input_bucket}/{input_key}"
-        output_s3_uri = f"s3://{OUTPUT_BUCKET}/{input_key}/"
 
-        response = bda_client.start_data_automation_job(
-            jobName=f"image-analysis-{context.aws_request_id}",
-            executionRoleArn=JOB_EXECUTION_ROLE,
-            inputDataConfig={
-                's3Uri': input_s3_uri
-            },
-            outputDataConfig={
-                's3Uri': output_s3_uri
-            },
-            blueprintName=BLUEPRINT_NAME,
-            modelIdentifier=BDA_MODEL_NAME
+        file_uri = f"s3://{input_bucket_name}/{input_key}"
+        media_format = input_key.split('.')[-1].upper()
+
+        transcribe_client.start_transcription_job(
+            TranscriptionJobName=input_key,
+            LanguageCode='en-US', # todo add ability to select language (in distant future)
+            Media={'MediaFileUri': file_uri, 'MediaFormat': media_format},
+            OutputBucketName=output_bucket_name,
+            OutputKey= f'{input_key}.json'
         )
 
-        print(f"BDA Job started successfully. Job ID: {response['jobId']}")
-
-        return {'statusCode': 200, 'body': json.dumps({'jobId': response['jobId']})}
+        return {'statusCode': 200, 'job_name': input_key, 'file_key': input_key}
 
     except Exception as e:
-        print(f"Error during BDA job orchestration: {e}")
-        return {'statusCode': 500, 'body': f'Error starting BDA job: {e}'}
+        logger.error(f"Error starting Transcribe job for {input_key}: {e}")
+        raise

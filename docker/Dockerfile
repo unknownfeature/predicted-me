@@ -1,6 +1,6 @@
 FROM public.ecr.aws/lambda/python:3.12
 ARG BACKEND_DIR
-ARG SHARED_DIR
+ARG SHARED_PATH
 ARG FUNC_DIR
 ARG LIB_DIR
 ARG LIB_PATH=${BACKEND_DIR}/${LIB_DIR}
@@ -11,6 +11,7 @@ ARG REQS=requirements.txt
 COPY $FUNC_DIR/index.py ${LAMBDA_TASK_ROOT}
 
 RUN mkdir -p ${LAMBDA_TASK_ROOT}/backend/${LIB_DIR}
+RUN touch ${LAMBDA_TASK_ROOT}/backend/__init__.py
 COPY ${LIB_PATH} ${LAMBDA_TASK_ROOT}/backend/${LIB_DIR}
 
 RUN mkdir ${LAMBDA_TASK_ROOT}/shared

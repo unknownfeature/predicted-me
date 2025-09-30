@@ -4,7 +4,7 @@ from aws_cdk import (
     aws_cognito as cognito)
 from constructs import Construct
 
-from modules.constants import *
+from shared.variables import Env, Cognito
 
 
 class PmCognitoStack(Stack):

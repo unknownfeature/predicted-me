@@ -10,10 +10,10 @@ from aws_cdk import (
     aws_sns_subscriptions as subs)
 from constructs import Construct
 from shared.variables import Env, Common, Text
-from infra.modules.db_stack import PmDbStack
-from infra.modules.vpc_stack import PmVpcStack
-from infra.modules.tagging_stack import PmTaggingStack
-from infra.modules.util import docker_code_asset
+from .db_stack import PmDbStack
+from .vpc_stack import PmVpcStack
+from .tagging_stack import PmTaggingStack
+from .util import docker_code_asset
 
 class PmTextStack(Stack):
 
@@ -67,7 +67,7 @@ class PmTextStack(Stack):
                                                                     code=docker_code_asset(
                                                                         build_args={
                                                                             Common.func_dir_arg: Text.text_processing_func_code_path,
-                                                                            Common.install_mysql_arg: True,
+                                                                            Common.install_mysql_arg: 'True',
                                                                         }
                                                                     ),
                                                              memory_size=Text.text_processing_func_memory_size,
