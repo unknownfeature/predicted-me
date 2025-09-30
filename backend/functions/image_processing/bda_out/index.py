@@ -5,8 +5,8 @@ import traceback
 from urllib.parse import unquote_plus
 
 import boto3
-from backend.lib.db.mapping import Message, MetricOrigin
-from backend.lib.db.util import begin_session
+from backend.lib.db.mapping import Note, MetricOrigin
+from backend.lib.db import Note, MetricOrigin, begin_session
 from sqlalchemy import select, update, insert
 
 from shared.variables import Env
@@ -52,26 +52,26 @@ def handler(event, context):
     image_text = desc_data.get('image_text')
     try:
 
-        message_query = select(Message).where(Message.image_key == image_key_uuid_str)
-        target_message = session.scalar(message_query)
-        message_id = target_message.id
+        note_query = select(Note).where(Note.image_key == image_key_uuid_str)
+        target_note = session.scalar(note_query)
+        note_id = target_note.id
 
-        update_message_stmt = (
-            update(Message.__table__)
-            .where(Message.__table__.c.id == message_id)
+        update_note_stmt = (
+            update(Note.__table__)
+            .where(Note.__table__.c.id == note_id)
             .values(
                 image_description=image_description,
                 image_text=image_text,
                 image_described=True
             )
         )
-        session.execute(update_message_stmt)
-        print(f"Updated Message ID {image_key_uuid_str} with main description.")
+        session.execute(update_note_stmt)
+        print(f"Updated Note ID {image_key_uuid_str} with main description.")
 
         session.commit()
 
-        send_text_to_sns(image_description, message_id, MetricOrigin.img_desc.value)
-        send_text_to_sns(image_text, message_id, MetricOrigin.img_text.value)
+        send_text_to_sns(image_description, note_id, MetricOrigin.img_desc.value)
+        send_text_to_sns(image_text, note_id, MetricOrigin.img_text.value)
 
 
     except Exception as e:
@@ -85,23 +85,23 @@ def handler(event, context):
         session.close()
 
     return {'statusCode': 200,
-            'body': f"Processed output and potentially triggered tagging for Message ID {message_id}."}
+            'body': f"Processed output and potentially triggered tagging for Note ID {note_id}."}
 
 
-def send_text_to_sns(image_description, message_id, origin):
+def send_text_to_sns(image_description, note_id, origin):
     if image_description:
         sns_payload = {
-            'message_id': message_id,
+            'note_id': note_id,
             'origin': origin
         }
 
         sns_client.publish(
             TopicArn=sns_topic_arn,
-            Message=json.dumps(sns_payload),
-            Subject='Text ready for metrics extraction for Message ID {message_id} and origin {origin}.'
+            Note=json.dumps(sns_payload),
+            Subject='Text ready for metrics extraction for Note ID {note_id} and origin {origin}.'
         )
 
-        print(f"Sent SNS message for final categorization of Message ID {message_id}.")
+        print(f"Sent SNS note for final categorization of Note ID {note_id}.")
 
 
 def extract_uuid_from_key(object_key: str) -> str:

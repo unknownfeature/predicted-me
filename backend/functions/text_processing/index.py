@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 
 import boto3
 
-from backend.lib.db import Metrics, Message, MetricOrigin, Data
+from backend.lib.db import Metrics, Note, MetricOrigin, Data
 from backend.lib.db.util import begin_session
 from sqlalchemy import func
 from sqlalchemy import insert, select, bindparam
@@ -49,47 +49,48 @@ text_getters = {
 
 def process_record(session, record):
     sns_notification = json.loads(record['body'])
-    payload = json.loads(sns_notification['Message'])
-    message_id = payload.get('message_id')
+    payload = json.loads(sns_notification['Note'])
+    note_id = payload.get('note_id')
     origin = payload.get('origin')
 
-    if not message_id:
-        print("Skipping record: message_id not found in payload.")
+    if not note_id:
+        print("Skipping record: note_id not found in payload.")
         return
 
-    message_query = select(Message).where(Message.id == message_id)
-    target_message = session.scalar(message_query)
+    note_query = select(Note).where(Note.id == note_id)
+    target_note = session.scalar(note_query)
 
-    if not target_message:
+    if not target_note:
         return
 
-    text_content = text_getters[origin](target_message)
+    text_content = text_getters[origin](target_note)
 
     if not text_content:
-        print(f"Skipping Message ID {message_id}: No text or audio transcription to analyze.")
+        print(f"Skipping Note ID {note_id}: No text or audio transcription to analyze.")
         return
 
     extracted_metrics = call_bedrock_for_metrics(text_content)
 
     if not extracted_metrics:
-        print(f"No numeric metrics extracted by Bedrock for Message ID {message_id}.")
+        print(f"No numeric metrics extracted by Bedrock for Note ID {note_id}.")
         return
 
-    metrics_to_insert = [{
-        'message_id': message_id,
+    data_and_metrics = [{
+        'note_id': note_id,
         'name': metric.get('name'),
         'value': metric.get('value'),
         'units': metric.get('units'),
+        'time': target_note.time,
         'tagged': False,
         'origin': origin
     } for metric in extracted_metrics if 'name' in metric]
 
-    if not metrics_to_insert:
+    if not data_and_metrics:
         return
 
     upsert_stmt = (
         insert(Metrics.__table__)
-        .values(metrics_to_insert)
+        .values(data_and_metrics)
 
         .on_duplicate_key_update(
         id=Metrics.__table__.c.id
@@ -98,10 +99,11 @@ def process_record(session, record):
     session.execute(upsert_stmt)
     select_columns = [
         Metrics.__table__.c.id,
-        bindparam('message_id', value=message_id),
+        bindparam('note_id', value=note_id),
         bindparam('value'),
         bindparam('units'),
-        bindparam('origin')
+        bindparam('origin'),
+        bindparam('time')
     ]
 
     case_insensitive_join = func.lower(Metrics.__table__.c.name) == func.lower(bindparam('name'))
@@ -115,17 +117,17 @@ def process_record(session, record):
     insert_data_stmt = (
         insert(Data.__table__)
         .from_select(
-            ['metrics_id', 'message_id', 'value', 'units', 'origin'],
+            ['metrics_id', 'note_id', 'value', 'units', 'origin'],
             subquery_select
         )
     )
 
-    session.execute(insert_data_stmt, metrics_to_insert)
+    session.execute(insert_data_stmt, data_and_metrics)
 
     sns_client.publish(
         TopicArn=sns_topic_arn,
-        Message=json.dumps({
-            'message_id': message_id,
+        Note=json.dumps({
+            'note_id': note_id,
         }),
         Subject='Media Processing Complete for Categorization'
     )
@@ -140,7 +142,7 @@ def call_bedrock_for_metrics(text_content: str) -> List[Dict[str, Any]]:
             body=json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": 1024,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt + (
+                "notes": [{"role": "user", "content": [{"type": "text", "text": prompt + (
                     f"TEXT FOR ANALYSIS: {text_content}"
                 )}]}],
             })
@@ -173,4 +175,4 @@ def handler(event, context):
     finally:
         session.close()
 
-    return {'statusCode': 200, 'body': f"Successfully processed {len(event['Records'])} SQS messages."}
+    return {'statusCode': 200, 'body': f"Successfully processed {len(event['Records'])} SQS notes."}

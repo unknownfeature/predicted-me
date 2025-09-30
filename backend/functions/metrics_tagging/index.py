@@ -8,15 +8,13 @@ from sqlalchemy import create_engine, select, update, insert, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-from backend.lib.db import Metrics, Message, MetricOrigin, metrics_tags_association, Data
-from backend.lib.db.util import begin_session
-
+from backend.lib.db import Metrics, Note, MetricOrigin, metrics_tags_association, Data, begin_session
+from shared.variables import Env
 
 sns_client = boto3.client('sns')
 bedrock_runtime = boto3.client('bedrock-runtime')
 
-SNS_TOPIC_ARN = os.environ.get('TAGGING_TOPIC_ARN')
-text_extraction_model = os.environ.get('TEXT_EXTRACTION_MODEL')
+text_extraction_model = os.getenv(Env.generative_model)
 
 tagging_prompt = """
 You are an expert taxonomy and categorization engine. Analyze the provided metrics data (name, value, units, origin) 
@@ -47,7 +45,7 @@ def call_bedrock_for_tags(untagged_metrics) -> List[Dict[str, Any]]:
             body=json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": 1024,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+                "notes": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
             })
         )
 
@@ -73,21 +71,21 @@ def handler(event, context):
 
         for record in event['Records']:
             sns_notification = json.loads(record['body'])
-            payload = json.loads(sns_notification['Message'])
-            message_id = payload.get('message_id')
+            payload = json.loads(sns_notification['Note'])
+            note_id = payload.get('note_id')
 
-            if not message_id:
-                print("Skipping record: message_id not found in payload.")
+            if not note_id:
+                print("Skipping record: note_id not found in payload.")
                 continue
 
-            print(f"Starting tagging process for Message ID: {message_id}")
+            print(f"Starting tagging process for Note ID: {note_id}")
 
-            query = select(Metrics).join(Data, Metrics.data_points).where(Data.message_id == message_id)
+            query = select(Metrics).join(Data, Metrics.data_points).where(Data.note_id == note_id)
 
             untagged_metrics =  session.scalars(query).all()
 
             if not untagged_metrics:
-                print(f"All metrics for ID {message_id} are already tagged. Skipping.")
+                print(f"All metrics for ID {note_id} are already tagged. Skipping.")
                 continue
 
             llm_tag_results = call_bedrock_for_tags(untagged_metrics)
@@ -127,7 +125,7 @@ def handler(event, context):
         if session:
             session.close()
 
-    return {'statusCode': 200, 'body': f"Successfully processed {len(event['Records'])} SQS messages."}
+    return {'statusCode': 200, 'body': f"Successfully processed {len(event['Records'])} SQS notes."}
 
 
 def get_tags_and_metrics_for_update(llm_tag_results):

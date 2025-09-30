@@ -1,6 +1,9 @@
+import json
+import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+import boto3
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -12,14 +15,19 @@ from sqlalchemy import (
     Column,
     Enum as SQLEnum,
     UniqueConstraint,
-    Index
+    Index,
+    create_engine
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
-    relationship
+    relationship,
+    sessionmaker
 )
+
+from shared.variables import Env
+from .util import get_utc_timestamp_int
 
 
 class Base(DeclarativeBase):
@@ -51,7 +59,7 @@ class User(Base):
 
     child_users: Mapped[list["User"]] = relationship(back_populates="parent_user")
 
-    messages: Mapped[list["Message"]] = relationship(
+    notes: Mapped[list["Note"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan"
     )
@@ -60,9 +68,15 @@ class User(Base):
         return f"User(id={self.id!r}, name={self.name!r})"
 
 
-class Message(Base):
-    __tablename__ = "message"
+class Note(Base):
+    __tablename__ = "note"
 
+    Index(
+        'ft_note_content',
+        'text', 'image_text', 'image_description', 'audio_text',
+        mysql_prefix='FULLTEXT',
+        mysql_default_charset='utf8mb4'
+    ),
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -73,26 +87,25 @@ class Message(Base):
     image_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    time: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp_int)
 
-    user: Mapped["User"] = relationship(back_populates="messages")
+    user: Mapped["User"] = relationship(back_populates="notes")
 
     data_points: Mapped[list["Data"]] = relationship(
         lazy=True,
-        back_populates="message",
+        back_populates="note",
         cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
-        return f"Message(id={self.id!r}, user_id={self.user_id!r}, time={self.time.isoformat()})"
+        return f"Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time.isoformat()})"
 
 
 class MetricOrigin(str, Enum):
     text = 'text'
-    audio = 'audio_text'
+    audio_text = 'audio_text'
     img_desc = 'img_desc'
     img_text = 'img_text'
-
 
 
 class Metrics(Base):
@@ -127,12 +140,14 @@ class Data(Base):
     __tablename__ = "data"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    # Foreign Keys remain
     metrics_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"))
-    message_id: Mapped[int | None] = mapped_column(ForeignKey("message.id"), nullable=True)
+    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
 
     value: Mapped[float] = mapped_column(Numeric)
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    #  default inherited from the note
+    time: Mapped[int] = mapped_column(BigInteger)
 
     origin: Mapped[MetricOrigin] = mapped_column(
         SQLEnum(MetricOrigin),
@@ -141,7 +156,7 @@ class Data(Base):
 
     metric_type: Mapped["Metrics"] = relationship(back_populates="data_points")
 
-    message: Mapped["Message"] = relationship(back_populates="data_points")
+    note: Mapped["Note"] = relationship(back_populates="data_points")
 
     def __repr__(self) -> str:
         return (f"Data(id={self.id!r}, metric_id={self.metrics_id!r}, "
@@ -166,3 +181,26 @@ class DataSchedule(Base):
     def __repr__(self) -> str:
         return (f"DataSchedule(metric_id={self.metrics_id!r}, "
                 f"schedule={self.recurrence_schedule!r}, target={self.target_value!r})")
+
+
+secret_arn = os.getenv(Env.db_secret_arn)
+db_endpoint = os.getenv(Env.db_endpoint)
+db_name = os.getenv(Env.db_name)
+db_port = 3306
+
+secrets_client = boto3.client('secretsmanager')
+
+
+def begin_session():
+    secret_response = secrets_client.get_secret_value(SecretId=secret_arn)
+    secret_dict = json.loads(secret_response['SecretString'])
+
+    username = secret_dict['username']
+    password = secret_dict['password']
+    connection_string = (
+        f'mysql+mysqlconnector://{username}:{password}@{db_endpoint}:{db_port}/{db_name}'
+    )
+
+    engine = create_engine(connection_string, pool_recycle=300)
+
+    return sessionmaker(bind=engine)()
