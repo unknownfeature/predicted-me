@@ -1,6 +1,7 @@
 import json
 import os
 import traceback
+import uuid
 from typing import List, Dict, Any
 
 import boto3
@@ -135,6 +136,7 @@ def process_record(session, record):
 
 def call_bedrock_for_metrics(text_content: str) -> List[Dict[str, Any]]:
     try:
+        id = uuid.uuid4().hex
         response = bedrock_runtime.invoke_model(
             modelId=text_extraction_model,
             contentType="application/json",
@@ -143,7 +145,7 @@ def call_bedrock_for_metrics(text_content: str) -> List[Dict[str, Any]]:
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": 1024,
                 "notes": [{"role": "user", "content": [{"type": "text", "text": prompt + (
-                    f"TEXT FOR ANALYSIS: {text_content}"
+                    f"TEXT FOR ANALYSIS:    ---START_USER_INPUT {id} ---  {text_content} ---END_USER_INPUT  {id} ---"
                 )}]}],
             })
         )
