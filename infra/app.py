@@ -1,30 +1,27 @@
 import os
 
 import aws_cdk as cdk
-from dotenv import load_dotenv
+
 
 from modules.tagging_stack import PmTaggingStack
 from modules.text_processing_stack import PmTextStack
 from modules.image_processing_stack import PmImageProcessingStack
 from modules.api_stack import PmApiStack
-from modules.async_stack import PmAsyncStack
 from modules.bastion_stack import PmBastionStack
 from modules.cognito_stack import PmCognitoStack
 from modules.db_stack import PmDbStack
-from modules.functions_stack import PmFunctionsStack
 from modules.vpc_stack import PmVpcStack
-from shared.constants import *
+from shared.variables import Env
 
-load_dotenv()
+
 
 app = cdk.App()
-env = cdk.Environment(account=os.getenv(aws_account), region=os.getenv(aws_region))
+env = cdk.Environment(account=os.getenv(Env.aws_account), region=os.getenv(Env.aws_region))
+
 vpc_stack = PmVpcStack(app, env=env)
 db_stack = PmDbStack(app, vpc_stack, env=env)
 bastion_stack = PmBastionStack(app, vpc_stack, env=env)
 cognito_stack = PmCognitoStack(app, env=env)
-async_stack = PmAsyncStack(app, env=env)
-functions_stack = PmFunctionsStack(app, env=env)
 api_stack = PmApiStack(app, cognito_stack, env=env)
 tagging_stack = PmTaggingStack(app, db_stack, vpc_stack, env=env)
 text_processing_stack = PmTextStack(app, vpc_stack, db_stack, tagging_stack, env=env)

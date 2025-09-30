@@ -24,5 +24,5 @@ class PmBastionStack(Stack):
                          subnet_type=ec2.SubnetType.PUBLIC
                      ),
                      security_group=sec_group,
-                     key_name=os.getenv(bastion_instance_key_name)
+                     key_name=os.getenv(Bastion.bastion_instance_key_name)
                      )

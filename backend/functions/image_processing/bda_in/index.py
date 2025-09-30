@@ -1,18 +1,19 @@
 import os
 import json
-import re
 
 import boto3
 
+from shared.variables import Common, Env
+
 bda_client = boto3.client(
     service_name='bedrock-data-automation',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1')
+    region_name=os.getenv(Env.aws_region, Common.default_region)
 )
 
-output_bucket = os.environ['OUTPUT_BUCKET_NAME']
-job_execution_role = os.environ['JOB_EXECUTION_ROLE_ARN']
-blueprint_name = os.environ['BLUEPRINT_NAME']
-bda_model_name = os.environ['BDA_MODEL_NAME']
+output_bucket = os.getenv(Env.bda_output_bucket_name)
+job_execution_role = os.getenv(Env.bda_job_execution_role_arn)
+blueprint_name = os.getenv(Env.bda_blueprint_name)
+bda_model_name = os.getenv(Env.bda_model_name)
 
 
 def handler(event, context):

@@ -8,8 +8,8 @@ from sqlalchemy import create_engine, select, update, insert, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-from db import Metrics, Message, MetricOrigin, metrics_tags_association, Data
-from db.util import begin_session
+from backend.lib.db import Metrics, Message, MetricOrigin, metrics_tags_association, Data
+from backend.lib.db.util import begin_session
 
 
 sns_client = boto3.client('sns')

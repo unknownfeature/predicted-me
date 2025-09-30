@@ -4,15 +4,18 @@ import traceback
 from typing import List, Dict, Any
 
 import boto3
-from db import Metrics, Message, MetricOrigin, Data
-from db.util import begin_session
+
+from backend.lib.db import Metrics, Message, MetricOrigin, Data
+from backend.lib.db.util import begin_session
 from sqlalchemy import func
 from sqlalchemy import insert, select, bindparam
 
-sns_client = boto3.client('sns')
-sns_topic_arn = os.environ.get('TAGGING_TOPIC_ARN')
+from shared.variables import Env
 
-text_extraction_model = os.environ.get('TEXT_EXTRACTION_MODEL')
+sns_client = boto3.client('sns')
+sns_topic_arn = os.getenv(Env.tagging_topic_arn)
+
+text_extraction_model = os.getenv(Env.generative_model)
 
 metrics_schema = {
     "type": "array",

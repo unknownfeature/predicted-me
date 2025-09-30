@@ -9,11 +9,11 @@ from aws_cdk import (
     aws_lambda_event_sources as lmes,
     aws_sns_subscriptions as subs)
 from constructs import Construct
-from modules.constants import *
-from modules.db_stack import PmDbStack
-from modules.vpc_stack import PmVpcStack
-from modules.tagging_stack import PmTaggingStack
-
+from shared.variables import Env, Common, Text
+from infra.modules.db_stack import PmDbStack
+from infra.modules.vpc_stack import PmVpcStack
+from infra.modules.tagging_stack import PmTaggingStack
+from infra.modules.util import docker_code_asset
 
 class PmTextStack(Stack):
 
@@ -64,22 +64,25 @@ class PmTextStack(Stack):
 
         self.text_processing_function = lmbd.DockerImageFunction(self, Text.text_processing_func_name,
                                                              timeout=Text.text_processing_func_timeout,
-                                                             code=lmbd.DockerImageCode.from_image_asset(
-                                                                 directory=os.path.join(functions_root,
-                                                                                        Text.text_processing_func_code_path),
-                                                                 file='Dockerfile'
-                                                             ),
+                                                                    code=docker_code_asset(
+                                                                        build_args={
+                                                                            Common.func_dir_arg: Text.text_processing_func_code_path,
+                                                                            Common.install_mysql_arg: True,
+                                                                        }
+                                                                    ),
                                                              memory_size=Text.text_processing_func_memory_size,
                                                              vpc=vpc_stack.vpc,
                                                                  role=text_processor_role,
                                                                  security_groups=[db_stack.db_sec_group],
-                                                             environment={
-                                                                 'DB_SECRET_ARN': db_stack.db_secret.secret_full_arn,
-                                                                 'DB_ENDPOINT': db_stack.db_instance.db_instance_endpoint_address,
-                                                                 'DB_NAME': db_stack.db_instance.instance_identifier,
-                                                                 'TEXT_EXTRACTION_MODEL': "anthropic.claude-3-sonnet-20240229-v1:0",
-                                                                 'TAGGING_TOPIC_ARN': tagging_stack.tagging_topic.topic_arn
-                                                             }
+
+                                                                 environment={
+                                                                     Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
+                                                                     Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                                                                     Env.db_name: db_stack.db_instance.instance_identifier,
+                                                                     Env.generative_model: Text.text_processing_model,
+                                                                     Env.tagging_topic_arn: tagging_stack.tagging_topic.topic_arn,
+
+                                                                 }
                                                              )
 
 

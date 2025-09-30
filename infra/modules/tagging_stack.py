@@ -1,5 +1,3 @@
-import os
-
 from aws_cdk import (
     Stack,
     aws_sns as sns,
@@ -8,12 +6,12 @@ from aws_cdk import (
     aws_iam as iam,
     aws_lambda_event_sources as lmes,
     aws_sns_subscriptions as subs)
-
 from constructs import Construct
-from shared.constants import *
 
-from modules.db_stack import PmDbStack
-from modules.vpc_stack import PmVpcStack
+from infra.modules.db_stack import PmDbStack
+from infra.modules.util import docker_code_asset
+from infra.modules.vpc_stack import PmVpcStack
+from shared.variables import Env, Common, Tagging
 
 
 class PmTaggingStack(Stack):
@@ -42,7 +40,6 @@ class PmTaggingStack(Stack):
             ]
         )
 
-
         db_stack.db_secret.grant_read(tagging_role)
 
         tagging_role.add_to_policy(
@@ -63,20 +60,21 @@ class PmTaggingStack(Stack):
 
         self.tagging_function = lmbd.DockerImageFunction(self, Tagging.tagging_func_name,
                                                          timeout=Tagging.tagging_func_timeout,
-                                                         code=lmbd.DockerImageCode.from_image_asset(
-                                                             directory=os.path.join(functions_root,
-                                                                                    Tagging.tagging_func_code_path),
-                                                             file='Dockerfile'
+                                                         code=docker_code_asset(
+                                                             build_args={
+                                                                 Common.func_dir_arg: Tagging.tagging_func_code_path,
+                                                                 Common.install_mysql_arg: True,
+                                                             }
                                                          ),
                                                          memory_size=Tagging.tagging_func_memory_size,
                                                          vpc=vpc_stack.vpc,
                                                          role=tagging_role,
                                                          security_groups=[db_stack.db_sec_group],
                                                          environment={
-                                                             'DB_SECRET_ARN': db_stack.db_secret.secret_full_arn,
-                                                             'DB_ENDPOINT': db_stack.db_instance.db_instance_endpoint_address,
-                                                             'DB_NAME': db_stack.db_instance.instance_identifier,
-                                                             'TEXT_EXTRACTION_MODEL': "anthropic.claude-3-sonnet-20240229-v1:0",
+                                                             Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
+                                                             Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                                                             Env.db_name: db_stack.db_instance.instance_identifier,
+                                                             Env.generative_model: Tagging.tagging_model_name,
 
                                                          }
                                                          )
