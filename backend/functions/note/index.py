@@ -5,9 +5,9 @@ from typing import Dict, Any, List
 
 import boto3
 from sqlalchemy import select, func, and_
-from sqlalchemy.orm import session
+from sqlalchemy.orm import session, joinedload
 
-from backend.lib.db import Note, MetricOrigin, begin_session, get_utc_timestamp_int
+from backend.lib.db import Note, Tag, Metrics, MetricOrigin, begin_session, get_utc_timestamp_int, Data
 from backend.lib.util import seconds_in_day, get_user_id_from_event, get_ts_start_and_end
 
 from shared.variables import Env
@@ -57,8 +57,11 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Di
     start_time, end_time = get_ts_start_and_end(query_params)
 
     note_id = query_params.get('id')
-    search_text = query_params.get('search_text')
+    tags = query_params.get('tags').split(',') if 'tags' in query_params else []
+    metrics = query_params.get('metrics').split(',') if 'metrics' in query_params else []
 
+    search_text = query_params.get('search_text')
+    note_query = select(Note)
     conditions = [
         Note.user_id == user_id
     ]
@@ -66,20 +69,27 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Di
     if not note_id:
         conditions.append(Note.time >= start_time)
         conditions.append(Note.time <= end_time)
+        if tags or metrics:
+            note_query = note_query.join(Note.data_points).join(Data.metric_type)
+
+        if tags:
+            conditions.append(Metrics.tags.any(Tag.tag.in_(tags)))
+        if metrics:
+            conditions.append(Metrics.name.in_(metrics))
+
+        if search_text:
+            search_columns = Note.text, Note.image_text, Note.image_description, Note.audio_text
+
+            full_text_condition = func.match(*search_columns).against(
+                search_text,
+                natural=True
+            )
+
+            conditions.append(full_text_condition)
     else:
         conditions.append(Note.id == int(note_id))
 
-    if search_text:
-        search_columns = Note.text, Note.image_text, Note.image_description, Note.audio_text
-
-        full_text_condition = func.match(*search_columns).against(
-            search_text,
-            natural=True
-        )
-
-        conditions.append(full_text_condition)
-
-    note_query = select(Note).where(
+    note_query = note_query.where(
         and_(*conditions)
     ).order_by(Note.time.desc())
 

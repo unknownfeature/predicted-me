@@ -42,7 +42,7 @@ class Tag(Base):
 
     metrics_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("metrics.id"), nullable=False, primary_key=True, )
     tag: Mapped[str] = mapped_column(String(500), nullable=False, primary_key=True)
-    metric_type: Mapped["Metrics"] = relationship(back_populates="_tag_objects")
+    metric_type: Mapped["Metrics"] = relationship(back_populates="tags")
 
 
 class User(Base):
@@ -110,11 +110,10 @@ class Metrics(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(500), unique=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
-    _tag_objects: Mapped[List["Tag"]] = relationship(back_populates="metric_type",
+    tags: Mapped[List["Tag"]] = relationship(back_populates="metric_type",
                                                      cascade="all, delete-orphan",
                                                      lazy="select")
 
-    tags: Mapped[List[str]] = association_proxy('_tag_objects', 'tag')
 
     data_points: Mapped[list["Data"]] = relationship(
         back_populates="metric_type",

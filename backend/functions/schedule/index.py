@@ -5,10 +5,10 @@ import traceback
 from typing import Dict, Any, List
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import sessionmaker, joinedload
+from sqlalchemy.orm import session, joinedload
 
-from backend.lib.db import Data, Metrics, DataSchedule, begin_session
-from backend.lib.util import seconds_in_day, get_user_id_from_event,
+from backend.lib.db import Note, Data, Metrics, DataSchedule, begin_session
+from backend.lib.util import seconds_in_day, get_user_id_from_event, get_ts_start_and_end
 
 
 def parse_numeric_timestamp_safe(ts_str: str | None, default_ts: int) -> int:
@@ -61,14 +61,51 @@ def handle_numeric_time_filters(user_id: int, query_params: Dict[str, Any]) -> L
     return conditions
 
 
-def handle_get_data(session: sessionmaker, user_id: int, query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Retrieves data points based on time range or specific data ID for the user."""
+def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    conditions = [
+        DataSchedule.user_id == user_id
+    ]
 
-    # 1. Base Query: Select Data and join to Message (for time) and Metrics (for definition)
-    # Filter by user_id via Message
-    query = select(Data).join(Message).options(
-        joinedload(Data.metric_type).joinedload(Metrics.tags)  # Eagerly load Metric and Tags
-    ).where(Message.user_id == user_id)
+    metric_id = query_params.get('id')
+    note_id = query_params.get('note_id')
+    end_time, start_time = get_ts_start_and_end(query_params)
+
+    if not note_id and not data_id:
+        conditions.append(Data.time >= start_time)
+        conditions.append(Data.time <= end_time)
+    elif data_id:
+        conditions.append(Data.id == int(data_id))
+    elif note_id:
+        conditions.append(Data.note.id == int(note_id))
+
+    query = select(Data).join(Note).join(Data.metric_type).join(Metrics.tags).join(
+        Metrics.schedules).filter(DataSchedule.user_id == user_id).where(and_(*conditions))
+
+    data_points = session.scalars(query).all()
+
+    return [{
+        'id': dp.id,
+        'message_id': dp.message_id,
+        'value': float(dp.value),
+        'units': dp.units,
+        'origin': dp.origin.value,
+        'metric': {
+            'id': dp.metric_type.id,
+            'name': dp.metric_type.name,
+            'is_tagged': dp.metric_type.tagged,
+            'tags': [tag for tag in dp.metric_type.tags],
+            'schedule': {} if dp.metric_type.schedules is None else {
+                'recurrence_schedule': dp.metric_type.schedules[0].recurrence_schedule,
+                'target_value': dp.metric_type.schedules[0].target_value,
+                'units': dp.metric_type.schedules[0].units,
+            }
+        }} for dp in data_points]
+
+
+
+query = select(Data).join(Note).options(
+        joinedload(Data.metric_type).joinedload(Metrics.tags)
+    ).where(Note.user_id == user_id)
 
     # 2. Apply Time/ID Filters
     data_id = query_params.get('id')
@@ -180,7 +217,7 @@ def handle_setup_schedule(session: sessionmaker, metric_id: int, body: Dict[str,
     return {'status': status, 'metric_id': metric_id}
 
 
-def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     session = None
 
     try:
@@ -196,11 +233,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 
-        if http_method == 'GET' and path == '/data':
-            response_data = handle_get_data(session, user_id, query_params)
+        if http_method == 'GET':
+            response_data = get(session, user_id, query_params)
             status_code = 200
 
-        elif http_method == 'PATCH' and path == '/data':
+        elif http_method == 'PATCH':
             data_id = path_params['id']
             response_data = handle_update_data(session, int(data_id), body)
             status_code = 200
@@ -231,7 +268,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except Exception as e:
         if session:
             session.rollback()
-        logger.error(f"FATAL API ERROR: {e}\n{traceback.format_exc()}")
+        traceback.print_exc()
         return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'})}
 
     finally:
