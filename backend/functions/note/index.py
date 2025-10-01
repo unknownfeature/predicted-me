@@ -4,14 +4,13 @@ import traceback
 from typing import Dict, Any, List
 
 import boto3
-from sqlalchemy import create_engine, select, func, or_, and_
-from sqlalchemy.orm import joinedload, session
+from sqlalchemy import select, func, and_
+from sqlalchemy.orm import session
 
-from backend.lib.db import User, Note, MetricOrigin, begin_session
-from backend.lib.util import get_utc_timestamp_int
+from backend.lib.db import Note, MetricOrigin, begin_session, get_utc_timestamp_int
+from backend.lib.util import seconds_in_day, get_user_id_from_event, get_ts_start_and_end
+
 from shared.variables import Env
-
-one_day = 24 * 60 * 60
 
 secrets_client = boto3.client('secretsmanager')
 sns_client = boto3.client('sns')
@@ -37,7 +36,7 @@ def send_text_to_sns(text, note_id):
     print(f"Sent SNS note for final categorization of Note ID {note_id}.")
 
 
-def handle_post(session: session, user_id: int, body: Dict[str, Any]) -> Dict[str, Any]:
+def post(session: session, user_id: int, body: Dict[str, Any]) -> Dict[str, Any]:
     new_note = Note(
         user_id=user_id,
         text=body.get('text'),
@@ -50,19 +49,16 @@ def handle_post(session: session, user_id: int, body: Dict[str, Any]) -> Dict[st
 
     return {
         'note_id': new_note.id,
-        'time': new_note.time.isoformat()
+        'time': new_note.time
     }
 
-def handle_get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
-    now_utc = get_utc_timestamp_int()
 
-    start_time = int(query_params.get('start')) if 'start' in query_params else (now_utc - one_day)
-    end_time = int(query_params.get('end')) if 'end' in query_params else now_utc
-    if start_time >= end_time:
-        raise ValueError("Start time must be before end time.")
+def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    start_time, end_time = get_ts_start_and_end(query_params)
 
     note_id = query_params.get('id')
     search_text = query_params.get('search_text')
+
     conditions = [
         Note.user_id == user_id
     ]
@@ -75,7 +71,6 @@ def handle_get(session: session, user_id: int, query_params: Dict[str, Any]) -> 
 
     if search_text:
         search_columns = Note.text, Note.image_text, Note.image_description, Note.audio_text
-
 
         full_text_condition = func.match(*search_columns).against(
             search_text,
@@ -111,22 +106,21 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
     try:
         session = begin_session()
-        user_query = select(User.id).where(
-            User.external_id == event['requestContext']['authorizer']['jwt']['claims']['username'])
-        user_id = session.scalar(user_query)
+
+        user_id = get_user_id_from_event(event, session)
 
         http_method = event['httpMethod']
 
         if http_method == 'POST':
             body = json.loads(event['body'])
-            response_data = handle_post(session, user_id, body)
+            response_data = post(session, user_id, body)
             status_code = 201
             session.commit()
             send_text_to_sns(body.get('text'), response_data.get('note_id'))
 
         elif http_method == 'GET':
             query_params = event.get('queryStringParameters') or {}
-            response_data = handle_get(session, user_id, query_params)
+            response_data = get(session, user_id, query_params)
             status_code = 200
 
         else:

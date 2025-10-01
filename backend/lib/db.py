@@ -1,8 +1,9 @@
+import datetime
 import json
 import os
-import uuid
-from datetime import datetime, timezone
 from enum import Enum
+from typing import List
+
 import boto3
 from sqlalchemy import (
     BigInteger,
@@ -11,13 +12,12 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     Numeric,
-    Table,
-    Column,
     Enum as SQLEnum,
     UniqueConstraint,
     Index,
     create_engine
 )
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -27,42 +27,32 @@ from sqlalchemy.orm import (
 )
 
 from shared.variables import Env
-from .util import get_utc_timestamp_int
+
+
+def get_utc_timestamp_int() -> int:
+    return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
 
 
 class Base(DeclarativeBase):
     pass
 
 
-metrics_tags_association = Table(
-    "metrics_tags",
-    Base.metadata,
-    Column("metrics_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
-    Column("tag", String(500), primary_key=True)
-)
+class Tag(Base):
+    __tablename__ = "tag"
+
+    metrics_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("metrics.id"), nullable=False, primary_key=True, )
+    tag: Mapped[str] = mapped_column(String(500), nullable=False, primary_key=True)
+    metric_type: Mapped["Metrics"] = relationship(back_populates="_tag_objects")
 
 
 class User(Base):
     __tablename__ = "user"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    external_id: Mapped[uuid.UUID] = mapped_column(unique=True, default=uuid.uuid4)
+    external_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
     name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
-    parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
-
-    parent_user: Mapped["User"] = relationship(
-        remote_side=[id],  # Specifies the local column to link to (the parent's ID)
-        back_populates="child_users",
-        lazy="joined"
-    )
-
-    child_users: Mapped[list["User"]] = relationship(back_populates="parent_user")
-
-    notes: Mapped[list["Note"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan"
-    )
+    parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
 
     def __repr__(self) -> str:
         return f"User(id={self.id!r}, name={self.name!r})"
@@ -75,7 +65,6 @@ class Note(Base):
         'ft_note_content',
         'text', 'image_text', 'image_description', 'audio_text',
         mysql_prefix='FULLTEXT',
-        mysql_default_charset='utf8mb4'
     ),
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
@@ -88,10 +77,13 @@ class Note(Base):
     image_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp_int)
-
-    user: Mapped["User"] = relationship(back_populates="notes")
-
     data_points: Mapped[list["Data"]] = relationship(
+        lazy=True,
+        back_populates="note",
+        cascade="all, delete-orphan"
+    )
+
+    links: Mapped[list["Link"]] = relationship(
         lazy=True,
         back_populates="note",
         cascade="all, delete-orphan"
@@ -116,22 +108,24 @@ class Metrics(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    name: Mapped[str] = mapped_column(String(1000), unique=True)
+    name: Mapped[str] = mapped_column(String(500), unique=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
+    _tag_objects: Mapped[List["Tag"]] = relationship(back_populates="metric_type",
+                                                     cascade="all, delete-orphan",
+                                                     lazy="select")
 
-    tags: Mapped[list[str]] = relationship(
-        secondary=metrics_tags_association,
-        primaryjoin=metrics_tags_association.c.metrics_id == id,
-        secondaryjoin=metrics_tags_association.c.metrics_id == id,
-        viewonly=True,
-        lazy="joined"
-    )
+    tags: Mapped[List[str]] = association_proxy('_tag_objects', 'tag')
+
     data_points: Mapped[list["Data"]] = relationship(
         back_populates="metric_type",
         cascade="all, delete-orphan",
-        lazy="select"
+        lazy=True
     )
-
+    schedules: Mapped[list["DataSchedule"]] = relationship(
+        back_populates="metric_type",
+        cascade="all, delete-orphan",
+        lazy=True
+    )
     def __repr__(self) -> str:
         return f"Metrics(id={self.id!r}, name={self.name!r}, tagged={self.tagged!r})"
 
@@ -146,7 +140,6 @@ class Data(Base):
     value: Mapped[float] = mapped_column(Numeric)
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    #  default inherited from the note
     time: Mapped[int] = mapped_column(BigInteger)
 
     origin: Mapped[MetricOrigin] = mapped_column(
@@ -171,6 +164,7 @@ class DataSchedule(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     metrics_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     recurrence_schedule: Mapped[str] = mapped_column(String(50))
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
@@ -181,6 +175,29 @@ class DataSchedule(Base):
     def __repr__(self) -> str:
         return (f"DataSchedule(metric_id={self.metrics_id!r}, "
                 f"schedule={self.recurrence_schedule!r}, target={self.target_value!r})")
+
+
+class Link(Base):
+    __tablename__ = "link"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
+
+    value: Mapped[str] = mapped_column(String(1000))
+    description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+
+    time: Mapped[int] = mapped_column(BigInteger)
+
+    origin: Mapped[MetricOrigin] = mapped_column(
+        SQLEnum(MetricOrigin),
+        nullable=False
+    )
+
+    note: Mapped["Note"] = relationship(back_populates="links")
+
+    def __repr__(self) -> str:
+        return (f"Link(id={self.id!r},  "
+                f"value={self.value!r}, description={self.description!r}, origin={self.origin.value!r})")
 
 
 secret_arn = os.getenv(Env.db_secret_arn)

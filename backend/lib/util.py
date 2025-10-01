@@ -1,17 +1,20 @@
-from  datetime import datetime, timezone
-import json
-import os
+from typing import Dict, Any
 
-import boto3
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from shared.variables import Env
+from sqlalchemy import select
+from sqlalchemy.orm import session
 
+from backend.lib.db import User, get_utc_timestamp_int
 
-def get_user_id_from_external_id(session: session, external_id: str) -> int:
-    user_query = select(User.id).where(User.external_id == external_id)
+seconds_in_day = 24 * 60 * 60
+
+def get_user_id_from_event(event: Dict[str, Any], session: session) -> int:
+    user_query = select(User.id).where(User.external_id == event['requestContext']['authorizer']['jwt']['claims']['username'])
     return session.scalar(user_query)
 
-
-def get_utc_timestamp_int() -> int:
-    return int(datetime.now(timezone.utc).timestamp())
+def get_ts_start_and_end(query_params):
+    now_utc = get_utc_timestamp_int()
+    start_time = int(query_params.get('start')) if 'start' in query_params else (now_utc - seconds_in_day)
+    end_time = int(query_params.get('end')) if 'end' in query_params else now_utc
+    if start_time >= end_time:
+        raise ValueError("Start time must be before end time.")
+    return start_time, end_time

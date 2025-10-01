@@ -6,8 +6,7 @@ from typing import List, Dict, Any
 
 import boto3
 
-from backend.lib.db import Metrics, Note, MetricOrigin, Data
-from backend.lib.db.util import begin_session
+from backend.lib.db import Metrics, Note, MetricOrigin, Data, begin_session
 from sqlalchemy import func
 from sqlalchemy import insert, select, bindparam
 
@@ -78,7 +77,7 @@ def process_record(session, record):
 
     data_and_metrics = [{
         'note_id': note_id,
-        'name': metric.get('name'),
+        'name': metric.get('name').lower(),
         'value': metric.get('value'),
         'units': metric.get('units'),
         'time': target_note.time,
@@ -93,9 +92,9 @@ def process_record(session, record):
         insert(Metrics.__table__)
         .values(data_and_metrics)
 
-        .on_duplicate_key_update(
-        id=Metrics.__table__.c.id
-    )
+        .on_conflict_do_nothing(
+            index_elements=['name']
+        )
     )
     session.execute(upsert_stmt)
     select_columns = [
