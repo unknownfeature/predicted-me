@@ -3,7 +3,7 @@ import traceback
 from typing import Dict, Any, Union
 
 from sqlalchemy import select, update, and_, delete as sql_delete
-from sqlalchemy.orm import session
+from sqlalchemy.orm import Session
 
 from backend.lib.db import DataSchedule, begin_session, User
 from backend.lib.util import get_user_id_from_event
@@ -11,7 +11,7 @@ from backend.lib.util import get_user_id_from_event
 updatable_fields = {'recurrence_schedule', 'target_value', 'units'}
 
 
-def patch(session: session, id: int, user_id: int, body: Dict[str, Any]) -> tuple[dict[str, Union[int, str]], int]:
+def patch(session: Session, id: int, user_id: int, body: Dict[str, Any]) -> tuple[dict[str, Union[int, str]], int]:
 
     update_fields = {f: body[f] for f in body if f in updatable_fields}
 
@@ -22,12 +22,12 @@ def patch(session: session, id: int, user_id: int, body: Dict[str, Any]) -> tupl
     return {'status': 'success', 'schedule_id': id}, 200
 
 
-def delete(session: session, id: int, user_id: int) -> tuple[dict[str, Union[int, str]], int]:
+def delete(session: Session, id: int, user_id: int) -> tuple[dict[str, Union[int, str]], int]:
       session.execute(sql_delete(DataSchedule).where( and_([DataSchedule.id == id, DataSchedule.user_id == user_id])))
       return {'status': 'success'}, 204
 
 
-def post(session: session, metric_id: int, user_id: int, body: Dict[str, Any]) -> Union[
+def post(session: Session, metric_id: int, user_id: int, body: Dict[str, Any]) -> Union[
     tuple[dict[str, str], int], tuple[dict[str, Union[str, Any]], int]]:
     schedule_exists = session.execute(select(DataSchedule).join(DataSchedule.user).where(and_([DataSchedule.metric_id == metric_id, User.id == user_id]))).first()
 

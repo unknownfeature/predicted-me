@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 import boto3
 from sqlalchemy import select, func, and_
-from sqlalchemy.orm import session, joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from backend.lib.db import Note, Tag, Metric, MetricOrigin, begin_session, get_utc_timestamp_int, Data
 from backend.lib.util import seconds_in_day, get_user_id_from_event, get_ts_start_and_end
@@ -36,7 +36,7 @@ def send_text_to_sns(text, note_id):
     print(f"Sent SNS note for final categorization of Note ID {note_id}.")
 
 
-def post(session: session, user_id: int, body: Dict[str, Any]) -> tuple[dict[str, Any], int]:
+def post(session: Session, user_id: int, body: Dict[str, Any]) -> tuple[dict[str, Any], int]:
     new_note = Note(
         user_id=user_id,
         text=body.get('text'),
@@ -53,7 +53,7 @@ def post(session: session, user_id: int, body: Dict[str, Any]) -> tuple[dict[str
     }, 201
 
 
-def get(session: session, user_id: int, query_params: Dict[str, Any]) -> tuple[List[Dict[str, Any]], int]:
+def get(session: Session, user_id: int, query_params: Dict[str, Any]) -> tuple[List[Dict[str, Any]], int]:
     start_time, end_time = get_ts_start_and_end(query_params)
     note_id = query_params.get('id')
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []

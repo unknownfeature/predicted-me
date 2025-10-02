@@ -1,6 +1,6 @@
 from typing import Callable, Any, Dict, List
 
-from sqlalchemy.orm import session
+from sqlalchemy.orm import Session
 
 from backend.lib.func.base import BaseSQSTriggeredLLMClientFunction
 

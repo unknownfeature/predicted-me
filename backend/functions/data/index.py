@@ -3,13 +3,13 @@ import traceback
 from typing import Dict, Any, List, Union
 
 from sqlalchemy import select, update, and_, delete as sql_delete
-from sqlalchemy.orm import session, joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from backend.lib.db import Data, Metric, begin_session, Note, DataSchedule, Tag, User
 from backend.lib.util import get_user_id_from_event, get_ts_start_and_end
 
 
-def delete(session: session, id: int, user_id: int) -> tuple[dict[str, Union[int, str]], int]:
+def delete(session: Session, id: int, user_id: int) -> tuple[dict[str, Union[int, str]], int]:
     session.execute(sql_delete(Data).where(
         and_(
             Data.id == id,
@@ -20,7 +20,7 @@ def delete(session: session, id: int, user_id: int) -> tuple[dict[str, Union[int
     return {'status': 'success'}, 204
 
 
-def get(session: session, user_id: int, query_params: Dict[str, Any]) -> tuple[List[Dict[str, Any]], int]:
+def get(session: Session, user_id: int, query_params: Dict[str, Any]) -> tuple[List[Dict[str, Any]], int]:
     data_id = query_params.get('id')
     note_id = query_params.get('note_id')
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []
@@ -75,7 +75,7 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> tuple[L
         }} for dp in data_points], 200
 
 
-def patch(session: session, id: int, user_id, body: Dict[str, Any]) -> tuple[Dict[str, Any], int]:
+def patch(session: Session, id: int, user_id, body: Dict[str, Any]) -> tuple[Dict[str, Any], int]:
     update_fields = {f: body[f] for f in body if f in {'value', 'units', 'time'}}
 
     if update_fields:

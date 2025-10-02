@@ -8,7 +8,7 @@ from sqlalchemy import insert, select, bindparam, inspect
 
 from backend.lib.db import Metric, Data, Note
 from backend.lib.func.text_extraction import Function
-from backend.tests.db import session
+from backend.tests.db import Session
 from shared.variables import Env
 
 sns_client = boto3.client('sns')
@@ -54,7 +54,7 @@ prompt = ("You are an expert metric extraction bot. Analyze the text below and e
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 
-def on_extracted_cb(sss: session, target_note: Note, origin: str, data: List[Dict[str, Any]]) -> None:    # todo review this, look suspicious
+def on_extracted_cb(session: Session, target_note: Note, origin: str, data: List[Dict[str, Any]]) -> None:    # todo review this, look suspicious
     data_and_metrics = [{
         'note_id': target_note.id,
         'name': metric.get('name').lower(),
@@ -75,7 +75,7 @@ def on_extracted_cb(sss: session, target_note: Note, origin: str, data: List[Dic
             index_elements=['name']
         )
     )
-    sss.execute(upsert_stmt)
+    session.execute(upsert_stmt)
     select_columns = [
         Metric.__table__.c.id,
         bindparam('note_id', value=target_note.id),
@@ -101,7 +101,7 @@ def on_extracted_cb(sss: session, target_note: Note, origin: str, data: List[Dic
         )
     )
 
-    sss.execute(insert_data_stmt, data_and_metrics)
+    session.execute(insert_data_stmt, data_and_metrics)
 
     sns_client.publish(
         TopicArn=tagging_topic_arn,

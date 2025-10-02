@@ -1,13 +1,13 @@
 import json
 import traceback
 import uuid
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Set, Callable
 
 import boto3
 from sqlalchemy import select
-from sqlalchemy.orm import session
+from sqlalchemy.orm import Session
 
-from backend.lib.db import User, get_utc_timestamp_int, MetricOrigin
+from backend.lib.db import User, get_utc_timestamp_int, MetricOrigin, Tag
 
 seconds_in_day = 24 * 60 * 60
 
@@ -20,7 +20,7 @@ text_getters = {
 }
 
 
-def get_user_id_from_event(event: Dict[str, Any], session: session) -> int:
+def get_user_id_from_event(event: Dict[str, Any], session: Session) -> int:
     user_query = select(User.id).where(User.external_id == event['requestContext']['authorizer']['jwt']['claims']['username'])
     return session.scalar(user_query)
 
@@ -63,3 +63,34 @@ def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) 
     except Exception as e:
         traceback.print_exc()
         raise e
+
+
+def get_or_create_tags(session: Session, tag_names: Set[str]) -> Dict[str, Tag]:
+    if not tag_names:
+        return {}
+
+    stmt = select(Tag).where(Tag.name.in_(tag_names))
+    existing_tags = session.scalars(stmt).all()
+    existing_tags_dict = {tag.name: tag for tag in existing_tags}
+    new_tags = {t.lower(): Tag(name = t) for t in tag_names if t not in existing_tags_dict}
+
+
+    if new_tags:
+        session.add_all(new_tags.values())
+        session.flush()
+
+    return existing_tags_dict | new_tags
+
+def merge_tags(session: Session, data: List[Dict[str, Any]], stmt_supplier: Callable[[], List[Any]]):
+    if not data:
+        return
+
+    all_tag_names = {tag.lower() for item in data for tag in item.get('tags', [])}
+    tag_map = get_or_create_tags(session, all_tag_names)
+    data_map = {item['id']: item.get('tags', []) for item in data}
+
+    entities_to_update = session.scalars(stmt_supplier()).unique().all()
+    for entity in entities_to_update:
+        entity.tags.extend([tag_map[tag_name.lower()] for tag_name in data_map[entity.id] if
+                            tag_name.lower() not in {tag.name for tag in entity.tags}])
+        entity.tagged = True

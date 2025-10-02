@@ -4,7 +4,7 @@ from typing import List, Any, Dict
 
 import boto3
 from sqlalchemy import insert, inspect
-from sqlalchemy.orm import session
+from sqlalchemy.orm import Session
 
 from backend.lib.db import Note, Task
 from backend.lib.func.text_extraction import Function
@@ -51,10 +51,10 @@ prompt = ("You are an expert at identifying actionable tasks from text. Analyze 
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 
-def on_extracted_cb(sss: session , note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_extracted_cb(session: Session , note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
 
 
-    sss.execute(insert(Task.__table__)
+    session.execute(insert(Task.__table__)
                     .values([d | {'note_id': note_id, 'origin': origin} for d in data ]))
 
     sns_client.publish(

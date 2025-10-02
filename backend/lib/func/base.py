@@ -23,24 +23,24 @@ class AbstractSQSTriggeredFunction(ABC):
         super().__init__()
 
     @abstractmethod
-    def process_record(self, sss: session, record: Dict[str, Any]):
+    def process_record(self, session: Session, record: Dict[str, Any]):
         pass
 
     def handler(self, event, _):
-        sss = None
+        session = None
         try:
-            sss = begin_session()
+            session = begin_session()
 
             for record in event['Records']:
-                self.process_record(sss, record)
-            sss.commit()
+                self.process_record(session, record)
+            session.commit()
         except Exception as e:
-            sss.rollback()
+            session.rollback()
             traceback.print_exc()
             raise e
         finally:
-            if sss:
-                sss.close()
+            if session:
+                session.close()
 
         return {'statusCode': 200, 'body': f"Successfully processed {len(event['Records'])} SQS notes."}
 
@@ -56,7 +56,7 @@ class BaseSQSTriggeredLLMClientFunction(AbstractSQSTriggeredFunction):
         self.generative_model = generative_model
         self.max_tokens = max_tokens
 
-    def process_record(self, sss: session, record: Dict[str, Any]):
+    def process_record(self, session: Session, record: Dict[str, Any]):
 
         sns_notification = json.loads(record['body'])
         payload = json.loads(sns_notification['Note'])
@@ -67,7 +67,7 @@ class BaseSQSTriggeredLLMClientFunction(AbstractSQSTriggeredFunction):
             print("Skipping record: note_id not found in payload.")
             return
 
-        text = self.text_supplier(sss, note_id, origin)
+        text = self.text_supplier(session, note_id, origin)
 
         if not text:
             print(f"Skipping record: text not found in payload {note_id}.")
@@ -79,4 +79,4 @@ class BaseSQSTriggeredLLMClientFunction(AbstractSQSTriggeredFunction):
         if not extracted_metrics:
             print(f"No numeric metrics extracted by Bedrock for Note ID {note_id}.")
             return
-        self.on_extracted_cb(sss, note_id, origin, extracted_metrics)
+        self.on_extracted_cb(session, note_id, origin, extracted_metrics)

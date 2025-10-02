@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 import boto3
 from sqlalchemy import insert, inspect
-from sqlalchemy.orm import session
+from sqlalchemy.orm import Session
 
 from backend.lib.db import Note, Link
 from backend.lib.func.text_extraction import Function
@@ -42,9 +42,9 @@ prompt = ("You are an expert at extracting links from text. Analyze the text bel
           "**Text to Analyze**:\n")
 
 
-def on_extracted_cb(sss: session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
 
-    sss.execute((
+    session.execute((
         insert(Link.__table__)
         .values([d | {'note_id': note_id, 'origin': origin} for d in data])
 
