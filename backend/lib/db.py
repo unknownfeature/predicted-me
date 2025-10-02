@@ -15,18 +15,26 @@ from sqlalchemy import (
     Enum as SQLEnum,
     UniqueConstraint,
     Index,
-    create_engine
+    create_engine,
+    Table, Column
 )
-from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
     relationship,
-    sessionmaker
+    sessionmaker,
+    validates
 )
 
 from shared.variables import Env
+
+
+class MetricOrigin(str, Enum):
+    text = 'text'
+    audio_text = 'audio_text'
+    img_desc = 'img_desc'
+    img_text = 'img_text'
 
 
 def get_utc_timestamp_int() -> int:
@@ -37,12 +45,53 @@ class Base(DeclarativeBase):
     pass
 
 
+metric_tags_association = Table(
+    "metrics_tags",
+    Base.metadata,
+    Column("metrics_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
+    Column("user_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
+    Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
+)
+
+link_tags_association = Table(
+    "links_tags",
+    Base.metadata,
+    Column("link_id", BigInteger, ForeignKey("link.id"), primary_key=True),
+    Column("user_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
+    Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
+)
+
+task_tags_association = Table(
+    "tasks_tags",
+    Base.metadata,
+    Column("task_id", BigInteger, ForeignKey("task.id"), primary_key=True),
+    Column("user_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
+    Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
+)
+
+
 class Tag(Base):
     __tablename__ = "tag"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    name: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
+    metrics: Mapped[List["Metric"]] = relationship(
+        secondary=metric_tags_association, back_populates="tags"
+    )
+    links: Mapped[List["Link"]] = relationship(
+        secondary=link_tags_association, back_populates="tags"
+    )
+    tasks: Mapped[List["Task"]] = relationship(
+        secondary=task_tags_association, back_populates="tags"
+    )
 
-    metrics_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("metrics.id"), nullable=False, primary_key=True, )
-    tag: Mapped[str] = mapped_column(String(500), nullable=False, primary_key=True)
-    metric: Mapped["Metrics"] = relationship(back_populates="tags")
+    def __repr__(self) -> str:
+        return f"Tag(id={self.id!r}, name={self.name!r})"
+
+    @validates('name')
+    def validate_name(self, _, name):
+        if not name:
+            raise ValueError("Name cannot be empty")
+        return name.lower()
 
 
 class User(Base):
@@ -58,6 +107,7 @@ class User(Base):
         cascade="all, delete-orphan",
         lazy=True
     )
+
     def __repr__(self) -> str:
         return f"User(id={self.id!r}, name={self.name!r})"
 
@@ -93,31 +143,29 @@ class Note(Base):
         cascade="all, delete-orphan"
     )
 
+    tasks: Mapped[list["Task"]] = relationship(
+        lazy=True,
+        back_populates="note",
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> str:
-        return f"Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time.isoformat()})"
+        return f"Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time})"
 
 
-class MetricOrigin(str, Enum):
-    text = 'text'
-    audio_text = 'audio_text'
-    img_desc = 'img_desc'
-    img_text = 'img_text'
-
-
-class Metrics(Base):
-    __tablename__ = "metrics"
+class Metric(Base):
+    __tablename__ = "metric"
     __table_args__ = (
-        UniqueConstraint('name', name='uq_metrics_name'),
+        UniqueConstraint('name', name='uq_metric_name'),
         Index('idx_metric_name', 'name'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(500), unique=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
-    tags: Mapped[List["Tag"]] = relationship(back_populates="metric",
-                                                     cascade="all, delete-orphan",
-                                                     lazy="select")
-
+    tags: Mapped[List["Tag"]] = relationship(
+        secondary=metric_tags_association, back_populates="metrics", lazy=False, cascade="all, delete-orphan"
+    )
 
     data_points: Mapped[list["Data"]] = relationship(
         back_populates="metric",
@@ -129,8 +177,15 @@ class Metrics(Base):
         cascade="all, delete-orphan",
         lazy=True
     )
+
     def __repr__(self) -> str:
         return f"Metrics(id={self.id!r}, name={self.name!r}, tagged={self.tagged!r})"
+
+    @validates('name')
+    def validate_name(self, _, name):
+        if not name:
+            raise ValueError("Name cannot be empty")
+        return name.lower()
 
 
 class Data(Base):
@@ -150,7 +205,7 @@ class Data(Base):
         nullable=False
     )
 
-    metric: Mapped["Metrics"] = relationship(back_populates="data_points")
+    metric: Mapped["Metric"] = relationship(back_populates="data_points")
 
     note: Mapped["Note"] = relationship(back_populates="data_points")
 
@@ -173,8 +228,8 @@ class DataSchedule(Base):
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    metric: Mapped["Metrics"] = relationship(backref="schedules")
-    user: Mapped["User"] = relationship(backref="schedules")
+    metric: Mapped["Metric"] = relationship(back_populates="schedules")
+    user: Mapped["User"] = relationship(back_populates="schedules")
 
     def __repr__(self) -> str:
         return (f"DataSchedule(metric_id={self.metrics_id!r}, "
@@ -184,11 +239,17 @@ class DataSchedule(Base):
 class Link(Base):
     __tablename__ = "link"
 
+    __table_args__ = (
+        UniqueConstraint('url', 'user_id', name='uq_link_url'),
+    )
+
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
-    value: Mapped[str] = mapped_column(String(1000))
+    url: Mapped[str] = mapped_column(String(1000))
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    tagged: Mapped[bool] = mapped_column(Boolean, default=False)
 
     time: Mapped[int] = mapped_column(BigInteger)
 
@@ -198,10 +259,40 @@ class Link(Base):
     )
 
     note: Mapped["Note"] = relationship(back_populates="links")
+    tags: Mapped[List["Tag"]] = relationship(
+        secondary=link_tags_association, back_populates="links", lazy=False, cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return (f"Link(id={self.id!r},  "
-                f"value={self.value!r}, description={self.description!r}, origin={self.origin.value!r})")
+                f"value={self.url!r}, description={self.description!r}, origin={self.origin.value!r})")
+
+
+class Task(Base):
+    __tablename__ = "task"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
+
+    description: Mapped[str] = mapped_column(String(1000), nullable=False)
+    priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    tagged: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    time: Mapped[int] = mapped_column(BigInteger)
+
+    origin: Mapped[MetricOrigin] = mapped_column(
+        SQLEnum(MetricOrigin),
+        nullable=False
+    )
+
+    note: Mapped["Note"] = relationship(back_populates="tasks")
+    tags: Mapped[List["Tag"]] = relationship(
+        secondary=task_tags_association, back_populates="tasks", lazy=False, cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return (f"Link(id={self.id!r},  "
+                f"value={self.description!r}, priority={self.priority!r}, origin={self.origin.value!r})")
 
 
 secret_arn = os.getenv(Env.db_secret_arn)

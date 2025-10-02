@@ -2,10 +2,10 @@ import json
 import traceback
 from typing import Dict, Any, Union
 
-from sqlalchemy import select, update, insert, and_, delete as sql_delete
-from sqlalchemy.orm import session, joinedload
+from sqlalchemy import select, update, and_, delete as sql_delete
+from sqlalchemy.orm import session
 
-from backend.lib.db import DataSchedule, begin_session, Metrics, User
+from backend.lib.db import DataSchedule, begin_session, User
 from backend.lib.util import get_user_id_from_event
 
 updatable_fields = {'recurrence_schedule', 'target_value', 'units'}
@@ -27,14 +27,14 @@ def delete(session: session, id: int, user_id: int) -> tuple[dict[str, Union[int
       return {'status': 'success'}, 204
 
 
-def post(session: session, metrics_id: int, user_id: int, body: Dict[str, Any]) -> Union[
+def post(session: session, metric_id: int, user_id: int, body: Dict[str, Any]) -> Union[
     tuple[dict[str, str], int], tuple[dict[str, Union[str, Any]], int]]:
-    schedule_exists = session.execute(select(DataSchedule).join(DataSchedule.user).where(and_([DataSchedule.metrics_id == metrics_id, User.id == user_id]))).first()
+    schedule_exists = session.execute(select(DataSchedule).join(DataSchedule.user).where(and_([DataSchedule.metric_id == metric_id, User.id == user_id]))).first()
 
     if schedule_exists:
-        return {'status': 'error', 'message': f'Schedule with id {metrics_id} exists.'}, 403
+        return {'status': 'error', 'message': f'Schedule with id {metric_id} exists.'}, 403
 
-    update_fields = {f: body[f] for f in body if f in {'recurrence_schedule', 'target_value', 'units'}} | {'metrics_id': metrics_id, 'user_id': user_id}
+    update_fields = {f: body[f] for f in body if f in {'recurrence_schedule', 'target_value', 'units'}} | {'metric_id': metric_id, 'user_id': user_id}
     schedule = DataSchedule(
         **update_fields)
 
@@ -63,7 +63,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             id = path_params['id']
             response_data, status_code = patch(session, id, user_id, body)
         elif http_method == 'POST' :
-            metric_id  = query_params['metrics_id']
+            metric_id  = query_params['metric_id']
             response_data, status_code = post(session, metric_id, user_id, body)
         elif http_method == 'DELETE':
             id = path_params['id']

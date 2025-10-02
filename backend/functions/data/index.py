@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Union
 from sqlalchemy import select, update, and_, delete as sql_delete
 from sqlalchemy.orm import session, joinedload
 
-from backend.lib.db import Data, Metrics, begin_session, Note, DataSchedule, Tag, User
+from backend.lib.db import Data, Metric, begin_session, Note, DataSchedule, Tag, User
 from backend.lib.util import get_user_id_from_event, get_ts_start_and_end
 
 
@@ -39,9 +39,9 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> tuple[L
         if tags or metrics:
             query = query.join(Data.metric)
         if tags:
-            conditions.append(Metrics.tags.any(Tag.tag.in_(tags)))
+            conditions.append(Metric.tags.any(Tag.tag.in_(tags)))
         if metrics:
-            conditions.append(Metrics.name.in_(metrics))
+            conditions.append(Metric.name.in_(metrics))
     elif data_id:
         conditions.append(Data.id == int(data_id))
     elif note_id:
@@ -49,8 +49,8 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> tuple[L
     query = query.where(and_(*conditions)) \
         .order_by(Note.time.desc()) \
         .options(
-        joinedload(Data.metric).joinedload(Metrics.tags),
-        joinedload(Data.metric).joinedload(Metrics.schedules)
+        joinedload(Data.metric).joinedload(Metric.tags),
+        joinedload(Data.metric).joinedload(Metric.schedules)
     )
 
     data_points = session.scalars(query).all()

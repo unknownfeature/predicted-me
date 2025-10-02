@@ -32,6 +32,7 @@ class Env:
 
     regional_domain_name = 'REGIONAL_DOMAIN_NAME'
     regional_hosted_zone_id = 'REGIONAL_HOSTED_ZONE_ID'
+    max_tokens = 'MAX_TOKENS'
 
 
 class Common:
@@ -135,7 +136,9 @@ class Text:
     metrics_extraction_queue_name = 'pm_metrics_extraction_queue'
     metrics_extraction_queue_visibility_timeout = Duration.minutes(2)
     metrics_extraction_role = 'pm_metrics_extraction_role'
+    metrics_extraction_max_tokens = 1024
     text_processing_model = Common.generative_model
+
 
 
 class Tagging:

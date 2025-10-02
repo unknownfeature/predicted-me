@@ -81,6 +81,7 @@ class PmTextStack(Stack):
                                                                      Env.db_name: db_stack.db_instance.instance_identifier,
                                                                      Env.generative_model: Text.text_processing_model,
                                                                      Env.tagging_topic_arn: tagging_stack.tagging_topic.topic_arn,
+                                                                     Env.max_tokens: Text.metrics_extraction_max_tokens
 
                                                                  }
                                                                  )

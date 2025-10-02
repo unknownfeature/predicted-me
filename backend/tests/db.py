@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.lib.db import Base, User, Note, Metrics, Data, MetricOrigin, Tag
+from backend.lib.db import Base, User, Note, Metric, Data, MetricOrigin, Tag
 
 
 @pytest.fixture(scope="module")
@@ -25,7 +25,7 @@ def test_mapping(session):
     session.query(Data).delete()
     session.query(Note).delete()
     session.query(User).delete()
-    session.query(Metrics).delete()
+    session.query(Metric).delete()
     session.commit()
 
     parent_user = User(external_id=str(uuid.uuid4()), name="Parent")
@@ -41,7 +41,7 @@ def test_mapping(session):
     session.add_all([note1, note2])
     session.flush()
 
-    metric = Metrics(name="Heart Rate")
+    metric = Metric(name="Heart Rate")
     data_point = Data(note=note1, metric=metric, value=75.5, units="bpm", origin=MetricOrigin.text,
                       time=int(datetime.utcnow().timestamp()))
 
