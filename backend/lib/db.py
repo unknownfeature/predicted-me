@@ -42,7 +42,7 @@ class Tag(Base):
 
     metrics_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("metrics.id"), nullable=False, primary_key=True, )
     tag: Mapped[str] = mapped_column(String(500), nullable=False, primary_key=True)
-    metric_type: Mapped["Metrics"] = relationship(back_populates="tags")
+    metric: Mapped["Metrics"] = relationship(back_populates="tags")
 
 
 class User(Base):
@@ -53,7 +53,11 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-
+    schedules: Mapped[list["DataSchedule"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy=True
+    )
     def __repr__(self) -> str:
         return f"User(id={self.id!r}, name={self.name!r})"
 
@@ -110,18 +114,18 @@ class Metrics(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(500), unique=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
-    tags: Mapped[List["Tag"]] = relationship(back_populates="metric_type",
+    tags: Mapped[List["Tag"]] = relationship(back_populates="metric",
                                                      cascade="all, delete-orphan",
                                                      lazy="select")
 
 
     data_points: Mapped[list["Data"]] = relationship(
-        back_populates="metric_type",
+        back_populates="metric",
         cascade="all, delete-orphan",
         lazy=True
     )
     schedules: Mapped[list["DataSchedule"]] = relationship(
-        back_populates="metric_type",
+        back_populates="metric",
         cascade="all, delete-orphan",
         lazy=True
     )
@@ -146,7 +150,7 @@ class Data(Base):
         nullable=False
     )
 
-    metric_type: Mapped["Metrics"] = relationship(back_populates="data_points")
+    metric: Mapped["Metrics"] = relationship(back_populates="data_points")
 
     note: Mapped["Note"] = relationship(back_populates="data_points")
 
@@ -158,7 +162,7 @@ class Data(Base):
 class DataSchedule(Base):
     __tablename__ = "data_schedule"
     __table_args__ = (
-        UniqueConstraint('metrics_id', name='uq_metric_schedule'),
+        UniqueConstraint('metrics_id', 'user_id', name='uq_metric_schedule'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -169,7 +173,8 @@ class DataSchedule(Base):
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    metric_type: Mapped["Metrics"] = relationship(backref="schedules")
+    metric: Mapped["Metrics"] = relationship(backref="schedules")
+    user: Mapped["User"] = relationship(backref="schedules")
 
     def __repr__(self) -> str:
         return (f"DataSchedule(metric_id={self.metrics_id!r}, "

@@ -42,7 +42,7 @@ def test_mapping(session):
     session.flush()
 
     metric = Metrics(name="Heart Rate")
-    data_point = Data(note=note1, metric_type=metric, value=75.5, units="bpm", origin=MetricOrigin.text,
+    data_point = Data(note=note1, metric=metric, value=75.5, units="bpm", origin=MetricOrigin.text,
                       time=int(datetime.utcnow().timestamp()))
 
     session.add_all([metric, data_point])

@@ -36,7 +36,7 @@ def send_text_to_sns(text, note_id):
     print(f"Sent SNS note for final categorization of Note ID {note_id}.")
 
 
-def post(session: session, user_id: int, body: Dict[str, Any]) -> Dict[str, Any]:
+def post(session: session, user_id: int, body: Dict[str, Any]) -> tuple[dict[str, Any], int]:
     new_note = Note(
         user_id=user_id,
         text=body.get('text'),
@@ -50,12 +50,11 @@ def post(session: session, user_id: int, body: Dict[str, Any]) -> Dict[str, Any]
     return {
         'note_id': new_note.id,
         'time': new_note.time
-    }
+    }, 201
 
 
-def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+def get(session: session, user_id: int, query_params: Dict[str, Any]) -> tuple[List[Dict[str, Any]], int]:
     start_time, end_time = get_ts_start_and_end(query_params)
-
     note_id = query_params.get('id')
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []
     metrics = query_params.get('metrics').split(',') if 'metrics' in query_params else []
@@ -67,10 +66,9 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Di
     ]
 
     if not note_id:
-        conditions.append(Note.time >= start_time)
-        conditions.append(Note.time <= end_time)
+        conditions.extend([Note.time >= start_time, Note.time <= end_time])
         if tags or metrics:
-            note_query = note_query.join(Note.data_points).join(Data.metric_type)
+            note_query = note_query.join(Note.data_points).join(Data.metric)
 
         if tags:
             conditions.append(Metrics.tags.any(Tag.tag.in_(tags)))
@@ -94,7 +92,7 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Di
     ).order_by(Note.time.desc())
 
     notes = [{
-        'note_id': note.id,
+        'id': note.id,
         'text': note.text,
         'time': note.time.isoformat(),
         'image_key': note.image_key,
@@ -108,7 +106,7 @@ def get(session: session, user_id: int, query_params: Dict[str, Any]) -> List[Di
     }
         for note in session.scalars(note_query).all()]
 
-    return notes
+    return notes, 200
 
 
 def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
@@ -123,15 +121,13 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
         if http_method == 'POST':
             body = json.loads(event['body'])
-            response_data = post(session, user_id, body)
-            status_code = 201
+            response_data, status_code = post(session, user_id, body)
             session.commit()
             send_text_to_sns(body.get('text'), response_data.get('note_id'))
 
         elif http_method == 'GET':
             query_params = event.get('queryStringParameters') or {}
-            response_data = get(session, user_id, query_params)
-            status_code = 200
+            response_data, status_code = get(session, user_id, query_params)
 
         else:
             return {'statusCode': 405, 'body': json.dumps({'error': 'Method not allowed'})}
@@ -142,7 +138,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             'body': json.dumps(response_data)
         }
 
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
         return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'})}
 

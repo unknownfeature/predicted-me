@@ -128,14 +128,13 @@ class Image:
 class Text:
     stack_name = 'PmTextStack'
     text_topic_name = 'pm_text_processing_topic'
-    text_processing_func_name = 'pm_text_processing'
-    text_processing_func_timeout = Duration.minutes(1)
-    text_processing_func_memory_size = 1024
-    text_processing_func_code_path = os.path.join(Common.functions_dir, 'text_processing')
-    text_processing_func_role_name = 'pm_text_processing_func_role'
-    text_queue_name = 'pm_metrics_extraction_queue'
-    text_queue_visibility_timeout = Duration.minutes(2)
-    text_processor_role = 'pm_text_processor_writer_role'
+    metrics_extraction_func_name = 'pm_metrics_extraction_func'
+    metrics_extraction_func_timeout = Duration.minutes(1)
+    metrics_extraction_func_memory_size = 1024
+    metrics_extraction_func_code_path = os.path.join(Common.functions_dir, 'text_processing/metrics')
+    metrics_extraction_queue_name = 'pm_metrics_extraction_queue'
+    metrics_extraction_queue_visibility_timeout = Duration.minutes(2)
+    metrics_extraction_role = 'pm_metrics_extraction_role'
     text_processing_model = Common.generative_model
 
 

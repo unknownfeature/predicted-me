@@ -27,9 +27,9 @@ class PmTextStack(Stack):
                                                )
 
 
-        self.text_processing_queue = sqs.Queue(self, Text.text_queue_name,
-                                               queue_name=Text.text_queue_name,
-                                               visibility_timeout=Text.text_queue_visibility_timeout
+        self.text_processing_queue = sqs.Queue(self, Text.metrics_extraction_queue_name,
+                                               queue_name=Text.metrics_extraction_queue_name,
+                                               visibility_timeout=Text.metrics_extraction_queue_visibility_timeout
                                                )
 
         self.text_processing_topic.add_subscription(
@@ -37,7 +37,7 @@ class PmTextStack(Stack):
         )
 
         text_processor_role = iam.Role(
-            self, Text.text_processor_role,
+            self, Text.metrics_extraction_role,
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
@@ -62,16 +62,16 @@ class PmTextStack(Stack):
             )
         )
 
-        self.text_processing_function = lmbd.DockerImageFunction(self, Text.text_processing_func_name,
-                                                             timeout=Text.text_processing_func_timeout,
-                                                                    code=docker_code_asset(
+        self.text_processing_function = lmbd.DockerImageFunction(self, Text.metrics_extraction_func_name,
+                                                                 timeout=Text.metrics_extraction_func_timeout,
+                                                                 code=docker_code_asset(
                                                                         build_args={
-                                                                            Common.func_dir_arg: Text.text_processing_func_code_path,
+                                                                            Common.func_dir_arg: Text.metrics_extraction_func_code_path,
                                                                             Common.install_mysql_arg: 'True',
                                                                         }
                                                                     ),
-                                                             memory_size=Text.text_processing_func_memory_size,
-                                                             vpc=vpc_stack.vpc,
+                                                                 memory_size=Text.metrics_extraction_func_memory_size,
+                                                                 vpc=vpc_stack.vpc,
                                                                  role=text_processor_role,
                                                                  security_groups=[db_stack.db_sec_group],
 
@@ -83,7 +83,7 @@ class PmTextStack(Stack):
                                                                      Env.tagging_topic_arn: tagging_stack.tagging_topic.topic_arn,
 
                                                                  }
-                                                             )
+                                                                 )
 
 
 
