@@ -34,12 +34,21 @@ link_schema = {
     }
 }
 
-prompt = ("You are an expert at extracting links from text. Analyze the text below and extract all URLs starting with http or https. "
-          "For each URL, derive a concise description from its surrounding context in the text. "
-          "Your output must be ONLY a JSON array that strictly adheres to the provided schema. "
-          "If no links are found, output an empty array [].\n\n"
-          f"**JSON Schema**:\n{json.dumps(link_schema, indent=3)}\n\n"
-          "**Text to Analyze**:\n")
+
+prompt = (
+    "You are an expert at extracting links from text. Analyze the text below and extract all web links (http/https). "
+    "For each link, derive a concise description from its anchor text or surrounding context. "
+    "Your output must be ONLY a JSON array that strictly adheres to the provided schema. "
+    "If no links are found, output an empty array [].\n\n"
+    f"**JSON Schema**:\n{json.dumps(link_schema, indent=3)}\n\n"
+    "--- EXAMPLES ---\n"
+    "Text: 'I've been learning a lot about AI. This article was helpful: https://ml-articles.com/intro. It covers the basics.'\n"
+    "Output: [{\"url\": \"https://ml-articles.com/intro\", \"description\": \"An article about AI that covers the basics.\"}]\n\n"
+    "Text: 'You can find our privacy policy at https://site.com/privacy and our terms of service are here: https://site.com/terms.'\n"
+    "Output: [{\"url\": \"https://site.com/privacy\", \"description\": \"privacy policy\"}, {\"url\": \"https://site.com/terms\", \"description\": \"terms of service\"}]\n"
+    "--- END EXAMPLES ---\n\n"
+    "**Text to Analyze**:\n"
+)
 
 
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
