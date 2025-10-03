@@ -56,10 +56,11 @@ def post(session: Session, user_id: int, request_context: RequestContext) -> tup
 
 def get(session: Session, user_id: int, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
+    path_params = request_context.path_params
 
     start_time, end_time = get_ts_start_and_end(query_params)
 
-    note_id = query_params.get('id')
+    note_id = path_params.get('id')
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []
     metrics = query_params.get('metrics').split(',') if 'metrics' in query_params else []
 

@@ -10,8 +10,9 @@ from backend.lib.util import get_ts_start_and_end, HttpMethod
 
 def get(session: Session, user_id: int, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
+    path_params = request_context.path_params
 
-    link_id = query_params.get('id')
+    link_id = path_params.get('id')
     note_id = query_params.get('note_id')
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []
     search_text = query_params.get('search_text')

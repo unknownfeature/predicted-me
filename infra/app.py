@@ -12,7 +12,7 @@ from stacks.db_stack import PmDbStack
 from stacks.vpc_stack import PmVpcStack
 from shared.variables import Env
 
-
+# todo refactor stacks
 # export PYTHONPATH=$PYTHONPATH:./infra=/modules:./shared:./backend
 #  cdk synth --app  "python infra/app.py"
 

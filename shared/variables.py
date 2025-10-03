@@ -213,7 +213,7 @@ class Api:
 
     presign_function_url_path = '/presign'
     presign_function_methods = [api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    presign_function_integration =  'pm_presign_function_integration'
+    presign_function_integration_name = 'pm_presign_function_integration'
 
     note_api_function_name = 'pm_note_api_function'
     note_api_function_timeout = Duration.minutes(1)
@@ -221,9 +221,9 @@ class Api:
     note_api_function_code_path = os.path.join(Common.functions_dir, 'note_api/index')
     note_api_function_role_name = 'pm_note_api_function_role'
 
-    note_api_function_url_path = '/note'
+    note_api_function_url_path = '/note/{id}'
     note_api_function_methods =  [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    note_api_function_integration =  'pm_note_api_function_integration'
+    note_api_function_integration_name = 'pm_note_api_function_integration'
 
     data_api_function_name = 'pm_data_api_function'
     data_api_function_timeout = Duration.minutes(1)
@@ -231,9 +231,9 @@ class Api:
     data_api_function_code_path = os.path.join(Common.functions_dir, 'data_api/index')
     data_api_function_role_name = 'pm_data_api_function_role'
 
-    data_api_function_url_path = '/data'
+    data_api_function_url_path = '/data/{id}'
     data_api_function_methods =  [api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    data_api_function_integration =  'pm_data_api_function_integration'
+    data_api_function_integration_name = 'pm_data_api_function_integration'
 
     link_api_function_name = 'pm_link_api_function'
     link_api_function_timeout = Duration.minutes(1)
@@ -241,9 +241,9 @@ class Api:
     link_api_function_code_path = os.path.join(Common.functions_dir, 'link_api/index')
     link_api_function_role_name = 'pm_link_api_function_role'
 
-    link_api_function_url_path = '/link'
+    link_api_function_url_path = '/link/{id}'
     link_api_function_methods =  [api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    link_api_function_integration =  'pm_link_api_function_integration'
+    link_api_function_integration_name = 'pm_link_api_function_integration'
 
 
     schedule_api_function_name = 'pm_schedule_api_function'
@@ -252,9 +252,9 @@ class Api:
     schedule_api_function_code_path = os.path.join(Common.functions_dir, 'schedule_api/index')
     schedule_api_function_role_name = 'pm_schedule_api_function_role'
 
-    schedule_api_function_url_path = '/schedule'
+    schedule_api_function_url_path = '/schedule/{id}'
     schedule_api_function_methods =  [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.OPTIONS]
-    schedule_api_function_integration =  'pm_schedule_api_function_integration'
+    schedule_api_function_integration_name = 'pm_schedule_api_function_integration'
     
     task_api_function_name = 'pm_task_api_function'
     task_api_function_timeout = Duration.minutes(1)
@@ -262,9 +262,9 @@ class Api:
     task_api_function_code_path = os.path.join(Common.functions_dir, 'task_api/index')
     task_api_function_role_name = 'pm_task_api_function_role'
 
-    task_api_function_url_path = '/task'
+    task_api_function_url_path = '/task/{id}'
     task_api_function_methods =  [api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    task_api_function_integration =  'pm_task_api_function_integration'
+    task_api_function_integration_name = 'pm_task_api_function_integration'
     
     user_api_function_name = 'pm_user_api_function'
     user_api_function_timeout = Duration.minutes(1)
@@ -272,6 +272,6 @@ class Api:
     user_api_function_code_path = os.path.join(Common.functions_dir, 'user_api/index')
     user_api_function_role_name = 'pm_user_api_function_role'
 
-    user_api_function_url_path = '/user'
+    user_api_function_url_path = '/user/{id}'
     user_api_function_methods =  [api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    user_api_function_integration =  'pm_user_api_function_integration'
+    user_api_function_integration_name = 'pm_user_api_function_integration'

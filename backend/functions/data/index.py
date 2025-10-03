@@ -11,8 +11,11 @@ from backend.lib.util import get_ts_start_and_end, HttpMethod
 def get(session: Session, user_id: int, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
 
-    data_id = query_params.get('id')
+    path_params = request_context.path_params
+
+    data_id = path_params.get('id')
     note_id = query_params.get('note_id')
+
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []
     metrics = query_params.get('metrics').split(',') if 'metrics' in query_params else []
     end_time, start_time = get_ts_start_and_end(query_params)
