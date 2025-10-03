@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend.lib.db import DataSchedule, begin_session, User
 from backend.lib.util import get_user_id_from_event
+from shared.variables import Common
 
 updatable_fields = {'recurrence_schedule', 'target_value', 'units'}
 
@@ -69,13 +70,13 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             id = path_params['id']
             response_data, status_code = delete(session, id, user_id)
         else:
-            return {'statusCode': 405, 'body': json.dumps({'error': 'Method not allowed'})}
+            return {'statusCode': 405, 'body': json.dumps({'error': 'Method not allowed'}), 'headers': Common.cors_headers,}
 
         session.commit()
 
         return {
             'statusCode': status_code,
-            'headers': {'Content-Type': 'application/json'},
+            'headers': {'Content-Type': 'application/json'} | Common.cors_headers,
             'body': json.dumps(response_data)
         }
 
@@ -84,7 +85,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         if session:
             session.rollback()
         traceback.print_exc()
-        return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'})}
+        return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'}), 'headers': Common.cors_headers,}
 
     finally:
         if session:

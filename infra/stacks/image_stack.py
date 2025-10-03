@@ -7,14 +7,14 @@ from aws_cdk import (
     aws_bedrock as bedrock)
 from constructs import Construct
 from .db_stack import PmDbStack
-from .text_processing_stack import PmTextStack
+from .text_stack import PmTextStack
 from .util import docker_code_asset
 from .vpc_stack import PmVpcStack
 
 from shared.variables import Env, Common, Image
 
 
-class PmImageProcessingStack(Stack):
+class PmImageStack(Stack):
 
     def __init__(self, scope: Construct, vpc_stack: PmVpcStack, db_stack: PmDbStack, text_stack: PmTextStack,
                  **kwargs) -> None:
@@ -159,5 +159,6 @@ class PmImageProcessingStack(Stack):
             s3n.LambdaDestination(self.bda_out_processing_function),
             s3.NotificationKeyFilter(suffix='.jsonl')
         )
+        db_stack.db_instance.connections.allow_default_port_from(self.bda_out_processing_function)
 
         text_stack.text_processing_topic.grant_publish(self.bda_out_processing_function)

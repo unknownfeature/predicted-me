@@ -9,13 +9,13 @@ from aws_cdk import (
 from constructs import Construct
 
 from .db_stack import PmDbStack
-from .text_processing_stack import PmTextStack
+from .text_stack import PmTextStack
 from .util import docker_code_asset
 from .vpc_stack import PmVpcStack
 from shared.variables import Env, Common, Audio
 
 
-class PmAudioProcessingStack(Stack):
+class PmAudioStack(Stack):
 
     def __init__(self, scope: Construct, vpc_stack: PmVpcStack, db_stack: PmDbStack, text_stack: PmTextStack,
                  **kwargs) -> None:
@@ -122,3 +122,5 @@ class PmAudioProcessingStack(Stack):
             s3.EventType.OBJECT_CREATED,
             s3n.LambdaDestination(self.transcribe_output_processing_function)
         )
+        db_stack.db_instance.connections.allow_default_port_from(self.transcribe_output_processing_function)
+

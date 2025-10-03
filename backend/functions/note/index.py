@@ -7,10 +7,10 @@ import boto3
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib.db import Note, Tag, Metric, MetricOrigin, begin_session, get_utc_timestamp_int, Data
-from backend.lib.util import seconds_in_day, get_user_id_from_event, get_ts_start_and_end
+from backend.lib.db import Note, Tag, Metric, MetricOrigin, begin_session, Data
+from backend.lib.util import  get_user_id_from_event, get_ts_start_and_end
 
-from shared.variables import Env
+from shared.variables import Env, Common
 
 secrets_client = boto3.client('secretsmanager')
 sns_client = boto3.client('sns')
@@ -130,17 +130,17 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
             response_data, status_code = get(session, user_id, query_params)
 
         else:
-            return {'statusCode': 405, 'body': json.dumps({'error': 'Method not allowed'})}
+            return {'statusCode': 405, 'body': json.dumps({'error': 'Method not allowed'}), 'headers': Common.cors_headers,}
 
         return {
             'statusCode': status_code,
-            'headers': {'Content-Type': 'application/json'},
+            'headers': {'Content-Type': 'application/json'} | Common.cors_headers,
             'body': json.dumps(response_data)
         }
 
     except Exception:
         traceback.print_exc()
-        return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'})}
+        return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'}), 'headers': Common.cors_headers,}
 
     finally:
         if session:

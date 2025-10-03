@@ -49,7 +49,6 @@ metric_tags_association = Table(
     "metrics_tags",
     Base.metadata,
     Column("metrics_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
-    Column("user_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
     Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
 )
 
@@ -57,7 +56,6 @@ link_tags_association = Table(
     "links_tags",
     Base.metadata,
     Column("link_id", BigInteger, ForeignKey("link.id"), primary_key=True),
-    Column("user_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
     Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
 )
 
@@ -65,7 +63,6 @@ task_tags_association = Table(
     "tasks_tags",
     Base.metadata,
     Column("task_id", BigInteger, ForeignKey("task.id"), primary_key=True),
-    Column("user_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
     Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
 )
 
@@ -239,6 +236,11 @@ class DataSchedule(Base):
 class Link(Base):
     __tablename__ = "link"
 
+    Index(
+        'ft_link_content',
+        'description', 'url',
+        mysql_prefix='FULLTEXT',
+    ),
     __table_args__ = (
         UniqueConstraint('url', 'user_id', name='uq_link_url'),
     )
@@ -271,13 +273,20 @@ class Link(Base):
 class Task(Base):
     __tablename__ = "task"
 
+
+    Index(
+        'ft_task_content',
+        'description',
+        mysql_prefix='FULLTEXT',
+    ),
+
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
 
     description: Mapped[str] = mapped_column(String(1000), nullable=False)
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
-
+    completed: Mapped[bool] = mapped_column(Boolean, default=False)
     time: Mapped[int] = mapped_column(BigInteger)
 
     origin: Mapped[MetricOrigin] = mapped_column(

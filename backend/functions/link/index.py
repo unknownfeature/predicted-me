@@ -2,19 +2,21 @@ import json
 import traceback
 from typing import Dict, Any, List, Union
 
-from sqlalchemy import select, update, and_, delete as sql_delete
+from sqlalchemy import select, update, and_, delete as sql_delete, func
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib.db import Data, Metric, begin_session, Note, DataSchedule, Tag, User
+from backend.lib.db import begin_session, Note, Tag, User, Link
 from backend.lib.util import get_user_id_from_event, get_ts_start_and_end
+
 from shared.variables import Common
 
-#  todo add ability to add data manually
+
+#  todo add ability to add link manually
 def delete(session: Session, id: int, user_id: int) -> tuple[dict[str, Union[int, str]], int]:
-    session.execute(sql_delete(Data).where(
+    session.execute(sql_delete(Link).where(
         and_(
-            Data.id == id,
-            Data.note.has(Note.user_id == user_id)
+            Link.id == id,
+            Link.note.has(Note.user_id == user_id)
         )
     )
     )
@@ -22,66 +24,63 @@ def delete(session: Session, id: int, user_id: int) -> tuple[dict[str, Union[int
 
 
 def get(session: Session, user_id: int, query_params: Dict[str, Any]) -> tuple[List[Dict[str, Any]], int]:
-    data_id = query_params.get('id')
+    link_id = query_params.get('id')
     note_id = query_params.get('note_id')
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []
-    metrics = query_params.get('metrics').split(',') if 'metrics' in query_params else []
+    search_text = query_params.get('search_text')
     end_time, start_time = get_ts_start_and_end(query_params)
     conditions = [
-        Data.note.user_id == user_id
+        Link.note.user_id == user_id
     ]
-    query = select(Data).join(Data.note)
+    query = select(Link)
 
-    if not note_id and not data_id:
+    if not note_id and not link_id:
         conditions.extend([
-            Data.time >= start_time,
-            Data.time <= end_time
+            Link.time >= start_time,
+            Link.time <= end_time
         ])
-        if tags or metrics:
-            query = query.join(Data.metric)
+
         if tags:
-            conditions.append(Metric.tags.any(Tag.name.in_(tags)))
-        if metrics:
-            conditions.append(Metric.name.in_(metrics))
-    elif data_id:
-        conditions.append(Data.id == int(data_id))
+            conditions.append(Link.tags.any(Tag.name.in_(tags)))
+        if search_text:
+            search_columns = Link.description, Link.url
+
+            full_text_condition = func.match(*search_columns).against(
+                search_text,
+                natural=True
+            )
+
+            conditions.append(full_text_condition)
+    elif link_id:
+        conditions.append(Link.id == int(link_id))
     elif note_id:
         conditions.append(Note.id == int(note_id))
     query = query.where(and_(*conditions)) \
-        .order_by(Data.time.desc()) \
+        .order_by(Link.time.desc()) \
         .options(
-        joinedload(Data.metric).joinedload(Metric.tags),
-        joinedload(Data.metric).joinedload(Metric.schedules)
+        joinedload(Link.tags)
     )
 
-    data_points = session.scalars(query).all()
+    links = session.scalars(query).all()
 
     return [{
-        'id': dp.id,
-        'note_id': dp.note_id,
-        'value': float(dp.value),
-        'units': dp.units,
-        'origin': dp.origin.value,
-        'time': dp.time,
-        'metric': {
-            'id': dp.metric.id,
-            'name': dp.metric.name,
-            'tagged': dp.metric.tagged,
-            'tags': [tag for tag in dp.metric.tags],
-            'schedule': {} if dp.metric.schedules is None else {
-                'id': dp.metric.schedules[0].id,
-                'recurrence_schedule': dp.metric.schedules[0].recurrence_schedule,
-                'target_value': dp.metric.schedules[0].target_value,
-                'units': dp.metric.schedules[0].units,
-            }
-        }} for dp in data_points], 200
+        'id': link.id,
+        'note_id': link.note_id,
+        'url': link.url,
+        'description': link.description,
+        'origin': link.origin.value,
+        'tagged': link.tagged,
+        'time': link.time,
+        'tags': [tag for tag in link.tags],
+    } for link in links], 200
+
 
 # todo add the ability to modify tags, requires remapping
 def patch(session: Session, id: int, user_id, body: Dict[str, Any]) -> tuple[Dict[str, Any], int]:
-    update_fields = {f: body[f] for f in body if f in {'value', 'units', 'time'}}
+    update_fields = {f: body[f] for f in body if f in {'url', 'description', 'time'}}
 
     if update_fields:
-        update_stmt = update(Data).join(Data.note).where(and_([Data.id == id, User.id == user_id])).values(
+        update_stmt = update(Link).where(and_([Link.id == id, User.id == user_id])).values(
             **update_fields)
         session.execute(update_stmt)
 

@@ -3,8 +3,8 @@ import os
 import aws_cdk as cdk
 
 from stacks.tagging_stack import PmTaggingStack
-from stacks.text_processing_stack import PmTextStack
-from stacks.image_processing_stack import PmImageProcessingStack
+from stacks.text_stack import PmTextStack
+from stacks.image_stack import PmImageStack
 from stacks.api_stack import PmApiStack
 from stacks.bastion_stack import PmBastionStack
 from stacks.cognito_stack import PmCognitoStack
@@ -26,7 +26,7 @@ cognito_stack = PmCognitoStack(app, env=env)
 api_stack = PmApiStack(app, cognito_stack, env=env)
 tagging_stack = PmTaggingStack(app, db_stack, vpc_stack, env=env)
 text_processing_stack = PmTextStack(app, vpc_stack, db_stack, tagging_stack, env=env)
-image_processing_stack = PmImageProcessingStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
+image_processing_stack = PmImageStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
 
 app.synth()
 
