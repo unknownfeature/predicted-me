@@ -1,19 +1,18 @@
 import json
 import os
-from functools import reduce
 from typing import List, Dict, Any
 
-import boto3
-from sqlalchemy import inspect, select, and_, insert
+from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session, selectinload
 
 from backend.lib.db import Metric, Data, Tag
-from backend.lib.func.tagging import Function
-from backend.lib.util import get_or_create_tags, merge_tags
+from backend.lib.func.tagging import process_record_factory, Params
+from backend.lib.func.sqs import handler_factory
+from backend.lib.util import merge_tags
 from shared.variables import Env
 
 generative_model = os.getenv(Env.generative_model)
-max_tokens = os.getenv(Env.max_tokens)
+max_tokens = int(os.getenv(Env.max_tokens))
 
 output_schema = {
     "type": "array",
@@ -58,39 +57,33 @@ tagging_prompt = (
 
 
 def text_supplier(session: Session, note_id, _):
-    query = select(Metric).join(Data, Metric.data_points).where(and_([Data.note_id == note_id, not Metric.tagged]))
+    query = select(Data).join(Metric.data_points).where(and_([Data.note_id == note_id, not Metric.tagged]))
 
-    untagged_metrics = session.scalars(query).all()
+    untagged_data = session.scalars(query).all()
 
-    if not untagged_metrics:
+    if not untagged_data:
         print(f"No metrics to tag{note_id} are already tagged. Skipping.")
         return
 
+    # todo could be duplicates? not sure
     return (
         f"\n{json.dumps([{
-            'id': m.id,
-            'name': m.name,
-            'units': m.units} for m in untagged_metrics
+            'id': d.metric_id,
+            'name': d.metric.name,
+            'units': d.units} for d in untagged_data
         ])}"
     )
 
 
 def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
     merge_tags(session, data, lambda: select(Metric)
-               .join(Metric.data_points)
-               .where(
-        and_(
-            Metric.id.in_([item['id'] for item in data]),
-            Data.note_id == note_id,
-            Metric.tagged == False
-        )
+               .join(Metric.data_points).where(and_(
+        Metric.id.in_([item['id'] for item in data]),
+        Data.note_id == note_id,
+        Metric.tagged == False
     )
-               .options(selectinload(Metric.tags)))
+    ).options(selectinload(Metric.tags)))
 
 
-tagging_function = Function(tagging_prompt, text_supplier, on_extracted_cb, generative_model,
-                            int(max_tokens))
-
-
-def handler(event, _):
-    return tagging_function.handler(event, None)
+handler = handler_factory(
+    process_record_factory(Params(tagging_prompt, text_supplier, generative_model, max_tokens), on_extracted_cb))

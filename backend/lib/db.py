@@ -48,7 +48,7 @@ class Base(DeclarativeBase):
 metric_tags_association = Table(
     "metrics_tags",
     Base.metadata,
-    Column("metrics_id", BigInteger, ForeignKey("metrics.id"), primary_key=True),
+    Column("metric_id", BigInteger, ForeignKey("metric.id"), primary_key=True),
     Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
 )
 
@@ -189,7 +189,7 @@ class Data(Base):
     __tablename__ = "data"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    metrics_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"))
+    metric_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"))
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
 
     value: Mapped[float] = mapped_column(Numeric)
@@ -207,7 +207,7 @@ class Data(Base):
     note: Mapped["Note"] = relationship(back_populates="data_points")
 
     def __repr__(self) -> str:
-        return (f"Data(id={self.id!r}, metric_id={self.metrics_id!r}, "
+        return (f"Data(id={self.id!r}, metric_id={self.metric_id!r}, "
                 f"value={self.value!r}, units={self.units!r}, origin={self.origin.value!r})")
 
 
@@ -218,7 +218,7 @@ class DataSchedule(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    metrics_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"), unique=True)
+    metric_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"), unique=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     recurrence_schedule: Mapped[str] = mapped_column(String(50))
@@ -229,7 +229,7 @@ class DataSchedule(Base):
     user: Mapped["User"] = relationship(back_populates="schedules")
 
     def __repr__(self) -> str:
-        return (f"DataSchedule(metric_id={self.metrics_id!r}, "
+        return (f"DataSchedule(metric_id={self.metric_id!r}, "
                 f"schedule={self.recurrence_schedule!r}, target={self.target_value!r})")
 
 

@@ -1,28 +1,17 @@
-import json
-import traceback
 from typing import Dict, Any, List, Union
 
 from sqlalchemy import select, update, and_, delete as sql_delete, func
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib.db import begin_session, Note, Tag, User, Task
-from backend.lib.util import get_user_id_from_event, get_ts_start_and_end
-from shared.variables import Common
-
-#  todo extract common logic
-#  todo add ability to add task manually
-def delete(session: Session, id: int, user_id: int) -> tuple[dict[str, Union[int, str]], int]:
-    session.execute(sql_delete(Task).where(
-        and_(
-            Task.id == id,
-            Task.note.has(Note.user_id == user_id)
-        )
-    )
-    )
-    return {'status': 'success'}, 204
+from backend.lib.db import Note, Tag, User, Task
+from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory
+from backend.lib.util import get_ts_start_and_end, HttpMethod
 
 
-def get(session: Session, user_id: int, query_params: Dict[str, Any]) -> tuple[List[Dict[str, Any]], int]:
+
+def get(session: Session, user_id, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
+    query_params = request_context.query_params
+
     task_id = query_params.get('id')
     note_id = query_params.get('note_id')
     tags = query_params.get('tags').split(',') if 'tags' in query_params else []
@@ -52,7 +41,7 @@ def get(session: Session, user_id: int, query_params: Dict[str, Any]) -> tuple[L
 
             conditions.append(full_text_condition)
         if completed:
-            conditions.append(Task.completed == True)
+            conditions.append(Task.completed == completed)
     elif task_id:
         conditions.append(Task.id == int(task_id))
     elif note_id:
@@ -75,64 +64,17 @@ def get(session: Session, user_id: int, query_params: Dict[str, Any]) -> tuple[L
         'completed': task.completed,
         'time': task.time,
         'tags': [tag for tag in task.tags],
-      } for task in tasks], 200
-
-# todo add the ability to modify tags, requires remapping
-def patch(session: Session, id: int, user_id, body: Dict[str, Any]) -> tuple[Dict[str, Any], int]:
-    update_fields = {f: body[f] for f in body if f in {'url', 'description', 'time'}}
-
-    if update_fields:
-        update_stmt = update(Task).where(and_([Task.id == id, User.id == user_id])).values(
-            **update_fields)
-        session.execute(update_stmt)
-
-    return {'status': 'success', 'id': id}, 200
+    } for task in tasks], 200
 
 
-def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
-    session = None
 
-    try:
+patch_handler = lambda session, update_fields, user_id, id: session.execute(update(Task).where(and_([Task.id == id, User.id == user_id])).values(**update_fields))
 
-        session = begin_session()
-        user_id = get_user_id_from_event(event, session)
+delete_handler = lambda session, user_id, id: session.execute(sql_delete(Task).where(and_([Task.id == id, Task.note.has(Note.user_id == user_id)])))
 
-        http_method = event['httpMethod']
-        body = json.loads(event.get('body', '{}'))
-        query_params = event.get('queryStringParameters') or {}
-        path_params = event.get("pathParameters", {})
+handler = handler_factory({
+    HttpMethod.GET.value: get,
+    HttpMethod.PATCH.value: patch_factory({'url', 'description', 'time'}, patch_handler),
+    HttpMethod.DELETE.value: delete_factory(delete_handler),
 
-        if http_method == 'GET':
-            response_data, status_code = get(session, user_id, query_params)
-
-        elif http_method == 'PATCH':
-            id = path_params['id']
-            response_data, status_code = patch(session, id, user_id, body)
-            session.commit()
-
-        elif http_method == 'DELETE':
-            id = path_params['id']
-            response_data, status_code = delete(session, id, user_id)
-            session.commit()
-
-        else:
-            return {'statusCode': 405, 'body': json.dumps({'error': 'Method not allowed'}),
-                    'headers': Common.cors_headers, }
-
-        return {
-            'statusCode': status_code,
-            'headers': {'Content-Type': 'application/json'} | Common.cors_headers,
-            'body': json.dumps(response_data)
-        }
-
-
-    except Exception:
-        if session:
-            session.rollback()
-        traceback.print_exc()
-        return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'}),
-                'headers': Common.cors_headers, }
-
-    finally:
-        if session:
-            session.close()
+})

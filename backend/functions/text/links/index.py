@@ -6,15 +6,17 @@ import boto3
 from sqlalchemy import insert, inspect
 from sqlalchemy.orm import Session
 
-from backend.lib.db import Note, Link
-from backend.lib.func.text_extraction import Function
+from backend.lib.db import Link
+from backend.lib.func.sqs import handler_factory
+from backend.lib.func.tagging import process_record_factory, Params
+from backend.lib.func.text import note_text_supplier
 from shared.variables import Env
 
 sns_client = boto3.client('sns')
 tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
 
-text_extraction_model = os.getenv(Env.generative_model)
-max_tokens =  os.getenv(Env.max_tokens)
+generative_model = os.getenv(Env.generative_model)
+max_tokens =  int(os.getenv(Env.max_tokens))
 
 link_schema = {
     "type": "array",
@@ -72,9 +74,6 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
     )
 
 
-text_processing_function = Function(prompt, on_extracted_cb, text_extraction_model, int(max_tokens))
-
-
-def handler(event, _):
-    return text_processing_function.handler(event, None)
+handler = handler_factory(
+    process_record_factory(Params(prompt, note_text_supplier, generative_model, max_tokens), on_extracted_cb))
 

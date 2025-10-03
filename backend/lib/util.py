@@ -1,6 +1,7 @@
 import json
 import traceback
 import uuid
+from enum import Enum
 from typing import Dict, Any, List, Set, Callable
 
 import boto3
@@ -20,6 +21,13 @@ text_getters = {
 }
 
 
+class HttpMethod(Enum):
+    GET = 'GET'
+    POST = 'POST'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
+    PATCH = 'PATCH'
+
 def get_user_id_from_event(event: Dict[str, Any], session: Session) -> int:
     user_query = select(User.id).where(User.external_id == event['requestContext']['authorizer']['jwt']['claims']['username'])
     return session.scalar(user_query)
@@ -29,7 +37,7 @@ def get_ts_start_and_end(query_params):
     start_time = int(query_params.get('start_ts')) if 'start_ts' in query_params else (now_utc - seconds_in_day)
     end_time = int(query_params.get('end_ts')) if 'end_ts' in query_params else now_utc
     if start_time >= end_time:
-        raise ValueError("Start time must be before end time.")
+        raise ValueError('Start time must be before end time.')
     return start_time, end_time
 
 
@@ -41,14 +49,14 @@ def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) 
         id = uuid.uuid4().hex
         response = bedrock_runtime.invoke_model(
             modelId=model,
-            contentType="application/json",
-            accept="application/json",
+            contentType='application/json',
+            accept='application/json',
             body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": max_tokens,
-                "notes": [{"role": "user", "content": [{"type": "text", "text": prompt + (
-                    f"TEXT FOR ANALYSIS:    ---START_USER_INPUT {id} ---  {text_content} ---END_USER_INPUT  {id} ---"
-                ) if text_content else ""}]}],
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens': max_tokens,
+                'notes': [{'role': 'user', 'content': [{'type': 'text', 'text': prompt + (
+                    f'TEXT FOR ANALYSIS:    ---START_USER_INPUT {id} ---  {text_content} ---END_USER_INPUT  {id} ---'
+                ) if text_content else ''}]}],
             })
         )
 
@@ -81,7 +89,7 @@ def get_or_create_tags(session: Session, tag_names: Set[str]) -> Dict[str, Tag]:
 
     return existing_tags_dict | new_tags
 
-def merge_tags(session: Session, data: List[Dict[str, Any]], stmt_supplier: Callable[[], List[Any]]):
+def merge_tags(session: Session, data: List[Dict[str, Any]], stmt_supplier: Callable[[], Any]):
     if not data:
         return
 
