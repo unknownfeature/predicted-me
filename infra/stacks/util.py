@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_lambda as lmbd,
     aws_apigatewayv2 as api_gtw,
     aws_iam as iam, Duration)
+from aws_cdk.aws_iam import PolicyStatement
 
 from infra.stacks.db_stack import PmDbStack
 from shared.variables import Common

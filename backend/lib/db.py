@@ -71,6 +71,7 @@ class Tag(Base):
     __tablename__ = "tag"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
+
     metrics: Mapped[List["Metric"]] = relationship(
         secondary=metric_tags_association, back_populates="tags"
     )
@@ -80,6 +81,7 @@ class Tag(Base):
     tasks: Mapped[List["Task"]] = relationship(
         secondary=task_tags_association, back_populates="tags"
     )
+
 
     def __repr__(self) -> str:
         return f"Tag(id={self.id!r}, name={self.name!r})"
@@ -161,7 +163,7 @@ class Metric(Base):
     name: Mapped[str] = mapped_column(String(500), unique=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     tags: Mapped[List["Tag"]] = relationship(
-        secondary=metric_tags_association, back_populates="metrics", lazy=False, cascade="all, delete-orphan"
+        secondary=metric_tags_association, back_populates="metrics", lazy=False,
     )
 
     data_points: Mapped[list["Data"]] = relationship(
@@ -169,11 +171,15 @@ class Metric(Base):
         cascade="all, delete-orphan",
         lazy=True
     )
-    schedules: Mapped[list["DataSchedule"]] = relationship(
+    schedules: Mapped["DataSchedule"] = relationship(
         back_populates="metric",
         cascade="all, delete-orphan",
         lazy=True
     )
+
+    user: Mapped["User"] = relationship()
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     def __repr__(self) -> str:
         return f"Metrics(id={self.id!r}, name={self.name!r}, tagged={self.tagged!r})"
@@ -189,7 +195,7 @@ class Data(Base):
     __tablename__ = "data"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    metric_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"))
+    metric_id: Mapped[int] = mapped_column(ForeignKey("metric.id"))
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
 
     value: Mapped[float] = mapped_column(Numeric)
@@ -214,11 +220,11 @@ class Data(Base):
 class DataSchedule(Base):
     __tablename__ = "data_schedule"
     __table_args__ = (
-        UniqueConstraint('metrics_id', 'user_id', name='uq_metric_schedule'),
+        UniqueConstraint('metric_id', 'user_id', name='uq_metric_schedule'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    metric_id: Mapped[int] = mapped_column(ForeignKey("metrics.id"), unique=True)
+    metric_id: Mapped[int] = mapped_column(ForeignKey("metric.id"), unique=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     recurrence_schedule: Mapped[str] = mapped_column(String(50))
@@ -249,7 +255,7 @@ class Link(Base):
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
-    url: Mapped[str] = mapped_column(String(1000))
+    url: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -262,7 +268,7 @@ class Link(Base):
 
     note: Mapped["Note"] = relationship(back_populates="links")
     tags: Mapped[List["Tag"]] = relationship(
-        secondary=link_tags_association, back_populates="links", lazy=False, cascade="all, delete-orphan"
+        secondary=link_tags_association, back_populates="links", lazy=False
     )
 
     def __repr__(self) -> str:
@@ -296,7 +302,7 @@ class Task(Base):
 
     note: Mapped["Note"] = relationship(back_populates="tasks")
     tags: Mapped[List["Tag"]] = relationship(
-        secondary=task_tags_association, back_populates="tasks", lazy=False, cascade="all, delete-orphan"
+        secondary=task_tags_association, back_populates="tasks", lazy=False
     )
 
     def __repr__(self) -> str:

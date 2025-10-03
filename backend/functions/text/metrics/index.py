@@ -66,7 +66,8 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
         'value': metric.get('value'),
         'units': metric.get('units'),
         'time': target_note.time,
-        'origin': origin
+        'origin': origin,
+        'user_id': target_note.user_id,
     } for metric in data if 'name' in metric]
 
     if not data_and_metrics:
@@ -87,7 +88,8 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
         bindparam('value'),
         bindparam('units'),
         bindparam('origin'),
-        bindparam('time')
+        bindparam('time'),
+        bindparam('user_id'),
     ]
 
     case_insensitive_join = func.lower(Metric.__table__.c.name) == func.lower(bindparam('name'))
