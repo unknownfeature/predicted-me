@@ -186,6 +186,7 @@ class DataTest(unittest.TestCase):
             malicious_event[constants.http_method] = constants.get
             malicious_event[constants.query_params] = {}
             malicious_event[constants.path_params] = {}
+            malicious_event[constants.path_params]['id'] = 1
             result = handler(malicious_event, None)
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
