@@ -3,12 +3,29 @@ from typing import Dict, Any, List
 from sqlalchemy import select, update, and_, delete as sql_delete
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib.db import Data, Metric, Note, Tag, User
-from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory
+from backend.lib.db import Data, Metric, Note, Tag, User, get_utc_timestamp_int
+from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory, post_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod
 
+updatable_fileds = {'value', 'units', 'time'}
 
-def get(session: Session, user_id: int, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
+
+def post(session: Session, user_id, request_context: RequestContext) -> tuple[Dict[str, Any], int]:
+    path_params = request_context.path_params
+    body = request_context.body
+    #  todo fix this, need to add another route to api
+    metric_id = path_params['id']
+
+    update_fields = {f: body[f] for f in body if f in updatable_fileds} | {
+        'metric_id': metric_id, 'user_id': user_id, 'time': get_utc_timestamp_int()}
+    data = Data(**update_fields)
+
+    session.add(data)
+    session.flush()
+
+    return {'status': 'success', 'id': data.id}, 201
+
+def get(session: Session, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
 
     path_params = request_context.path_params
@@ -21,7 +38,7 @@ def get(session: Session, user_id: int, request_context: RequestContext) -> tupl
     end_time, start_time = get_ts_start_and_end(query_params)
 
     conditions = [
-        Data.note.user_id == user_id
+        Data.note.user_id == request_context.user.id
     ]
     query = select(Data).join(Data.note)
 
@@ -76,10 +93,13 @@ patch_handler = lambda session, update_fields, user_id, id: session.execute(upda
 delete_handler = lambda session, user_id, id: session.execute(sql_delete(Data).where(
                                                      and_([Data.id == id, Data.note.has(Note.user_id == user_id)])))
 
+post_handler = lambda context: Data(**{f: context.body[f] for f in context.body if f in updatable_fileds} | {
+        'metric_id': context.path_params['id'], 'user_id': context.user.id, 'time': get_utc_timestamp_int()})
+
 handler = handler_factory({
     HttpMethod.GET.value: get,
-    HttpMethod.PATCH.value: patch_factory({'value', 'units', 'time'}, patch_handler
-                                          ),
+    HttpMethod.POST.value: post_factory(post_handler),
+    HttpMethod.PATCH.value: patch_factory(updatable_fileds, patch_handler),
     HttpMethod.DELETE.value: delete_factory(delete_handler),
 
 })

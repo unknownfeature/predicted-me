@@ -2,7 +2,7 @@ import json
 import traceback
 import uuid
 from enum import Enum
-from typing import Dict, Any, List, Set, Callable
+from typing import Dict, Any, List, Set, Callable, Tuple
 
 import boto3
 from sqlalchemy import select
@@ -28,9 +28,11 @@ class HttpMethod(Enum):
     DELETE = 'DELETE'
     PATCH = 'PATCH'
 
-def get_user_id_from_event(event: Dict[str, Any], session: Session) -> int:
-    user_query = select(User.id).where(User.external_id == event['requestContext']['authorizer']['jwt']['claims']['username'])
-    return session.scalar(user_query)
+def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[int, str]:
+    external_user = event['requestContext']['authorizer']['jwt']['claims']['username']
+    user_query = select(User.id).where(User.external_id == external_user)
+    user = session.scalar(user_query).first()
+    return user.id if user else None, external_user
 
 def get_ts_start_and_end(query_params):
     now_utc = get_utc_timestamp_int()

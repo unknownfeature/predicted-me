@@ -2,7 +2,7 @@ import datetime
 import json
 import os
 from enum import Enum
-from typing import List
+from typing import List, re
 
 import boto3
 from sqlalchemy import (
@@ -40,7 +40,13 @@ class MetricOrigin(str, Enum):
 def get_utc_timestamp_int() -> int:
     return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
 
-
+def normalize_identifier(name):
+    if not name:
+        raise ValueError("Identifier cannot be empty.")
+    s = name.lower()
+    s = s.replace(' ', '_')
+    s = re.sub(r'[^a-z0-9_]', '', s)
+    return s
 class Base(DeclarativeBase):
     pass
 
@@ -86,12 +92,10 @@ class Tag(Base):
     def __repr__(self) -> str:
         return f"Tag(id={self.id!r}, name={self.name!r})"
 
+
     @validates('name')
     def validate_name(self, _, name):
-        if not name:
-            raise ValueError("Name cannot be empty")
-        return name.lower()
-
+        return normalize_identifier(name)
 
 class User(Base):
     __tablename__ = "user"
@@ -101,6 +105,8 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp_int)
+
     schedules: Mapped[list["DataSchedule"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -151,7 +157,7 @@ class Note(Base):
     def __repr__(self) -> str:
         return f"Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time})"
 
-
+#  todo human readable name
 class Metric(Base):
     __tablename__ = "metric"
     __table_args__ = (
@@ -159,8 +165,16 @@ class Metric(Base):
         Index('idx_metric_name', 'name'),
     )
 
+    Index(
+        'ft_display_name',
+        'display_name',
+        mysql_prefix='FULLTEXT',
+    ),
+
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(500), unique=True)
+    display_name: Mapped[str] = mapped_column(String(500), unique=True)
+
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     tags: Mapped[List["Tag"]] = relationship(
         secondary=metric_tags_association, back_populates="metrics", lazy=False,
@@ -186,9 +200,7 @@ class Metric(Base):
 
     @validates('name')
     def validate_name(self, _, name):
-        if not name:
-            raise ValueError("Name cannot be empty")
-        return name.lower()
+        return normalize_identifier(name)
 
 
 class Data(Base):

@@ -6,7 +6,7 @@ import boto3
 from sqlalchemy.orm import Session
 from sqlalchemy import insert, select, bindparam, inspect, func
 
-from backend.lib.db import Metric, Data, Note
+from backend.lib.db import Metric, Data, Note, normalize_identifier
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import Params, process_record_factory
 from backend.lib.func.text import note_text_supplier
@@ -62,7 +62,8 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
 
     data_and_metrics = [{
         'note_id': target_note.id,
-        'name': metric.get('name').lower(),
+        'name': normalize_identifier( metric.get('name')),
+        'display_name':  metric.get('name'),
         'value': metric.get('value'),
         'units': metric.get('units'),
         'time': target_note.time,

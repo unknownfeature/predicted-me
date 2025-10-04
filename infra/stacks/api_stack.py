@@ -16,6 +16,7 @@ from .image_stack import PmImageStack
 from .util import ApiFunctionParams, RoleParams, DockerFunctionParams, \
     IntegrationParams, create_and_setup_api_function, on_role_db_callback
 
+#  todo do something with this ugly class
 class PmApiStack(Stack):
 
     def __init__(self, scope: Construct, cognito_stack: PmCognitoStack, image_stack: PmImageStack,
@@ -42,7 +43,11 @@ class PmApiStack(Stack):
         self.task_api_function_role, self.task_api_function = self._task_api_function_and_role(db_stack)
 
         self.user_api_function_role, self.user_api_function = self._user_api_function_and_role(db_stack)
-   
+
+        self.tag_api_function_role, self.tag_api_function = self._tag_api_function_and_role(db_stack)
+
+        self.metric_api_function_role, self.metric_api_function = self._metric_api_function_and_role(db_stack)
+
 
         self.http_authorizer = auth.HttpJwtAuthorizer(id=Api.authorizer,
                                                       identity_source=['$request.header.Authorization'],
@@ -114,7 +119,7 @@ class PmApiStack(Stack):
         )
 
         return create_and_setup_api_function(self, params, self.http_api)
-    
+
     def _data_api_function_and_role(self, db_stack: PmDbStack) -> (iam.Role, lmbd.Function):
         params = ApiFunctionParams(
             func_name=Api.data_api_function_name,
@@ -174,7 +179,7 @@ class PmApiStack(Stack):
         )
 
         return create_and_setup_api_function(self, params, self.http_api)
-    
+
     def _schedule_api_function_and_role(self, db_stack: PmDbStack) -> (iam.Role, lmbd.Function):
         params = ApiFunctionParams(
             func_name=Api.schedule_api_function_name,
@@ -204,7 +209,7 @@ class PmApiStack(Stack):
         )
 
         return create_and_setup_api_function(self, params, self.http_api)
-    
+
     def _task_api_function_and_role(self, db_stack: PmDbStack) -> (iam.Role, lmbd.Function):
         params = ApiFunctionParams(
             func_name=Api.task_api_function_name,
@@ -264,5 +269,64 @@ class PmApiStack(Stack):
         )
 
         return create_and_setup_api_function(self, params, self.http_api)
-    
+
+    def _tag_api_function_and_role(self, db_stack: PmDbStack) -> (iam.Role, lmbd.Function):
+        params = ApiFunctionParams(
+            func_name=Api.tag_api_function_name,
+            role_params=RoleParams(
+                name=Api.tag_api_function_role_name,
+                on_role=on_role_db_callback(db_stack),
+            ),
+            func_params=DockerFunctionParams(
+                timeout=Api.tag_api_function_timeout,
+                build_args={
+                    Common.func_dir_arg: Api.tag_api_function_code_path,
+                    Common.install_mysql_arg: 'True',
+                },
+                environment={
+                    Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
+                    Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                    Env.db_name: db_stack.db_instance.instance_identifier,
+
+                },
+                on_created=lambda function: db_stack.db_instance.connections.allow_default_port_from(function)
+            ),
+            integration_params=IntegrationParams(
+                url_path=Api.tag_api_function_url_path,
+                methods=Api.tag_api_function_methods,
+                name=Api.tag_api_function_integration_name
+            )
+        )
+
+        return create_and_setup_api_function(self, params, self.http_api)
+
+    def _metric_api_function_and_role(self, db_stack: PmDbStack) -> (iam.Role, lmbd.Function):
+        params = ApiFunctionParams(
+            func_name=Api.metric_api_function_name,
+            role_params=RoleParams(
+                name=Api.metric_api_function_role_name,
+                on_role=on_role_db_callback(db_stack),
+            ),
+            func_params=DockerFunctionParams(
+                timeout=Api.metric_api_function_timeout,
+                build_args={
+                    Common.func_dir_arg: Api.metric_api_function_code_path,
+                    Common.install_mysql_arg: 'True',
+                },
+                environment={
+                    Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
+                    Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                    Env.db_name: db_stack.db_instance.instance_identifier,
+
+                },
+                on_created=lambda function: db_stack.db_instance.connections.allow_default_port_from(function)
+            ),
+            integration_params=IntegrationParams(
+                url_path=Api.metric_api_function_url_path,
+                methods=Api.metric_api_function_methods,
+                name=Api.metric_api_function_integration_name
+            )
+        )
+
+        return create_and_setup_api_function(self, params, self.http_api)
     

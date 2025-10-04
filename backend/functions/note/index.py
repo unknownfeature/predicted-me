@@ -34,11 +34,11 @@ def send_text_to_sns(text, note_id):
     print(f"Sent SNS note for structuring of Note ID {note_id}.")
 
 
-def post(session: Session, user_id: int, request_context: RequestContext) -> tuple[dict[str, Any], int]:
+def post(session: Session, request_context: RequestContext) -> tuple[dict[str, Any], int]:
     body = request_context.body
 
     new_note = Note(
-        user_id=user_id,
+        user_id=request_context.user.id,
         text=body.get('text'),
         image_key=body.get('image_key'),
         audio_key=body.get('audio_key'),
@@ -54,7 +54,7 @@ def post(session: Session, user_id: int, request_context: RequestContext) -> tup
     }, 201
 
 
-def get(session: Session, user_id: int, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
+def get(session: Session, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
     path_params = request_context.path_params
 
@@ -69,7 +69,7 @@ def get(session: Session, user_id: int, request_context: RequestContext) -> tupl
     note_query = select(Note)
 
     conditions = [
-        Note.user_id == user_id
+        Note.user_id == request_context.user.id,
     ]
 
     if not note_id:
