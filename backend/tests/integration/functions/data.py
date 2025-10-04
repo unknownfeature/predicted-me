@@ -8,7 +8,7 @@ from backend.lib.db import begin_session, Metric, normalize_identifier, User, Ta
 from backend.lib.func import constants
 from backend.lib.util import get_user_ids_from_event, seconds_in_day
 from backend.tests.integration.base import Trigger, baseSetUp, get_metrics_by_display_name, \
-    get_metrics_by_name, baseTearDown
+    get_metrics_by_name, baseTearDown, prepare_http_event
 
 # test data
 tag_one_display_name = 'tag one Test 4^'
@@ -150,7 +150,7 @@ class DataTest(unittest.TestCase):
             assert data.time > 0
 
             # just in case
-            assert session.query(User).count() == 1
+            assert session.query(User).count() == 2
 
 
         finally:
@@ -172,13 +172,24 @@ class DataTest(unittest.TestCase):
             assert items[0]['id'] == 1
 
             ##########################################
-            self.event[constants.query_params] = {
-            }
+            self.event[constants.query_params] = {}
             self.event[constants.path_params] = {}
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
             assert len(items) == 2
+
+            #  and to check that the other user has no access
+            ##########################################
+
+            malicious_event = prepare_http_event(session.query(User).get(2).external_id)
+            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.query_params] = {}
+            malicious_event[constants.path_params] = {}
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0 # no items for this user
 
         finally:
             session.close()

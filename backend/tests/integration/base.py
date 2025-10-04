@@ -44,6 +44,9 @@ def baseSetUp(trigger: Trigger) -> Dict[str, Any]:
     Base.metadata.create_all(engine)
 
     session.add(User(external_id=external_id))
+    session.flush()
+    other_external_id = uuid.uuid4().hex
+    session.add(User(external_id=other_external_id))
     session.commit()
     session.close()
     if trigger == Trigger.http:
