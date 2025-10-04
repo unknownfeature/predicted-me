@@ -1,15 +1,16 @@
 import json
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 
 import boto3
 from sqlalchemy.orm import Session
-from sqlalchemy import insert, select, bindparam, inspect, func
+from sqlalchemy import insert, select, bindparam, inspect, func, and_
 
-from backend.lib.db import Metric, Data, Note, normalize_identifier
+from backend.lib.db import Metric, Data, Note, normalize_identifier, DataOrigin
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import Params, process_record_factory
 from backend.lib.func.text import note_text_supplier
+from backend.lib.util import get_or_create_metrics
 from shared.variables import Env
 
 sns_client = boto3.client('sns')
@@ -55,61 +56,21 @@ prompt = ("You are an expert metric extraction bot. Analyze the text below and e
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 
+
+
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
     # todo review this, look suspicious
     note_query = select(Note).where(Note.id == note_id)
-    target_note = session.scalar(note_query)
+    target_note = session.execute(note_query).first()
+    metrics_map = get_or_create_metrics(session, {normalize_identifier(item['name']) : item['name'] for item in data}, target_note.user_id)
+    metrics_to_add = [
+        Data(value=d.get('value'), units=d.get('units'),
+             metric=metrics_map[normalize_identifier(d.get('name'))],
+             note=target_note, origin=DataOrigin(origin))
+     for d in data if 'name' in data]
 
-    data_and_metrics = [{
-        'note_id': target_note.id,
-        'name': normalize_identifier( metric.get('name')),
-        'display_name':  metric.get('name'),
-        'value': metric.get('value'),
-        'units': metric.get('units'),
-        'time': target_note.time,
-        'origin': origin,
-        'user_id': target_note.user_id,
-    } for metric in data if 'name' in metric]
-
-    if not data_and_metrics:
-        return
-
-    upsert_stmt = (
-        insert(Metric.__table__)
-        .values(data_and_metrics)
-
-        .on_conflict_do_nothing(
-            index_elements=['name']
-        )
-    )
-    session.execute(upsert_stmt)
-    select_columns = [
-        Metric.__table__.c.id,
-        bindparam('note_id', value=target_note.id),
-        bindparam('value'),
-        bindparam('units'),
-        bindparam('origin'),
-        bindparam('time'),
-        bindparam('user_id'),
-    ]
-
-    case_insensitive_join = func.lower(Metric.__table__.c.name) == func.lower(bindparam('name'))
-
-    subquery_select = (
-        select(*select_columns)
-        .select_from(Metric.__table__)
-        .where(case_insensitive_join)
-    )
-
-    insert_data_stmt = (
-        insert(Data.__table__)
-        .from_select(
-            ['metric_id', 'note_id', 'value', 'units', 'origin'],
-            subquery_select
-        )
-    )
-
-    session.execute(insert_data_stmt, data_and_metrics)
+    session.add_all(metrics_to_add)
+    session.commit()
 
     sns_client.publish(
         TopicArn=tagging_topic_arn,

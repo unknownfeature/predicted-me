@@ -1,0 +1,6 @@
+body = 'body'
+query_params = 'queryStringParameters'
+path_params = 'pathParameters'
+http_method = 'httpMethod'
+status_code = 'statusCode'
+get = 'GET'

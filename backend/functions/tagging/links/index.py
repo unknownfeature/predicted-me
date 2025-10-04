@@ -62,7 +62,7 @@ tagging_prompt = (
 def text_supplier(session: Session, note_id, _):
     query = select(Link).where(and_([Link.note_id == note_id, not Link.tagged]))
 
-    untagged_links = session.scalars(query).all()
+    untagged_links = session.execute(query).all()
 
     if not untagged_links:
         print(f"No tasks to tag{note_id} are already tagged. Skipping.")

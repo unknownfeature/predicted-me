@@ -1,8 +1,9 @@
 import json
 import traceback
-from typing import Callable, Dict, Any, List, Set
+from typing import Callable, Dict, Any, List, Set, Tuple
 
 from backend.lib.db import begin_session
+from backend.lib.func import constants
 from backend.lib.util import get_user_ids_from_event
 from shared.variables import Common
 
@@ -21,19 +22,18 @@ class RequestContext:
         self.user = user
 
 
-def delete_factory(handler: Callable[[Session, int, int], None]) -> Callable[[Session, RequestContext], (Dict[str, Any], int)]:
+def delete_factory(handler: Callable[[Session, int, int], None]) -> Callable[[Session, RequestContext], Tuple[Dict[str, Any], int]]:
 
     def delete(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
         path_params = request_context.path_params
         id = path_params['id']
         handler(session, request_context.user.id, id)
-        session.flush()
         session.commit()
         return {'status': 'success'}, 204
 
     return delete
 
-def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[str, Any], int, int], None]) -> Callable[[Session, RequestContext], (Dict[str, Any], int)]:
+def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[str, Any], int, int], None]) -> Callable[[Session, RequestContext], Tuple[Dict[str, Any], int]]:
 
     def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
         body = request_context.body
@@ -44,36 +44,32 @@ def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[s
 
         if update_fields:
           handler(session, update_fields, request_context.user.id, id)
-          session.flush()
           session.commit()
         return {'status': 'success'}, 204
 
     return patch
 
-def post_factory(entity_supplier: Callable[[RequestContext], Any]) -> Callable[[Session, RequestContext], (Dict[str, Any], int)]:
+def post_factory(entity_supplier: Callable[[RequestContext], Any]) -> Callable[[Session, RequestContext], Tuple[Dict[str, Any], int]]:
     def post(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
         new_entity = entity_supplier(request_context)
         session.add(new_entity)
-        session.flush()
         session.commit()
         return {'status': 'success'}, 201
     return post
 
 
 def handler_factory(per_method_handlers: Dict[
-    str, Callable[[Session, RequestContext], (Dict[str, Any] | List[Dict[str, Any]], int)]]) -> Callable[
+    str, Callable[[Session, RequestContext], Tuple[Dict[str, Any] | List[Dict[str, Any]], int]]]) -> Callable[
     [Dict[str, Any], Any], Any]:
 
     def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
-        session = None
+        session = begin_session()
 
         try:
-            session = begin_session()
-
-            body = event['body']
-            query_params = event.get('queryStringParameters')
-            path_params = event.get("pathParameters", {})
-            http_method = event['httpMethod']
+            body = event[constants.body]
+            query_params = event.get(constants.query_params)
+            path_params = event.get(constants.path_params)
+            http_method = event[constants.http_method]
 
 
             if http_method not in per_method_handlers:
@@ -82,7 +78,8 @@ def handler_factory(per_method_handlers: Dict[
 
             #  move user id to context todo
             result, status_code = per_method_handlers[http_method](session,
-                                                                   RequestContext(body, query_params, path_params, User( *get_user_ids_from_event(event, session))))
+                                                                   RequestContext(body, query_params, path_params, User(
+                                                                       *get_user_ids_from_event(event, session))))
 
             return {
                 'statusCode': status_code,
@@ -99,7 +96,6 @@ def handler_factory(per_method_handlers: Dict[
                     'headers': Common.cors_headers, }
 
         finally:
-            if session:
-                session.close()
+           session.close()
 
     return handler

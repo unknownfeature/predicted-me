@@ -14,6 +14,10 @@ class Env:
     db_name = 'DB_NAME'
     db_user = 'DB_USER'
     db_pass = 'DB_PASS'
+    db_port = 'DB_PORT'
+    db_test = 'DB_TEST'
+
+    db_region = 'DB_REGION'
     aws_account = 'AWS_ACCOUNT'
     aws_region = 'AWS_REGION'
 

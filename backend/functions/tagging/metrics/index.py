@@ -59,7 +59,7 @@ tagging_prompt = (
 def text_supplier(session: Session, note_id, _):
     query = select(Data).join(Metric.data_points).where(and_([Data.note_id == note_id, not Metric.tagged]))
 
-    untagged_data = session.scalars(query).all()
+    untagged_data = session.execute(query).all()
 
     if not untagged_data:
         print(f"No metrics to tag{note_id} are already tagged. Skipping.")

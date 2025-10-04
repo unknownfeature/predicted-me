@@ -13,7 +13,7 @@ logger.setLevel(logging.INFO)
 s3_client = boto3.client('s3')
 sns_client = boto3.client('sns')
 
-from backend.lib.db import Note, MetricOrigin, begin_session
+from backend.lib.db import Note, DataOrigin, begin_session
 from sqlalchemy import select, update
 
 output_bucket_name = os.getenv(Env.transcribe_bucket_out)
@@ -21,7 +21,7 @@ text_topic_arn = os.getenv(Env.text_processing_topic_arn)
 
 def get_note_id_from_transcribe_job(job_name: str, session: Any) -> int | None:
         note_query = select(Note).where(Note.image_key == job_name)
-        target_note = session.scalar(note_query)
+        target_note = session.execute(note_query).first()
         return target_note.id
 
 
@@ -56,7 +56,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
         sns_payload = {
             'note_id': note_id,
-            'origin': MetricOrigin.audio_text.value,
+            'origin': DataOrigin.audio_text.value,
         }
 
         sns_client.publish(

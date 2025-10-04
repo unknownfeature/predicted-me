@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 from sqlalchemy import select, update, and_, or_, delete as sql_delete, func
 from sqlalchemy.orm import Session, joinedload, selectinload
@@ -8,19 +8,19 @@ from backend.lib.func.http import RequestContext, handler_factory, patch_factory
 from backend.lib.util import HttpMethod, merge_tags
 
 # should be fulltext search on the human readable name todo
-def get(session: Session, _, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
+def get(session: Session, _, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
 
-    name = query_params.get('name')
+    name = query_params.get('name').strip()
 
-    full_text_condition = func.match(*Metric.display_name).against(
+    full_text_condition = func.match(Metric.display_name).against(
         name,
         natural=True
     )
 
-    query = select(Metric).where(or_([Metric.name.like == name + '%', full_text_condition])).order_by(Metric.name.asc())
+    query = select(Metric).where(or_(Metric.name.like == name + '%', full_text_condition)).order_by(Metric.name.asc())
 
-    metrics = session.scalars(query).all()
+    metrics = session.execute(query).all()
 
     return [{
         'id': m.id,

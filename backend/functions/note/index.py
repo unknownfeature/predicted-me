@@ -1,12 +1,12 @@
 import json
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 import boto3
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import Session
 
-from backend.lib.db import Note, Tag, Metric, MetricOrigin, Data
+from backend.lib.db import Note, Tag, Metric, DataOrigin, Data
 from backend.lib.func.http import handler_factory, RequestContext
 from backend.lib.util import get_ts_start_and_end, HttpMethod
 from shared.variables import Env
@@ -22,7 +22,7 @@ def send_text_to_sns(text, note_id):
 
     sns_payload = {
         'note_id': note_id,
-        'origin': MetricOrigin.text
+        'origin': DataOrigin.text
     }
 
     sns_client.publish(
@@ -34,7 +34,7 @@ def send_text_to_sns(text, note_id):
     print(f"Sent SNS note for structuring of Note ID {note_id}.")
 
 
-def post(session: Session, request_context: RequestContext) -> tuple[dict[str, Any], int]:
+def post(session: Session, request_context: RequestContext) -> Tuple[dict[str, Any], int]:
     body = request_context.body
 
     new_note = Note(
@@ -45,7 +45,6 @@ def post(session: Session, request_context: RequestContext) -> tuple[dict[str, A
     )
 
     session.add(new_note)
-    session.flush()
     session.commit()
     send_text_to_sns(body.get('text'), new_note.id)
     return {
@@ -54,7 +53,7 @@ def post(session: Session, request_context: RequestContext) -> tuple[dict[str, A
     }, 201
 
 
-def get(session: Session, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
+def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
     path_params = request_context.path_params
 
@@ -111,7 +110,7 @@ def get(session: Session, request_context: RequestContext) -> tuple[List[Dict[st
         'audio_text': note.image_text,
 
     }
-        for note in session.scalars(note_query).all()]
+        for note in session.execute(note_query).all()]
 
     return notes, 200
 

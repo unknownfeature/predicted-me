@@ -1,16 +1,16 @@
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Union, Tuple
 
 from sqlalchemy import select, update, and_, delete as sql_delete, func
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib.db import Note, Tag, User, Task, get_utc_timestamp_int
+from backend.lib.db import Note, Tag, User, Task, get_utc_timestamp
 from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory, post_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod
 
 updatable_fields = {'url', 'description', 'time'}
 
 
-def get(session: Session, request_context: RequestContext) -> tuple[List[Dict[str, Any]], int]:
+def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
     path_params = request_context.path_params
 
@@ -54,7 +54,7 @@ def get(session: Session, request_context: RequestContext) -> tuple[List[Dict[st
         joinedload(Task.tags)
     )
 
-    tasks = session.scalars(query).all()
+    tasks = session.execute(query).all()
 
     return [{
         'id': task.id,
@@ -76,7 +76,7 @@ delete_handler = lambda session, user_id, id: session.execute(sql_delete(Task).w
 
 
 post_handler = lambda context: Task(**{f: context.body[f] for f in context.body if f in updatable_fields} | {
-         'user_id': context.user.id, 'time': get_utc_timestamp_int()})
+         'user_id': context.user.id, 'time': get_utc_timestamp()})
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

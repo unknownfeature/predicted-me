@@ -6,7 +6,7 @@ from urllib.parse import unquote_plus
 
 import boto3
 from backend.lib.db.mapping import Note, MetricOrigin
-from backend.lib.db import Note, MetricOrigin, begin_session
+from backend.lib.db import Note, DataOrigin, begin_session
 from sqlalchemy import select, update, insert
 
 from shared.variables import Env
@@ -53,7 +53,7 @@ def handler(event, context):
     try:
 
         note_query = select(Note).where(Note.image_key == image_key_uuid_str)
-        target_note = session.scalar(note_query)
+        target_note = session.execute(note_query).first()
         note_id = target_note.id
 
         update_note_stmt = (
@@ -70,8 +70,8 @@ def handler(event, context):
 
         session.commit()
 
-        send_text_to_sns(image_description, note_id, MetricOrigin.img_desc.value)
-        send_text_to_sns(image_text, note_id, MetricOrigin.img_text.value)
+        send_text_to_sns(image_description, note_id, DataOrigin.img_desc.value)
+        send_text_to_sns(image_text, note_id, DataOrigin.img_text.value)
 
 
     except Exception as e:

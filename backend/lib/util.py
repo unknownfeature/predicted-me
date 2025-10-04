@@ -5,18 +5,18 @@ from enum import Enum
 from typing import Dict, Any, List, Set, Callable, Tuple
 
 import boto3
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 
-from backend.lib.db import User, get_utc_timestamp_int, MetricOrigin, Tag
+from backend.lib.db import User, get_utc_timestamp, DataOrigin, Tag, Metric, normalize_identifier
 
 seconds_in_day = 24 * 60 * 60
 
 text_getters = {
-    MetricOrigin.text.value: lambda x: x.text,
-    MetricOrigin.audio_text.value: lambda x: x.audio_text,
-    MetricOrigin.img_text.value: lambda x: x.img_text,
-    MetricOrigin.img_desc.value: lambda x: x.image_description,
+    DataOrigin.text.value: lambda x: x.text,
+    DataOrigin.audio_text.value: lambda x: x.audio_text,
+    DataOrigin.img_text.value: lambda x: x.img_text,
+    DataOrigin.img_desc.value: lambda x: x.image_description,
 
 }
 
@@ -28,21 +28,61 @@ class HttpMethod(Enum):
     DELETE = 'DELETE'
     PATCH = 'PATCH'
 
+def get_or_create_metric(session: Session, display_name: str, user_id: int) -> Metric:
+    name = normalize_identifier(display_name)
+    existing = session.scalars(
+        select(Metric).where(and_(Metric.user_id == user_id, Metric.name == name))).first()
+
+    if not existing:
+        new_one = Metric(user_id=user_id, name=name, display_name=display_name)
+        session.add(new_one)
+        session.flush()
+        return new_one
+    return existing
+
+
+def get_or_create_metrics(session: Session, names_to_display_names: Dict[str, str], user_id: int) -> Dict[str, Metric]:
+    existing =  {m.name: m for m in
+            session.scalars(select(Metric).where(and_([Metric.user_id == user_id, Metric.name.in_(names_to_display_names.keys())]))).all()}
+    non_existing = set(names_to_display_names.keys()).intersection(existing.keys())
+    if non_existing:
+        results = {}
+        for name, display_name in non_existing.items():
+            new_metrics = Metric(name=name, user_id=user_id, display_name=display_name)
+            session.add(new_metrics)
+            results[name] = new_metrics
+        session.flush()
+        return results | existing
+    return existing
+
 def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[int, str]:
     external_user = event['requestContext']['authorizer']['jwt']['claims']['username']
     user_query = select(User.id).where(User.external_id == external_user)
-    user = session.scalar(user_query).first()
+    user = session.execute(user_query).first()
+
     return user.id if user else None, external_user
 
 def get_ts_start_and_end(query_params):
-    now_utc = get_utc_timestamp_int()
-    start_time = int(query_params.get('start_ts')) if 'start_ts' in query_params else (now_utc - seconds_in_day)
-    end_time = int(query_params.get('end_ts')) if 'end_ts' in query_params else now_utc
+    start_param = query_params.get('start')
+    end_param = query_params.get('end')
+
+    if not start_param and end_param:
+        end_time = int(end_param)
+        start_time = end_time - seconds_in_day
+    elif start_param and not end_param:
+        start_time = int(start_param)
+        end_time =  get_utc_timestamp()
+    elif start_param and end_param:
+        start_time = int(start_param)
+        end_time = int(end_param)
+    else:
+        now_utc = get_utc_timestamp()
+        start_time = now_utc - seconds_in_day
+        end_time = now_utc
+
     if start_time >= end_time:
         raise ValueError('Start time must be before end time.')
     return start_time, end_time
-
-
 
 def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) -> List[Dict[str, Any]]:
     try:

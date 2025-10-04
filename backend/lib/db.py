@@ -1,8 +1,10 @@
 import datetime
 import json
 import os
+import re
+from decimal import Decimal
 from enum import Enum
-from typing import List, re
+from typing import List, Callable
 
 import boto3
 from sqlalchemy import (
@@ -16,7 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Index,
     create_engine,
-    Table, Column
+    Table, Column, Engine
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -30,23 +32,27 @@ from sqlalchemy.orm import (
 from shared.variables import Env
 
 
-class MetricOrigin(str, Enum):
+class DataOrigin(str, Enum):
     text = 'text'
     audio_text = 'audio_text'
     img_desc = 'img_desc'
     img_text = 'img_text'
+    user = 'user'
 
 
-def get_utc_timestamp_int() -> int:
+def get_utc_timestamp() -> int:
     return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+
 
 def normalize_identifier(name):
     if not name:
         raise ValueError("Identifier cannot be empty.")
     s = name.lower()
-    s = s.replace(' ', '_')
+    s = s.replace('\s+', '_')
     s = re.sub(r'[^a-z0-9_]', '', s)
     return s
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -75,8 +81,20 @@ task_tags_association = Table(
 
 class Tag(Base):
     __tablename__ = "tag"
+
+
+    __table_args__ = (
+        Index(
+            'ft_display_name',
+            'display_name',
+            mysql_prefix='FULLTEXT',
+        ),
+    )
+
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    name: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
+
+    name: Mapped[str] = mapped_column(String(500), unique=True)
+    display_name: Mapped[str] = mapped_column(String(500), unique=True)
 
     metrics: Mapped[List["Metric"]] = relationship(
         secondary=metric_tags_association, back_populates="tags"
@@ -88,14 +106,13 @@ class Tag(Base):
         secondary=task_tags_association, back_populates="tags"
     )
 
-
     def __repr__(self) -> str:
         return f"Tag(id={self.id!r}, name={self.name!r})"
-
 
     @validates('name')
     def validate_name(self, _, name):
         return normalize_identifier(name)
+
 
 class User(Base):
     __tablename__ = "user"
@@ -105,7 +122,7 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp_int)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
     schedules: Mapped[list["DataSchedule"]] = relationship(
         back_populates="user",
@@ -119,14 +136,17 @@ class User(Base):
 
 class Note(Base):
     __tablename__ = "note"
+    __table_args__ = (
+        Index(
+            'ft_note_content',
+            'text', 'image_text', 'image_description', 'audio_text',
+            mysql_prefix='FULLTEXT',
+        ),
+    )
 
-    Index(
-        'ft_note_content',
-        'text', 'image_text', 'image_description', 'audio_text',
-        mysql_prefix='FULLTEXT',
-    ),
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    user: Mapped["User"] = relationship()
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     audio_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -135,7 +155,7 @@ class Note(Base):
     image_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp_int)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
     data_points: Mapped[list["Data"]] = relationship(
         lazy=True,
         back_populates="note",
@@ -157,19 +177,18 @@ class Note(Base):
     def __repr__(self) -> str:
         return f"Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time})"
 
-#  todo human readable name
+
 class Metric(Base):
     __tablename__ = "metric"
     __table_args__ = (
         UniqueConstraint('name', name='uq_metric_name'),
         Index('idx_metric_name', 'name'),
+        Index(
+            'ft_display_name',
+            'display_name',
+            mysql_prefix='FULLTEXT',
+        ),
     )
-
-    Index(
-        'ft_display_name',
-        'display_name',
-        mysql_prefix='FULLTEXT',
-    ),
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(500), unique=True)
@@ -180,12 +199,12 @@ class Metric(Base):
         secondary=metric_tags_association, back_populates="metrics", lazy=False,
     )
 
-    data_points: Mapped[list["Data"]] = relationship(
+    data_points: Mapped[List["Data"]] = relationship(
         back_populates="metric",
         cascade="all, delete-orphan",
         lazy=True
     )
-    schedules: Mapped["DataSchedule"] = relationship(
+    schedule: Mapped["DataSchedule"] = relationship(
         back_populates="metric",
         cascade="all, delete-orphan",
         lazy=True
@@ -210,19 +229,19 @@ class Data(Base):
     metric_id: Mapped[int] = mapped_column(ForeignKey("metric.id"))
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
 
-    value: Mapped[float] = mapped_column(Numeric)
+    value: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    time: Mapped[int] = mapped_column(BigInteger)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    origin: Mapped[MetricOrigin] = mapped_column(
-        SQLEnum(MetricOrigin),
+    origin: Mapped[DataOrigin] = mapped_column(
+        SQLEnum(DataOrigin),
         nullable=False
     )
 
-    metric: Mapped["Metric"] = relationship(back_populates="data_points")
+    metric: Mapped["Metric"] = relationship()
 
-    note: Mapped["Note"] = relationship(back_populates="data_points")
+    note: Mapped["Note"] = relationship()
 
     def __repr__(self) -> str:
         return (f"Data(id={self.id!r}, metric_id={self.metric_id!r}, "
@@ -243,7 +262,7 @@ class DataSchedule(Base):
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    metric: Mapped["Metric"] = relationship(back_populates="schedules")
+    metric: Mapped["Metric"] = relationship(back_populates="schedule")
     user: Mapped["User"] = relationship(back_populates="schedules")
 
     def __repr__(self) -> str:
@@ -254,13 +273,13 @@ class DataSchedule(Base):
 class Link(Base):
     __tablename__ = "link"
 
-    Index(
-        'ft_link_content',
-        'description', 'url',
-        mysql_prefix='FULLTEXT',
-    ),
     __table_args__ = (
         UniqueConstraint('url', 'user_id', name='uq_link_url'),
+        Index(
+            'ft_link_content',
+            'description', 'url',
+            mysql_prefix='FULLTEXT',
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -271,10 +290,10 @@ class Link(Base):
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    time: Mapped[int] = mapped_column(BigInteger)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    origin: Mapped[MetricOrigin] = mapped_column(
-        SQLEnum(MetricOrigin),
+    origin: Mapped[DataOrigin] = mapped_column(
+        SQLEnum(DataOrigin),
         nullable=False
     )
 
@@ -291,12 +310,17 @@ class Link(Base):
 class Task(Base):
     __tablename__ = "task"
 
+    __table_args__ = (
+        Index(
 
-    Index(
-        'ft_task_content',
-        'description',
-        mysql_prefix='FULLTEXT',
-    ),
+            'ft_task_content',
+            'description',
+            mysql_prefix='FULLTEXT',
+        ),
+    )
+
+
+
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
@@ -305,10 +329,10 @@ class Task(Base):
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    time: Mapped[int] = mapped_column(BigInteger)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    origin: Mapped[MetricOrigin] = mapped_column(
-        SQLEnum(MetricOrigin),
+    origin: Mapped[DataOrigin] = mapped_column(
+        SQLEnum(DataOrigin),
         nullable=False
     )
 
@@ -325,21 +349,27 @@ class Task(Base):
 secret_arn = os.getenv(Env.db_secret_arn)
 db_endpoint = os.getenv(Env.db_endpoint)
 db_name = os.getenv(Env.db_name)
-db_port = 3306
+db_test = os.getenv(Env.db_test)
+db_port = 3306  # extract port into variables to
 
 secrets_client = boto3.client('secretsmanager')
 
 
-def begin_session():
-    secret_response = secrets_client.get_secret_value(SecretId=secret_arn)
-    secret_dict = json.loads(secret_response['SecretString'])
+def begin_session(auto_flush=True):
+    if not db_test:
+        secret_response = secrets_client.get_secret_value(SecretId=secret_arn)
+        secret_dict = json.loads(secret_response['SecretString'])
 
-    username = secret_dict['username']
-    password = secret_dict['password']
+        username = secret_dict['username']
+        password = secret_dict['password']
+    else:
+        username = os.getenv(Env.db_user)
+        password = os.getenv(Env.db_pass)
+
     connection_string = (
         f'mysql+mysqlconnector://{username}:{password}@{db_endpoint}:{db_port}/{db_name}'
     )
 
-    engine = create_engine(connection_string, pool_recycle=300)
+    engine = create_engine(connection_string, pool_recycle=300, echo=db_test is not None)
 
-    return sessionmaker(bind=engine)()
+    return sessionmaker(bind=engine, autoflush=auto_flush)()
