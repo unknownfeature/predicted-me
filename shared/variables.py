@@ -1,13 +1,98 @@
 import os
-from dotenv import load_dotenv
-from aws_cdk import Duration
+from typing import List, Iterable
 
-from aws_cdk import aws_apigatewayv2_alpha as api_gtw
-
-load_dotenv()
+from aws_cdk import Duration, aws_events as events, aws_apigatewayv2 as api_gtw
 
 
-# env var names
+class Function:
+    name: str
+    timeout: Duration
+    memory_size: int
+    code_path: str
+    role_name: str
+
+    def __init__(self, name: str, timeout: Duration, memory_size: int, code_path: str, role_name: str):
+        self.name = name
+        self.timeout = timeout
+        self.memory_size = memory_size
+        self.code_path = code_path
+        self.role_name = role_name
+
+
+class HttpIntegration:
+    url_path: str
+    methods: List[api_gtw.HttpMethod]
+    name: str
+
+    def __init__(self, url_path: str, methods: List[api_gtw.HttpMethod], name: str):
+        self.url_path = url_path
+        self.methods = methods
+        self.name = name
+
+
+class QueueIntegration:
+    queue_name: str
+    queue_visibility_timeout: Duration
+
+    def __init__(self, queue_name: str, queue_visibility_timeout: Duration):
+        self.queue_name = queue_name
+        self.queue_visibility_timeout = queue_visibility_timeout
+
+
+class Schedule:
+    rule_name: str
+    schedule: events.Schedule
+
+    def __init__(self, rule_name: str, schedule: events.Schedule):
+        self.rule_name = rule_name
+        self.schedule = schedule
+
+
+class CustomResourceTrigger:
+    resource_name: str
+    provider_name: str
+
+    def __init__(self, resource_name: str, provider_name: str):
+        self.resource_name = resource_name
+        self.provider_name = provider_name
+
+
+class ApiFunction(Function):
+    integrations: Iterable[HttpIntegration]
+
+    def __init__(self, name: str, timeout: Duration, memory_size: int, code_path: str, role_name: str,
+                 integrations: Iterable[HttpIntegration]):
+        super().__init__(name, timeout, memory_size, code_path, role_name)
+        self.integrations = integrations
+
+
+class QueueFunction(Function):
+    integration: QueueIntegration
+
+    def __init__(self, name: str, timeout: Duration, memory_size: int, code_path: str, role_name: str,
+                 integration: QueueIntegration):
+        super().__init__(name, timeout, memory_size, code_path, role_name)
+        self.integration = integration
+
+
+class ScheduledFunction(Function):
+    schedule_params: Schedule
+
+    def __init__(self, name: str, timeout: Duration, memory_size: int, code_path: str, role_name: str,
+                 schedule_params: Schedule):
+        super().__init__(name, timeout, memory_size, code_path, role_name)
+        self.schedule_params = schedule_params
+
+
+class CustomResourceTriggeredFunction(Function):
+    trigger: CustomResourceTrigger
+
+    def __init__(self, name: str, timeout: Duration, memory_size: int, code_path: str, role_name: str,
+                 trigger: CustomResourceTrigger):
+        super().__init__(name, timeout, memory_size, code_path, role_name)
+        self.trigger = trigger
+
+
 class Env:
     db_secret_arn = 'DB_SECRET_ARN'
     db_endpoint = 'DB_ENDPOINT'
@@ -16,13 +101,10 @@ class Env:
     db_pass = 'DB_PASS'
     db_port = 'DB_PORT'
     db_test = 'DB_TEST'
-
     db_region = 'DB_REGION'
     aws_account = 'AWS_ACCOUNT'
     aws_region = 'AWS_REGION'
-
     root_dir = 'ROOT_DIR'
-
     generative_model = 'GENERATIVE_MODEL'
     text_processing_topic_arn = 'TEXT_PROCESSING_TOPIC_ARN'
     tagging_topic_arn = 'TAGGING_TOPIC_ARN'
@@ -33,14 +115,14 @@ class Env:
     bda_model_name = 'BDA_MODEL_NAME'
     transcribe_bucket_in = 'TRANSCRIBE_BUCKET_IN'
     transcribe_bucket_out = 'TRANSCRIBE_BUCKET_OUT'
-
     bastion_ami = 'BASTION_AMI'
     bastion_instance_key_name = 'BASTION_INSTANCE_KEY_NAME'
-
     regional_domain_name = 'REGIONAL_DOMAIN_NAME'
     regional_hosted_zone_id = 'REGIONAL_HOSTED_ZONE_ID'
     max_tokens = 'MAX_TOKENS'
 
+
+# --- Common Project Variables ---
 
 class Common:
     backend_dir = 'backend'
@@ -57,13 +139,12 @@ class Common:
     lib_path = os.path.join(backend_dir, lib_dir)
     shared_path = os.path.join(backend_dir, shared_dir)
     docker_path = docker_file_dir
-
     default_region = 'us-east-1'
     generative_model = "anthropic.claude-3-sonnet-20240229-v1:0"
     cors_headers = {
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'OPTIONS,GET'
+        'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH,DELETE'
     }
 
 
@@ -76,35 +157,39 @@ class Vpc:
 class Db:
     stack_name = 'PmDbStack'
     instance_name = 'pm_db'
-    net_prefix = 'pm_vpc'
     sec_group = 'pm_db_sec_group'
     subnet_group = 'pm_db_subnet_group'
     port = 3306
     secret = 'pm_db_secret'
-    
-    initializer_function_name = 'pm_db_initializer_func'
-    initializer_function_timeout = Duration.minutes(1)
-    initializer_function_memory_size = 1024
-    initializer_function_code_path = os.path.join(Common.functions_dir, 'schema/index')
-    initializer_function_role_name = 'pm_db_initializer_func_role'
-    
-    initialization_provider = 'pm_db_initialization_provider'
-    initialization_resource = 'pm_db_initialization_resource'
 
-    data_cleanup_function_name = 'pm_db_data_cleanup_func'
-    data_cleanup_function_timeout = Duration.minutes(1)
-    data_cleanup_function_memory_size = 1024
-    data_cleanup_function_code_path = os.path.join(Common.functions_dir, 'recurrent/data/purge/index')
-    data_cleanup_function_role_name = 'pm_db_data_cleanup_func_role'
-    data_cleanup_rule_name = 'pm_db_data_cleanup_rule'
+    initializer_function = CustomResourceTriggeredFunction(
+        name='pm_db_initializer_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'schema/index'),
+        role_name='pm_db_initializer_func_role',
+        trigger=CustomResourceTrigger(resource_name='pm_db_initialization_resource',
+                                      provider_name='pm_db_initialization_provider')
+    )
 
-    occurrence_cleanup_function_name = 'pm_db_occurrence_cleanup_func'
-    occurrence_cleanup_function_timeout = Duration.minutes(1)
-    occurrence_cleanup_function_memory_size = 1024
-    occurrence_cleanup_function_code_path = os.path.join(Common.functions_dir, 'recurrent/occurrence/purge/index')
-    occurrence_cleanup_function_role_name = 'pm_db_occurrence_cleanup_func_role'
-    occurrence_cleanup_rule_name = 'pm_db_occurrence_cleanup_rule'
-# 
+
+    data_cleanup_function = ScheduledFunction(
+        name='pm_db_data_cleanup_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'recurrent/data/purge/index'),
+        role_name='pm_db_data_cleanup_func_role', 
+        schedule_params=Schedule(rule_name='pm_db_data_cleanup_rule', schedule=events.Schedule.cron(minute='0', hour='0')),
+    )
+    
+    occurrence_cleanup_function = ScheduledFunction(
+        name='pm_db_occurrence_cleanup_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/purge/index'),
+        role_name='pm_db_occurrence_cleanup_func_role', 
+        schedule_params=Schedule(rule_name='pm_db_occurrence_cleanup_rule', schedule=events.Schedule.cron(minute='0', hour='0')),
+    )
 
 
 class Bastion:
@@ -126,21 +211,24 @@ class Cognito:
 
 
 class Audio:
-    stack_name = 'PmImageProcessingStack'
+    stack_name = 'PmAudioProcessingStack'
     transcribe_input_bucket_name = 'pm_transcribe_audio_input_bucket'
     transcribe_output_bucket_name = 'pm_transcribe_audio_output_bucket'
-    func_transcribe_in_name = 'pm_audio_processing_transcribe_in'
-    func_transcribe_in_timeout = Duration.seconds(30)
-    func_transcribe_in_memory_size = 1024
-    func_transcribe_in_code_path = os.path.join(Common.functions_dir,
-                                                'audio_processing/transcribe_in')
-    func_transcribe_in_role_name = 'pm_audio_processing_func_role'
-    func_transcribe_out_name = 'pm_audio_processing_transcribe_out'
-    func_transcribe_out_timeout = Duration.minutes(1)
-    func_transcribe_out_memory_size = 2048
-    func_transcribe_out_code_path = os.path.join(Common.functions_dir,
-                                                 'audio_processing/transcribe_out')
-    func_transcribe_out_role_name = 'pm_transcribe_out_function_role'
+
+    transcribe_in = Function(
+        name='pm_audio_processing_transcribe_in',
+        timeout=Duration.seconds(30),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'audio_processing/transcribe_in'),
+        role_name='pm_audio_processing_func_role'
+    )
+    transcribe_out = Function(
+        name='pm_audio_processing_transcribe_out',
+        timeout=Duration.minutes(1),
+        memory_size=2048,
+        code_path=os.path.join(Common.functions_dir, 'audio_processing/transcribe_out'),
+        role_name='pm_transcribe_out_function_role'
+    )
 
 
 class Image:
@@ -150,82 +238,94 @@ class Image:
     bda_role_name = 'pm_bda_role'
     bda_blueprint_name = "pm_image_processing_blueprint"
     bda_model_name = Common.generative_model
-    func_bda_in_name = 'pm_image_processing_bda_in'
-    func_bda_in_timeout = Duration.seconds(30)
-    func_bda_in_memory_size = 1024
-    func_bda_in_code_path = os.path.join(Common.functions_dir, 'image_processing/bda_in')
-    func_bda_in_role_name = 'pm_bda_in_function'
-    func_bda_out_name = 'pm_image_processing_bda_out'
-    func_bda_out_timeout = Duration.minutes(1)
-    func_bda_out_memory_size = 2048
-    func_bda_out_code_path = os.path.join(Common.functions_dir, 'image_processing/bda_out')
-    func_bda_out_role_name = 'pm_bda_out_function'
+
+    bda_in = Function(
+        name='pm_image_processing_bda_in',
+        timeout=Duration.seconds(30),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'image_processing/bda_in'),
+        role_name='pm_bda_in_function_role'
+    )
+    bda_out = Function(
+        name='pm_image_processing_bda_out',
+        timeout=Duration.minutes(1),
+        memory_size=2048,
+        code_path=os.path.join(Common.functions_dir, 'image_processing/bda_out'),
+        role_name='pm_bda_out_function_role'
+    )
 
 
 class Text:
     stack_name = 'PmTextStack'
-    text_topic_name = 'pm_text_processing_topic'
-    metrics_extraction_func_name = 'pm_metrics_extraction_func'
-    metrics_extraction_func_timeout = Duration.minutes(1)
-    metrics_extraction_func_memory_size = 1024
-    metrics_extraction_func_code_path = os.path.join(Common.functions_dir, 'text/metrics')
-    metrics_extraction_queue_name = 'pm_metrics_extraction_queue'
-    metrics_extraction_queue_visibility_timeout = Duration.minutes(2)
-    metrics_extraction_role = 'pm_metrics_extraction_role'
-    metrics_extraction_max_tokens = 1024
+    topic_name = 'pm_text_processing_topic'
+    model = Common.generative_model
+    max_tokens = 1024
 
-    links_extraction_func_name = 'pm_links_extraction_func'
-    links_extraction_func_timeout = Duration.minutes(1)
-    links_extraction_func_memory_size = 1024
-    links_extraction_func_code_path = os.path.join(Common.functions_dir, 'text/links')
-    links_extraction_queue_name = 'pm_links_extraction_queue'
-    links_extraction_queue_visibility_timeout = Duration.minutes(2)
-    links_extraction_role = 'pm_links_extraction_role'
-    links_extraction_max_tokens = 1024
+    metrics_extraction = QueueFunction(
+        name='pm_metrics_extraction_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'text/metrics'),
+        role_name='pm_metrics_extraction_role',
+        integration=QueueIntegration(queue_name='pm_metrics_extraction_queue',
+                                     queue_visibility_timeout=Duration.minutes(2))
+    )
 
-    tasks_extraction_func_name = 'pm_tasks_extraction_func'
-    tasks_extraction_func_timeout = Duration.minutes(1)
-    tasks_extraction_func_memory_size = 1024
-    tasks_extraction_func_code_path = os.path.join(Common.functions_dir, 'text/tasks')
-    tasks_extraction_queue_name = 'pm_tasks_extraction_queue'
-    tasks_extraction_queue_visibility_timeout = Duration.minutes(2)
-    tasks_extraction_role = 'pm_tasks_extraction_role'
-    tasks_extraction_max_tokens = 1024
+    links_extraction = QueueFunction(
+        name='pm_links_extraction_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'text/links'),
+        role_name='pm_links_extraction_role',
+        integration=QueueIntegration(queue_name='pm_links_extraction_queue',
+                                     queue_visibility_timeout=Duration.minutes(2))
+    )
 
-    text_processing_model = Common.generative_model
+    tasks_extraction = QueueFunction(
+        name='pm_tasks_extraction_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'text/tasks'),
+        role_name='pm_tasks_extraction_role',
+        integration=QueueIntegration(queue_name='pm_tasks_extraction_queue',
+                                     queue_visibility_timeout=Duration.minutes(2))
+    )
 
 
 class Tagging:
     stack_name = 'PmTaggingStack'
-    tagging_topic_name = 'pm_tagging_topic'
-    metrics_tagging_queue_name = 'pm_metrics_tagging_queue'
-    metrics_tagging_queue_visibility_timeout = Duration.minutes(2)
-    metrics_tagging_role = 'pm_metrics_tagging_writer_role'
-    metrics_tagging_func_name = 'pm_metrics_tagging_func'
-    metrics_tagging_func_timeout = Duration.minutes(1)
-    metrics_tagging_func_memory_size = 2048
-    metrics_tagging_func_code_path = os.path.join(Common.functions_dir, 'tagging/metrics')
-    metrics_tagging_func_role_name = 'pm_metrics_tagging_writer_role'
+    topic_name = 'pm_tagging_topic'
+    model = Common.generative_model
 
-    links_tagging_queue_name = 'pm_links_tagging_queue'
-    links_tagging_queue_visibility_timeout = Duration.minutes(2)
-    links_tagging_role = 'pm_links_tagging_writer_role'
-    links_tagging_func_name = 'pm_links_tagging_func'
-    links_tagging_func_timeout = Duration.minutes(1)
-    links_tagging_func_memory_size = 2048
-    links_tagging_func_code_path = os.path.join(Common.functions_dir, 'tagging/links')
-    links_tagging_func_role_name = 'pm_links_tagging_writer_role'
+    metrics = QueueFunction(
+        name='pm_metrics_tagging_func',
+        timeout=Duration.minutes(1),
+        memory_size=2048,
+        code_path=os.path.join(Common.functions_dir, 'tagging/metrics'),
+        role_name='pm_metrics_tagging_role',
+        integration=QueueIntegration(queue_name='pm_metrics_tagging_queue',
+                                     queue_visibility_timeout=Duration.minutes(2))
+    )
 
-    tasks_tagging_queue_name = 'pm_tasks_tagging_queue'
-    tasks_tagging_queue_visibility_timeout = Duration.minutes(2)
-    tasks_tagging_role = 'pm_tasks_tagging_writer_role'
-    tasks_tagging_func_name = 'pm_tasks_tagging_func'
-    tasks_tagging_func_timeout = Duration.minutes(1)
-    tasks_tagging_func_memory_size = 2048
-    tasks_tagging_func_code_path = os.path.join(Common.functions_dir, 'tagging/tasks')
-    tasks_tagging_func_role_name = 'pm_tasks_tagging_writer_role'
+    links = QueueFunction(
+        name='pm_links_tagging_func',
+        timeout=Duration.minutes(1),
+        memory_size=2048,
+        code_path=os.path.join(Common.functions_dir, 'tagging/links'),
+        role_name='pm_links_tagging_role',
+        integration=QueueIntegration(queue_name='pm_links_tagging_queue',
+                                     queue_visibility_timeout=Duration.minutes(2))
+    )
 
-    tagging_model_name = Common.generative_model
+    tasks = QueueFunction(
+        name='pm_tasks_tagging_func',
+        timeout=Duration.minutes(1),
+        memory_size=2048,
+        code_path=os.path.join(Common.functions_dir, 'tagging/tasks'),
+        role_name='pm_tasks_tagging_role',
+        integration=QueueIntegration(queue_name='pm_tasks_tagging_queue',
+                                     queue_visibility_timeout=Duration.minutes(2))
+    )
 
 
 class Api:
@@ -234,120 +334,136 @@ class Api:
     authorizer = 'pm_authorizer'
     api_url = 'api.predicted.me'
 
-    presign_function_name = 'pm_presign_function'
-    presign_function_timeout = Duration.minutes(1)
-    presign_function_memory_size = 1024
-    presign_function_code_path = os.path.join(Common.functions_dir, 'presign/index')
-    presign_function_role_name = 'pm_presign_function_role'
+    presign = ApiFunction(
+        name='pm_presign_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'presign/index'),
+        role_name='pm_presign_function_role', integrations=[HttpIntegration(
+            url_path='/presign',
+            methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_presign_function_integration')]
+    )
 
-    presign_function_url_path = '/presign'
-    presign_function_methods = [api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    presign_function_integration_name = 'pm_presign_function_integration'
+    note = ApiFunction(
+        name='pm_note_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'note/index'),
+        role_name='pm_note_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/note/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_note_api_function_integration'
+        )]
+    )
 
-    note_api_function_name = 'pm_note_api_function'
-    note_api_function_timeout = Duration.minutes(1)
-    note_api_function_memory_size = 1024
-    note_api_function_code_path = os.path.join(Common.functions_dir, 'note/index')
-    note_api_function_role_name = 'pm_note_api_function_role'
+    data = ApiFunction(
+        name='pm_data_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'data/index'),
+        role_name='pm_data_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/data/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                     api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_data_api_function_integration'
+        )]
+    )
 
-    note_api_function_url_path = '/note/{id}'
-    note_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    note_api_function_integration_name = 'pm_note_api_function_integration'
+    link = ApiFunction(
+        name='pm_link_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'link/index'),
+        role_name='pm_link_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/link/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                     api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_link_api_function_integration'
+        )]
+    )
 
-    data_api_function_name = 'pm_data_api_function'
-    data_api_function_timeout = Duration.minutes(1)
-    data_api_function_memory_size = 1024
-    data_api_function_code_path = os.path.join(Common.functions_dir, 'data/index')
-    data_api_function_role_name = 'pm_data_api_function_role'
+    data_schedule = ApiFunction(
+        name='pm_data_schedule_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'schedule/data/index'),
+        role_name='pm_data_schedule_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/schedule/metric/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                     api_gtw.HttpMethod.OPTIONS],
+            name='pm_data_schedule_api_function_integration'
+        )]
+    )
 
-    data_api_function_url_path = '/data/{id}'
-    data_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                                 api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    data_api_function_integration_name = 'pm_data_api_function_integration'
+    occurrence_schedule = ApiFunction(
+        name='pm_occurrence_schedule_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'schedule/occurrence/index'),
+        role_name='pm_occurrence_schedule_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/schedule/task/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                     api_gtw.HttpMethod.OPTIONS],
+            name='pm_occurrence_schedule_api_function_integration'
+        )]
+    )
 
-    link_api_function_name = 'pm_link_api_function'
-    link_api_function_timeout = Duration.minutes(1)
-    link_api_function_memory_size = 1024
-    link_api_function_code_path = os.path.join(Common.functions_dir, 'link/index')
-    link_api_function_role_name = 'pm_link_api_function_role'
+    task = ApiFunction(
+        name='pm_task_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'task/index'),
+        role_name='pm_task_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/task/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                     api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_task_api_function_integration'
+        )]
+    )
 
-    link_api_function_url_path = '/link/{id}'
-    link_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                                 api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    link_api_function_integration_name = 'pm_link_api_function_integration'
+    user = ApiFunction(
+        name='pm_user_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'user/index'),
+        role_name='pm_user_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/user',
+            methods=[api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_user_api_function_integration'
+        )]
+    )
 
-    data_schedule_api_function_name = 'pm_data_schedule_api_function'
-    data_schedule_api_function_timeout = Duration.minutes(1)
-    data_schedule_api_function_memory_size = 1024
-    data_schedule_api_function_code_path = os.path.join(Common.functions_dir, 'schedule/data/index')
-    data_schedule_api_function_role_name = 'pm_data_schedule_api_function_role'
+    metric = ApiFunction(
+        name='pm_metric_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'metric/index'),
+        role_name='pm_metric_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/metric/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET,
+                     api_gtw.HttpMethod.OPTIONS],
+            name='pm_metric_api_function_integration'
+        )]
+    )
 
-    data_schedule_api_function_url_path = '/schedule/metric/{id}'
-    data_schedule_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.POST,
-                                          api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.OPTIONS]
-    data_schedule_api_function_integration_name = 'pm_data_schedule_api_function_integration'
-
-    task_api_function_name = 'pm_task_api_function'
-    task_api_function_timeout = Duration.minutes(1)
-    task_api_function_memory_size = 1024
-    task_api_function_code_path = os.path.join(Common.functions_dir, 'task/index')
-    task_api_function_role_name = 'pm_task_api_function_role'
-
-    task_api_function_url_path = '/task/{id}'
-    task_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                                 api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    task_api_function_integration_name = 'pm_task_api_function_integration'
-
-    user_api_function_name = 'pm_user_api_function'
-    user_api_function_timeout = Duration.minutes(1)
-    user_api_function_memory_size = 1024
-    user_api_function_code_path = os.path.join(Common.functions_dir, 'user/index')
-    user_api_function_role_name = 'pm_user_api_function_role'
-
-    user_api_function_url_path = '/user'
-    user_api_function_methods = [api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    user_api_function_integration_name = 'pm_user_api_function_integration'
-
-    metric_api_function_name = 'pm_metric_api_function'
-    metric_api_function_timeout = Duration.minutes(1)
-    metric_api_function_memory_size = 1024
-    metric_api_function_code_path = os.path.join(Common.functions_dir, 'metric/index')
-    metric_api_function_role_name = 'pm_metric_api_function_role'
-
-    metric_api_function_url_path = '/metric/{id}'
-    metric_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    metric_api_function_integration_name = 'pm_metric_api_function_integration'
-
-    tag_api_function_name = 'pm_tag_api_function'
-    tag_api_function_timeout = Duration.minutes(1)
-    tag_api_function_memory_size = 1024
-    tag_api_function_code_path = os.path.join(Common.functions_dir, 'tag/index')
-    tag_api_function_role_name = 'pm_tag_api_function_role'
-
-    tag_api_function_url_path = '/tag/{id}'
-    tag_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    tag_api_function_integration_name = 'pm_tag_api_function_integration'
-    
-    
-    #todo
-    task_schedule_api_function_name = 'pm_task_schedule_api_function'
-    task_schedule_api_function_timeout = Duration.minutes(1)
-    task_schedule_api_function_memory_size = 1024
-    task_schedule_api_function_code_path = os.path.join(Common.functions_dir, 'schedule/data/index')
-    task_schedule_api_function_role_name = 'pm_task_schedule_api_function_role'
-
-    task_schedule_api_function_url_path = '/schedule/task/{id}'
-    task_schedule_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.POST,
-                                          api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.OPTIONS]
-    task_schedule_api_function_integration_name = 'pm_task_schedule_api_function_integration'
-    
-    occurrence_api_function_name = 'pm_occurrence_api_function'
-    occurrence_api_function_timeout = Duration.minutes(1)
-    occurrence_api_function_memory_size = 1024
-    occurrence_api_function_code_path = os.path.join(Common.functions_dir, 'task/index')
-    occurrence_api_function_role_name = 'pm_occurrence_api_function_role'
-
-    occurrence_api_function_url_path = '/occurrence/{id}'
-    occurrence_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                                 api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
-    occurrence_api_function_integration_name = 'pm_occurrence_api_function_integration'
+    tag = ApiFunction(
+        name='pm_tag_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'tag/index'),
+        role_name='pm_tag_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/tag/{id}',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_tag_api_function_integration'
+        )]
+    )

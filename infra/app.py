@@ -2,17 +2,18 @@ import os
 
 import aws_cdk as cdk
 
-from stacks.tagging_stack import PmTaggingStack
-from stacks.text_stack import PmTextStack
-from stacks.image_stack import PmImageStack
-from stacks.api_stack import PmApiStack
-from stacks.bastion_stack import PmBastionStack
-from stacks.cognito_stack import PmCognitoStack
-from stacks.db_stack import PmDbStack
-from stacks.vpc_stack import PmVpcStack
+from infra.pm.audio_stack import PmAudioStack
+from pm.tagging_stack import PmTaggingStack
+from pm.text_stack import PmTextStack
+from pm.image_stack import PmImageStack
+from pm.api_stack import PmApiStack
+from pm.bastion_stack import PmBastionStack
+from pm.cognito_stack import PmCognitoStack
+from pm.db_stack import PmDbStack
+from pm.vpc_stack import PmVpcStack
 from shared.variables import Env
 
-# todo refactor stacks
+# todo refactor pm
 # export PYTHONPATH=$PYTHONPATH:./infra=/modules:./shared:./backend
 #  cdk synth --app  "python infra/app.py"
 
@@ -23,10 +24,13 @@ vpc_stack = PmVpcStack(app, env=env)
 db_stack = PmDbStack(app, vpc_stack, env=env)
 bastion_stack = PmBastionStack(app, vpc_stack, env=env)
 cognito_stack = PmCognitoStack(app, env=env)
-api_stack = PmApiStack(app, cognito_stack, env=env)
-tagging_stack = PmTaggingStack(app, db_stack, vpc_stack, env=env)
+tagging_stack = PmTaggingStack(app, env=env)
 text_processing_stack = PmTextStack(app, vpc_stack, db_stack, tagging_stack, env=env)
 image_processing_stack = PmImageStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
+audio_stack = PmAudioStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
+api_stack = PmApiStack(app, cognito_stack, image_processing_stack, audio_stack, db_stack, vpc_stack, env=env)
+tagging_stack = PmTaggingStack(app, db_stack, vpc_stack, env=env)
+
 
 app.synth()
 

@@ -1,9 +1,10 @@
-import os
 import json
-import boto3
-from urllib.parse import unquote_plus
 import logging
+import os
 from typing import Dict, Any
+from urllib.parse import unquote_plus
+
+import boto3
 
 from shared.variables import Env
 
@@ -14,7 +15,7 @@ s3_client = boto3.client('s3')
 sns_client = boto3.client('sns')
 
 from backend.lib.db import Note, Origin, begin_session
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 output_bucket_name = os.getenv(Env.transcribe_bucket_out)
 text_topic_arn = os.getenv(Env.text_processing_topic_arn)
