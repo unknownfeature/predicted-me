@@ -65,27 +65,27 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         joinedload(Task.tags)
     )
 
-    occurances = session.scalars(query).unique().all()
+    occurrences = session.scalars(query).unique().all()
 
     return [{
-        'id': occurance.id,
-        'note_id': occurance.note_id,
-        'priority': occurance.priority,
-        'origin': occurance.origin.value,
-        'completed': occurance.completed,
-        'time': occurance.time,
-        'occurance': {
-            'id': occurance.task.id,
-            'description': occurance.task.description,
-            'summary': occurance.task.display_summary,
-            'tagged': occurance.task.tagged,
-            'tags': [tag.display_name for tag in occurance.task.tags],
-            'schedule': {} if occurance.task.schedule is None else {
-                'id': occurance.task.schedule.id,
-                'recurrence_schedule': occurance.task.schedule.recurrence_schedule,
-                'priority': occurance.task.schedule.priority,
+        'id': occurrence.id,
+        'note_id': occurrence.note_id,
+        'priority': occurrence.priority,
+        'origin': occurrence.origin.value,
+        'completed': occurrence.completed,
+        'time': occurrence.time,
+        'occurrence': {
+            'id': occurrence.task.id,
+            'description': occurrence.task.description,
+            'summary': occurrence.task.display_summary,
+            'tagged': occurrence.task.tagged,
+            'tags': [tag.display_name for tag in occurrence.task.tags],
+            'schedule': {} if occurrence.task.schedule is None else {
+                'id': occurrence.task.schedule.id,
+                'recurrence_schedule': occurrence.task.schedule.recurrence_schedule,
+                'priority': occurrence.task.schedule.priority,
             }
-        }} for occurance in occurances], 200
+        }} for occurrence in occurrences], 200
 
 
 patch_handler = lambda session, update_fields, user_id, id: session.execute(update(Occurrence).where(
