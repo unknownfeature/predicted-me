@@ -16,7 +16,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[Dict[str, An
     return {'name': user.name, 'id': request_context.user.id}, 200
 
 
-post_handler = lambda context: User(**{'external_id': context.user.external_id})
+post_handler = lambda context, _: User(**{'external_id': context.user.external_id})
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

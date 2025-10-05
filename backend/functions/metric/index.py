@@ -1,13 +1,13 @@
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, update, and_, or_, delete as sql_delete, func
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy import select, and_, or_, func
+from sqlalchemy.orm import Session
 
 from backend.lib.db import Metric, normalize_identifier
-from backend.lib.func.http import RequestContext, handler_factory, patch_factory, post_factory
-from backend.lib.util import HttpMethod, merge_tags
+from backend.lib.func.http import RequestContext, handler_factory, post_factory
+from backend.lib.util import HttpMethod, get_or_create_tags
 
-# should be fulltext search on the human readable name todo
+
 def get(session: Session, _, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
 
@@ -18,7 +18,8 @@ def get(session: Session, _, request_context: RequestContext) -> Tuple[List[Dict
         natural=True
     )
 
-    query = select(Metric).where(or_(Metric.name.like == name + '%', full_text_condition)).order_by(Metric.name.asc())
+    query = select(Metric).where(or_(Metric.display_name.like == name + '%', full_text_condition)).order_by(
+        Metric.display_name.asc())
 
     metrics = session.execute(query).all()
 
@@ -28,14 +29,35 @@ def get(session: Session, _, request_context: RequestContext) -> Tuple[List[Dict
     } for m in metrics], 200
 
 
-patch_handler = lambda session, update_fields, user_id, id: merge_tags(session, [{'id': id, 'tags': [t.lower() for t in update_fields['tags']]}], lambda: select(Metric)
-               .join(Metric.data_points).where(and_([Metric.id  == id, Metric.user_id == user_id])
-    ).options(selectinload(Metric.tags)))
+def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
+    body = request_context.body
+    path_params = request_context.path_params
+    id = path_params['id']
+    name = body.get('name')
 
-post_handler = lambda context: Metric(**{'user_id': context.user.id, 'name': normalize_identifier(context.body['name']), 'display_name': context.body['name']})
+    if not id:
+        return {'error': 'id is required'}, 400
+    metric_for_update = session.scalar(
+        select(Metric).where(and_([Metric.id == id, Metric.user_id == request_context.user.id])))
+    tags_for_update = list(get_or_create_tags(session, set(body.get('tags', []))).values())
+
+    if tags_for_update:
+        metric_for_update.tags = tags_for_update
+
+    if name:
+        metric_for_update.display_name = name
+        tags_for_update.summary = normalize_identifier(name)
+    if tags_for_update or name:
+        session.commit()
+    return {'status': 'success'}, 204
+
+
+post_handler = lambda context, session: Metric(user_id=context.user.id, name=normalize_identifier(context.body['name']),
+                                    display_name=context.body['name'],
+                                    tags=list(get_or_create_tags(session, set(context.body.get('tags', []))).values()))
 
 handler = handler_factory({
     HttpMethod.GET.value: get,
-    HttpMethod.PATCH.value: patch_factory({'tags'}, patch_handler),
+    HttpMethod.PATCH.value: patch,
     HttpMethod.POST.value: post_factory(post_handler),
 })

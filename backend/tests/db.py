@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.lib.db import Base, User, Note, Metric, Data, DataOrigin
+from backend.lib.db import Base, User, Note, Metric, Data, Origin
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +42,7 @@ def test_mapping(session):
     session.flush()
 
     metric = Metric(name="Heart Rate", user = child_user)
-    data_point = Data(note=note1, metric=metric, value=75.5, units="bpm", origin=DataOrigin.text,
+    data_point = Data(note=note1, metric=metric, value=75.5, units="bpm", origin=Origin.text,
                       time=int(datetime.utcnow().timestamp()))
 
     session.add_all([metric, data_point])

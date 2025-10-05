@@ -9,7 +9,7 @@ from aws_cdk import (
     aws_lambda_event_sources as lmes,
     aws_sns_subscriptions as subs)
 from constructs import Construct
-from shared.variables import Env, Common, Text
+from shared.variables import Env, Common, Text, Db
 from .db_stack import PmDbStack
 from .vpc_stack import PmVpcStack
 from .tagging_stack import PmTaggingStack
@@ -138,6 +138,7 @@ class PmTextStack(Stack):
                                                                         Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
                                                                         Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
                                                                         Env.db_name: db_stack.db_instance.instance_identifier,
+                                                                        Env.db_port: Db.port,
                                                                         Env.generative_model: Text.text_processing_model,
                                                                         Env.tagging_topic_arn: tagging_stack.tagging_topic.topic_arn,
                                                                         Env.max_tokens: Text.tasks_extraction_max_tokens

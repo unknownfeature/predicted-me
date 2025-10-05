@@ -3,13 +3,14 @@ import os
 from typing import List, Any, Dict
 
 import boto3
-from sqlalchemy import insert, inspect
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
-from backend.lib.db import Task
+from backend.lib.db import Task, Note, normalize_identifier, Occurrence, Origin
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.text import note_text_supplier
+from backend.lib.util import get_or_create_tasks
 from shared.variables import Env
 
 sns_client = boto3.client('sns')
@@ -23,6 +24,10 @@ task_schema = {
     "items": {
         "type": "object",
         "properties": {
+            "display_summary": {
+                "type": "string",
+                "description": f"A short and unique summary of the task. Max length: {inspect(Task).c.display_summary.type.length} characters."
+            },
             "description": {
                 "type": "string",
                 "description": f"The full text of the task to be completed. Max length: {inspect(Task).c.description.type.length} characters."
@@ -53,19 +58,29 @@ prompt = ("You are an expert at identifying actionable tasks from text. Analyze 
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 
-def on_extracted_cb(session: Session , note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+    # todo review this, look suspicious
+    note_query = select(Note).where(Note.id == note_id)
+    target_note = session.scalar(note_query)
+    metrics_map = get_or_create_tasks(session, {normalize_identifier(item['display_summary']) : item['name'] for item in data}, target_note.user_id)
+    metrics_to_add = [
+        Occurrence(priority=d.get('priority'),
+             task=metrics_map[normalize_identifier(d.get('display_summary'))],
+             note=target_note, origin=Origin(origin))
+     for d in data if 'name' in data]
 
-
-    session.execute(insert(Task.__table__)
-                    .values([d | {'note_id': note_id, 'origin': origin} for d in data ]))
+    session.add_all(metrics_to_add)
+    session.commit()
 
     sns_client.publish(
         TopicArn=tagging_topic_arn,
         Note=json.dumps({
-            'note_id': note_id,
+            'note_id': target_note.id,
         }),
         Subject='Extracted tasks ready for tagging'
     )
+
+
 
 handler = handler_factory(
     process_record_factory(Params(prompt, note_text_supplier, generative_model, max_tokens), on_extracted_cb))

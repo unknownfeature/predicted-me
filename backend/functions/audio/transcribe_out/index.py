@@ -13,7 +13,7 @@ logger.setLevel(logging.INFO)
 s3_client = boto3.client('s3')
 sns_client = boto3.client('sns')
 
-from backend.lib.db import Note, DataOrigin, begin_session
+from backend.lib.db import Note, Origin, begin_session
 from sqlalchemy import select, update
 
 output_bucket_name = os.getenv(Env.transcribe_bucket_out)
@@ -56,7 +56,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
         sns_payload = {
             'note_id': note_id,
-            'origin': DataOrigin.audio_text.value,
+            'origin': Origin.audio_text.value,
         }
 
         sns_client.publish(

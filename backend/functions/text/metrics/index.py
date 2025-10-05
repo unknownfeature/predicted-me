@@ -6,7 +6,7 @@ import boto3
 from sqlalchemy.orm import Session
 from sqlalchemy import insert, select, bindparam, inspect, func, and_
 
-from backend.lib.db import Metric, Data, Note, normalize_identifier, DataOrigin
+from backend.lib.db import Metric, Data, Note, normalize_identifier, Origin
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import Params, process_record_factory
 from backend.lib.func.text import note_text_supplier
@@ -61,12 +61,12 @@ prompt = ("You are an expert metric extraction bot. Analyze the text below and e
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
     # todo review this, look suspicious
     note_query = select(Note).where(Note.id == note_id)
-    target_note = session.execute(note_query).first()
+    target_note = session.scalar(note_query)
     metrics_map = get_or_create_metrics(session, {normalize_identifier(item['name']) : item['name'] for item in data}, target_note.user_id)
     metrics_to_add = [
         Data(value=d.get('value'), units=d.get('units'),
              metric=metrics_map[normalize_identifier(d.get('name'))],
-             note=target_note, origin=DataOrigin(origin))
+             note=target_note, origin=Origin(origin))
      for d in data if 'name' in data]
 
     session.add_all(metrics_to_add)

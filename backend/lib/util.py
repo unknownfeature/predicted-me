@@ -8,15 +8,15 @@ import boto3
 from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 
-from backend.lib.db import User, get_utc_timestamp, DataOrigin, Tag, Metric, normalize_identifier
+from backend.lib.db import User, get_utc_timestamp, Origin, Tag, Metric, normalize_identifier, Task
 
 seconds_in_day = 24 * 60 * 60
 
 text_getters = {
-    DataOrigin.text.value: lambda x: x.text,
-    DataOrigin.audio_text.value: lambda x: x.audio_text,
-    DataOrigin.img_text.value: lambda x: x.img_text,
-    DataOrigin.img_desc.value: lambda x: x.image_description,
+    Origin.text.value: lambda x: x.text,
+    Origin.audio_text.value: lambda x: x.audio_text,
+    Origin.img_text.value: lambda x: x.img_text,
+    Origin.img_desc.value: lambda x: x.image_description,
 
 }
 
@@ -27,6 +27,32 @@ class HttpMethod(Enum):
     PUT = 'PUT'
     DELETE = 'DELETE'
     PATCH = 'PATCH'
+
+def get_or_create_task(session: Session, display_summary: str, user_id: int) -> Task:
+    summary = normalize_identifier(display_summary)
+    existing = session.scalars(
+        select(Task).where(and_(Task.user_id == user_id, Task.summary == summary))).first()
+
+    if not existing:
+        new_one = Task(user_id=user_id, summary=summary, display_summary=display_summary)
+        session.add(new_one)
+        session.flush()
+        return new_one
+    return existing
+
+def get_or_create_tasks(session: Session, summary_to_display_summary: Dict[str, str], user_id: int) -> Dict[str, Task]:
+    existing =  {m.summary: m for m in
+            session.scalars(select(Task).where(and_([Task.user_id == user_id, Task.summary.in_(summary_to_display_summary.keys())]))).all()}
+    non_existing = set(summary_to_display_summary.keys()).intersection(existing.keys())
+    if non_existing:
+        results = {}
+        for summary in non_existing:
+            new_metrics = Task(summary=summary, user_id=user_id, display_summary=summary_to_display_summary[summary])
+            session.add(new_metrics)
+            results[summary] = new_metrics
+        session.flush()
+        return results | existing
+    return existing
 
 def get_or_create_metric(session: Session, display_name: str, user_id: int) -> Metric:
     name = normalize_identifier(display_name)
@@ -47,8 +73,8 @@ def get_or_create_metrics(session: Session, names_to_display_names: Dict[str, st
     non_existing = set(names_to_display_names.keys()).intersection(existing.keys())
     if non_existing:
         results = {}
-        for name, display_name in non_existing.items():
-            new_metrics = Metric(name=name, user_id=user_id, display_name=display_name)
+        for name in non_existing:
+            new_metrics = Metric(name=name, user_id=user_id, display_name=names_to_display_names[name])
             session.add(new_metrics)
             results[name] = new_metrics
         session.flush()
@@ -135,12 +161,18 @@ def merge_tags(session: Session, data: List[Dict[str, Any]], stmt_supplier: Call
     if not data:
         return
 
-    all_tag_names = {tag.lower() for item in data for tag in item.get('tags', [])}
-    tag_map = get_or_create_tags(session, all_tag_names)
+    tag_map = get_tags_map_for_update(data, session)
     data_map = {item['id']: item.get('tags', []) for item in data}
 
     entities_to_update = session.scalars(stmt_supplier()).unique().all()
     for entity in entities_to_update:
+        entity.tags.clear()
         entity.tags.extend([tag_map[tag_name.lower()] for tag_name in data_map[entity.id] if
                             tag_name.lower() not in {tag.name for tag in entity.tags}])
         entity.tagged = True
+
+
+def get_tags_map_for_update(data: List[Dict[str, str]], session):
+    all_tag_names = {tag.lower() for item in data for tag in item.get('tags', [])}
+    tag_map = get_or_create_tags(session, all_tag_names)
+    return tag_map

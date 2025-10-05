@@ -32,7 +32,7 @@ from sqlalchemy.orm import (
 from shared.variables import Env
 
 
-class DataOrigin(str, Enum):
+class Origin(str, Enum):
     text = 'text'
     audio_text = 'audio_text'
     img_desc = 'img_desc'
@@ -234,8 +234,8 @@ class Data(Base):
 
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    origin: Mapped[DataOrigin] = mapped_column(
-        SQLEnum(DataOrigin),
+    origin: Mapped[Origin] = mapped_column(
+        SQLEnum(Origin),
         nullable=False
     )
 
@@ -251,23 +251,24 @@ class Data(Base):
 class DataSchedule(Base):
     __tablename__ = "data_schedule"
     __table_args__ = (
-        UniqueConstraint('metric_id', 'user_id', name='uq_metric_schedule'),
+        UniqueConstraint('metric_id', name='uq_metric_schedule'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     metric_id: Mapped[int] = mapped_column(ForeignKey("metric.id"), unique=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     recurrence_schedule: Mapped[str] = mapped_column(String(50))
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     metric: Mapped["Metric"] = relationship(back_populates="schedule")
-    user: Mapped["User"] = relationship(back_populates="schedules")
 
     def __repr__(self) -> str:
         return (f"DataSchedule(metric_id={self.metric_id!r}, "
                 f"schedule={self.recurrence_schedule!r}, target={self.target_value!r})")
+
+
+
 
 
 class Link(Base):
@@ -292,8 +293,8 @@ class Link(Base):
 
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    origin: Mapped[DataOrigin] = mapped_column(
-        SQLEnum(DataOrigin),
+    origin: Mapped[Origin] = mapped_column(
+        SQLEnum(Origin),
         nullable=False
     )
 
@@ -314,25 +315,22 @@ class Task(Base):
         Index(
 
             'ft_task_content',
-            'description',
+            'display_summary', 'description',
             mysql_prefix='FULLTEXT',
         ),
     )
 
-
-
-
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
-
+    summary: Mapped[str] = mapped_column(String(500), nullable=False)
+    display_summary: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str] = mapped_column(String(1000), nullable=False)
-    priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
-    completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    user: Mapped["User"] = relationship()
 
-    origin: Mapped[DataOrigin] = mapped_column(
-        SQLEnum(DataOrigin),
+    origin: Mapped[Origin] = mapped_column(
+        SQLEnum(Origin),
         nullable=False
     )
 
@@ -341,10 +339,59 @@ class Task(Base):
         secondary=task_tags_association, back_populates="tasks", lazy=False
     )
 
+    schedule: Mapped["TaskSchedule"] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        lazy=True
+    )
+
+    @validates('summary')
+    def validate_name(self, _, summary):
+        return normalize_identifier(summary)
+
     def __repr__(self) -> str:
         return (f"Link(id={self.id!r},  "
                 f"value={self.description!r}, priority={self.priority!r}, origin={self.origin.value!r})")
 
+class TaskSchedule(Base):
+    __tablename__ = "task_schedule"
+    __table_args__ = (
+        UniqueConstraint('task_id', name='uq_task_schedule'),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"), unique=True)
+    task: Mapped["Task"] = relationship(back_populates="schedule")
+
+    recurrence_schedule: Mapped[str] = mapped_column(String(50))
+    priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    def __repr__(self) -> str:
+        return (f"TaskSchedule(task_id={self.task_id!r}, "
+                f"schedule={self.recurrence_schedule!r})")
+
+class Occurrence(Base):
+    __tablename__ = "occurrence"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
+    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
+    completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
+    priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    origin: Mapped[Origin] = mapped_column(
+        SQLEnum(Origin),
+        nullable=False
+    )
+
+    task: Mapped["Task"] = relationship()
+
+    note: Mapped["Note"] = relationship()
+
+    def __repr__(self) -> str:
+        return (f"Occurrence(id={self.id!r}, task_id={self.task_id!r}, "
+                f"priority={self.priority!r}, completed={self.completed!r}, origin={self.origin.value!r})")
 
 secret_arn = os.getenv(Env.db_secret_arn)
 db_endpoint = os.getenv(Env.db_endpoint)
@@ -356,6 +403,12 @@ secrets_client = boto3.client('secretsmanager')
 
 
 def begin_session(auto_flush=True):
+    engine = setup_engine()
+
+    return sessionmaker(bind=engine, autoflush=auto_flush)()
+
+
+def setup_engine():
     if not db_test:
         secret_response = secrets_client.get_secret_value(SecretId=secret_arn)
         secret_dict = json.loads(secret_response['SecretString'])
@@ -365,11 +418,8 @@ def begin_session(auto_flush=True):
     else:
         username = os.getenv(Env.db_user)
         password = os.getenv(Env.db_pass)
-
     connection_string = (
         f'mysql+mysqlconnector://{username}:{password}@{db_endpoint}:{db_port}/{db_name}'
     )
-
     engine = create_engine(connection_string, pool_recycle=300, echo=db_test is not None)
-
-    return sessionmaker(bind=engine, autoflush=auto_flush)()
+    return engine

@@ -81,6 +81,30 @@ class Db:
     subnet_group = 'pm_db_subnet_group'
     port = 3306
     secret = 'pm_db_secret'
+    
+    initializer_function_name = 'pm_db_initializer_func'
+    initializer_function_timeout = Duration.minutes(1)
+    initializer_function_memory_size = 1024
+    initializer_function_code_path = os.path.join(Common.functions_dir, 'schema/index')
+    initializer_function_role_name = 'pm_db_initializer_func_role'
+    
+    initialization_provider = 'pm_db_initialization_provider'
+    initialization_resource = 'pm_db_initialization_resource'
+
+    data_cleanup_function_name = 'pm_db_data_cleanup_func'
+    data_cleanup_function_timeout = Duration.minutes(1)
+    data_cleanup_function_memory_size = 1024
+    data_cleanup_function_code_path = os.path.join(Common.functions_dir, 'recurrent/data/purge/index')
+    data_cleanup_function_role_name = 'pm_db_data_cleanup_func_role'
+    data_cleanup_rule_name = 'pm_db_data_cleanup_rule'
+
+    occurrence_cleanup_function_name = 'pm_db_occurrence_cleanup_func'
+    occurrence_cleanup_function_timeout = Duration.minutes(1)
+    occurrence_cleanup_function_memory_size = 1024
+    occurrence_cleanup_function_code_path = os.path.join(Common.functions_dir, 'recurrent/occurrence/purge/index')
+    occurrence_cleanup_function_role_name = 'pm_db_occurrence_cleanup_func_role'
+    occurrence_cleanup_rule_name = 'pm_db_occurrence_cleanup_rule'
+# 
 
 
 class Bastion:
@@ -252,16 +276,16 @@ class Api:
                                  api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
     link_api_function_integration_name = 'pm_link_api_function_integration'
 
-    schedule_api_function_name = 'pm_schedule_api_function'
-    schedule_api_function_timeout = Duration.minutes(1)
-    schedule_api_function_memory_size = 1024
-    schedule_api_function_code_path = os.path.join(Common.functions_dir, 'schedule/index')
-    schedule_api_function_role_name = 'pm_schedule_api_function_role'
+    data_schedule_api_function_name = 'pm_data_schedule_api_function'
+    data_schedule_api_function_timeout = Duration.minutes(1)
+    data_schedule_api_function_memory_size = 1024
+    data_schedule_api_function_code_path = os.path.join(Common.functions_dir, 'schedule/data/index')
+    data_schedule_api_function_role_name = 'pm_data_schedule_api_function_role'
 
-    schedule_api_function_url_path = '/schedule/{id}'
-    schedule_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.POST,
-                                     api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.OPTIONS]
-    schedule_api_function_integration_name = 'pm_schedule_api_function_integration'
+    data_schedule_api_function_url_path = '/schedule/metric/{id}'
+    data_schedule_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.POST,
+                                          api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.OPTIONS]
+    data_schedule_api_function_integration_name = 'pm_data_schedule_api_function_integration'
 
     task_api_function_name = 'pm_task_api_function'
     task_api_function_timeout = Duration.minutes(1)
@@ -303,3 +327,27 @@ class Api:
     tag_api_function_url_path = '/tag/{id}'
     tag_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
     tag_api_function_integration_name = 'pm_tag_api_function_integration'
+    
+    
+    #todo
+    task_schedule_api_function_name = 'pm_task_schedule_api_function'
+    task_schedule_api_function_timeout = Duration.minutes(1)
+    task_schedule_api_function_memory_size = 1024
+    task_schedule_api_function_code_path = os.path.join(Common.functions_dir, 'schedule/data/index')
+    task_schedule_api_function_role_name = 'pm_task_schedule_api_function_role'
+
+    task_schedule_api_function_url_path = '/schedule/task/{id}'
+    task_schedule_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.POST,
+                                          api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.OPTIONS]
+    task_schedule_api_function_integration_name = 'pm_task_schedule_api_function_integration'
+    
+    occurrence_api_function_name = 'pm_occurrence_api_function'
+    occurrence_api_function_timeout = Duration.minutes(1)
+    occurrence_api_function_memory_size = 1024
+    occurrence_api_function_code_path = os.path.join(Common.functions_dir, 'task/index')
+    occurrence_api_function_role_name = 'pm_occurrence_api_function_role'
+
+    occurrence_api_function_url_path = '/occurrence/{id}'
+    occurrence_api_function_methods = [api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                                 api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS]
+    occurrence_api_function_integration_name = 'pm_occurrence_api_function_integration'

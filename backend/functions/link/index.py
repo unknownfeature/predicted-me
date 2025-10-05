@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from backend.lib.db import Note, Tag, User, Link, get_utc_timestamp
 from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory, post_factory
-from backend.lib.util import get_ts_start_and_end, HttpMethod
+from backend.lib.util import get_ts_start_and_end, HttpMethod, get_or_create_tags
 
 updatable_fields = {'url', 'description', 'time'}
 
@@ -64,20 +64,43 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         'tags': [tag for tag in link.tags],
     } for link in links], 200
 
+def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
+    body = request_context.body
+    path_params = request_context.path_params
+    id = path_params['id']
+    description = body.get('description')
+    url = body.get('url')
 
-patch_handler = lambda session, update_fields, user_id, id: session.execute(update(Link).where(
-                                                     and_([Link.id == id, User.id == user_id])).values(**update_fields))
+    if not id:
+        return {'error': 'id is required'}, 400
+    link_for_update = session.scalar(select(Link).where(and_([Link.id == id, Link.user_id == request_context.user.id])))
+    tags_for_update = list(get_or_create_tags(session, set(body.get('tags', []))).values())
+
+    if tags_for_update:
+        link_for_update.tags = tags_for_update
+
+    if description:
+        link_for_update.description = description
+
+    if url:
+        link_for_update.url = url
+    if tags_for_update or description or url:
+         session.commit()
+    return {'status': 'success'}, 204
+
+
 
 delete_handler = lambda session, user_id, id: session.execute(sql_delete(Link).where(
                                                      and_([Link.id == id, Link.note.has(Note.user_id == user_id)])))
 
-post_handler = lambda context: Link(**{f: context.body[f] for f in context.body if f in updatable_fields} | {
-         'user_id': context.user.id})
 
+post_handler = lambda context, session: Link(user_id=context.user.id, url=context.body['url'],
+                                    description=context.body['description'],
+                                    tags=list(get_or_create_tags(session, set(context.body.get('tags', []))).values()))
 handler = handler_factory({
     HttpMethod.GET.value: get,
     HttpMethod.POST.value: post_factory(post_handler),
-    HttpMethod.PATCH.value: patch_factory(updatable_fields, patch_handler),
+    HttpMethod.PATCH.value: patch,
     HttpMethod.DELETE.value: delete_factory(delete_handler),
 
 })

@@ -26,7 +26,7 @@ def get(session: Session,request_context: RequestContext) -> Tuple[List[Dict[str
         'name': tag.display_name,
     } for tag in tags], 200
 
-post_handler = lambda context: Tag(**{'name': normalize_identifier(context.body['name'])})
+post_handler = lambda context, _: Tag(**{'name': normalize_identifier(context.body['name'])})
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

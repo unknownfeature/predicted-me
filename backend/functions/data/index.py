@@ -4,7 +4,7 @@ from sqlalchemy import select, update, and_, delete as sql_delete, or_, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib.db import Data, Metric, Note, Tag, User, DataOrigin
+from backend.lib.db import Data, Metric, Note, Tag, User, Origin
 from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod, get_or_create_metric
 
@@ -15,7 +15,7 @@ def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, A
     body = request_context.body
     metric_name = body.get('name')
     metric = get_or_create_metric(session, metric_name, request_context.user.id)
-    data = Data(**{f: body[f] for f in body if f in updatable_fileds} | {'origin': DataOrigin.user.value},
+    data = Data(**{f: body[f] for f in body if f in updatable_fileds} | {'origin': Origin.user.value},
                 metric=metric)
     session.add(data)
     session.commit()

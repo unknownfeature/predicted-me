@@ -3,7 +3,7 @@ import unittest
 from decimal import Decimal
 
 from backend.functions.data.index import handler
-from backend.lib.db import begin_session, Metric, normalize_identifier, User, Tag, get_utc_timestamp, Data, DataOrigin, \
+from backend.lib.db import begin_session, Metric, normalize_identifier, User, Tag, get_utc_timestamp, Data, Origin, \
     Note
 from backend.lib.func import constants
 from backend.lib.util import get_user_ids_from_event, seconds_in_day
@@ -373,14 +373,14 @@ class DataTest(unittest.TestCase):
         # m1_d2 & m2_d5 3d  m1_d1 2d  m1_d3  1d  m2_d4 & m2_d6  now
 
         metric_one.data_points.extend(
-            [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, origin=DataOrigin.user),
-             Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60, origin=DataOrigin.user),
+            [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, origin=Origin.user),
+             Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60, origin=Origin.user),
              Data(value=data_three_value, units=data_three_units,
-                  time=two_days_ago + 60, origin=DataOrigin.user, note=note), ])
+                  time=two_days_ago + 60, origin=Origin.user, note=note), ])
         metric_two.data_points.extend(
-            [Data(value=data_four_value, units=data_four_units, time=day_ago + 60, origin=DataOrigin.user),
-             Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60, origin=DataOrigin.user),
-             Data(value=data_six_value, units=data_six_units, time=day_ago + 60, origin=DataOrigin.user), ])
+            [Data(value=data_four_value, units=data_four_units, time=day_ago + 60, origin=Origin.user),
+             Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60, origin=Origin.user),
+             Data(value=data_six_value, units=data_six_units, time=day_ago + 60, origin=Origin.user), ])
         session.add_all([note, metric_one, metric_two])
         session.commit()
 

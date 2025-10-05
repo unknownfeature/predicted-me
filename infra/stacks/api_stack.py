@@ -182,15 +182,15 @@ class PmApiStack(Stack):
 
     def _schedule_api_function_and_role(self, db_stack: PmDbStack) -> (iam.Role, lmbd.Function):
         params = ApiFunctionParams(
-            func_name=Api.schedule_api_function_name,
+            func_name=Api.data_schedule_api_function_name,
             role_params=RoleParams(
-                name=Api.schedule_api_function_role_name,
+                name=Api.data_schedule_api_function_role_name,
                 on_role=on_role_db_callback(db_stack),
             ),
             func_params=DockerFunctionParams(
-                timeout=Api.schedule_api_function_timeout,
+                timeout=Api.data_schedule_api_function_timeout,
                 build_args={
-                    Common.func_dir_arg: Api.schedule_api_function_code_path,
+                    Common.func_dir_arg: Api.data_schedule_api_function_code_path,
                     Common.install_mysql_arg: 'True',
                 },
                 environment={
@@ -202,9 +202,9 @@ class PmApiStack(Stack):
                 on_created=lambda function: db_stack.db_instance.connections.allow_default_port_from(function)
             ),
             integration_params=IntegrationParams(
-                url_path=Api.schedule_api_function_url_path,
-                methods=Api.schedule_api_function_methods,
-                name=Api.schedule_api_function_integration_name
+                url_path=Api.data_schedule_api_function_url_path,
+                methods=Api.data_schedule_api_function_methods,
+                name=Api.data_schedule_api_function_integration_name
             )
         )
 

@@ -6,7 +6,7 @@ import boto3
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import Session
 
-from backend.lib.db import Note, Tag, Metric, DataOrigin, Data
+from backend.lib.db import Note, Tag, Metric, Origin, Data
 from backend.lib.func.http import handler_factory, RequestContext
 from backend.lib.util import get_ts_start_and_end, HttpMethod
 from shared.variables import Env
@@ -22,7 +22,7 @@ def send_text_to_sns(text, note_id):
 
     sns_payload = {
         'note_id': note_id,
-        'origin': DataOrigin.text
+        'origin': Origin.text
     }
 
     sns_client.publish(

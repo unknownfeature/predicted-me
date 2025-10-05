@@ -49,9 +49,9 @@ def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[s
 
     return patch
 
-def post_factory(entity_supplier: Callable[[RequestContext], Any]) -> Callable[[Session, RequestContext], Tuple[Dict[str, Any], int]]:
+def post_factory(entity_supplier: Callable[[RequestContext, Session], Any]) -> Callable[[Session, RequestContext], Tuple[Dict[str, Any], int]]:
     def post(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
-        new_entity = entity_supplier(request_context)
+        new_entity = entity_supplier(request_context, session)
         session.add(new_entity)
         session.commit()
         return {'status': 'success'}, 201
