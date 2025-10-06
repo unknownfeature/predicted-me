@@ -10,7 +10,7 @@ from shared.variables import Env, Common, Image
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, s3_integration_cb_factory, \
-    S3EventParams, create_lambda_role, create_role_with_db_access_factory, function_with_db_access_cb_factory
+    S3EventParams, create_lambda_role, create_role_with_db_access_factory
 from .text_stack import PmTextStack
 from .util import create_bucket, create_function
 from .vpc_stack import PmVpcStack

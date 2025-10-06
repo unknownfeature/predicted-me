@@ -10,8 +10,7 @@ from constructs import Construct
 
 from shared.variables import Env, Vpc, Db, Common, ScheduledFunction, CustomResourceTriggeredFunction
 from .constants import true
-from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, \
-    function_with_db_access_cb_factory, schedule_cb_factory, custom_resource_trigger_cb_factory
+from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, schedule_cb_factory, custom_resource_trigger_cb_factory
 from .util import create_function
 from .vpc_stack import PmVpcStack
 

@@ -12,7 +12,7 @@ from shared.variables import Env, Api, Common, ApiFunction
 from .audio_stack import PmAudioStack
 from .cognito_stack import PmCognitoStack
 from .db_stack import PmDbStack
-from .function_factories import http_api_integration_cb_factory, create_function_role_factory, FunctionFactoryParams, create_role_with_db_access_factory, function_with_db_access_cb_factory
+from .function_factories import http_api_integration_cb_factory, create_function_role_factory, FunctionFactoryParams, create_role_with_db_access_factory
 from .image_stack import PmImageStack
 from .constants import true
 from .util import create_function

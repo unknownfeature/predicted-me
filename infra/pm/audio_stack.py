@@ -10,7 +10,7 @@ from shared.variables import Env, Common, Audio
 from .constants import true
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, s3_integration_cb_factory, \
-    S3EventParams, function_with_db_access_cb_factory, create_role_with_db_access_factory, create_function_role_factory
+    S3EventParams, create_role_with_db_access_factory, create_function_role_factory
 from .text_stack import PmTextStack
 from .util import create_bucket, create_function
 from .vpc_stack import PmVpcStack

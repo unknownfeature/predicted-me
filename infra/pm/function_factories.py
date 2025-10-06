@@ -168,12 +168,3 @@ def create_function_role_factory(on_role: Callable[[iam.Role], None]) -> Callabl
     return lambda stack, params: create_lambda_role(stack, params.role_name, on_role)
 
 
-#  remove this todo
-def function_with_db_access_cb_factory(db_instance:rds.DatabaseInstance, and_then: Callable[[lmbd.Function], None]) -> Callable[[lmbd.Function], None]:
-    def cb(func: lmbd.Function):
-        # db_instance.connections.all(func)
-        if and_then:
-            and_then(func)
-    return cb
-
-
