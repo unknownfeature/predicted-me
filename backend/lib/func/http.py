@@ -3,7 +3,7 @@ import traceback
 from typing import Callable, Dict, Any, List, Set, Tuple
 
 from backend.lib.db import begin_session
-from backend.lib.func import constants
+from backend.lib import constants
 from backend.lib.util import get_user_ids_from_event
 from shared.variables import Common
 

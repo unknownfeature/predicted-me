@@ -1,11 +1,12 @@
 import json
+import unittest
 from decimal import Decimal
 from typing import Tuple
 
 from backend.functions.data.index import handler
-from backend.lib.db import normalize_identifier, Tag, get_utc_timestamp, Data, Origin, \
+from backend.lib.db import Tag, Data, Origin, \
     Note, DataSchedule
-from backend.lib.util import get_user_ids_from_event, seconds_in_day
+from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 
 # test data

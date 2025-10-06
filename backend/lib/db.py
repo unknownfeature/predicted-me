@@ -294,6 +294,7 @@ class Link(Base):
     )
 
     note: Mapped[Optional["Note"]] = relationship(back_populates="links")
+    user: Mapped["User"] = relationship()
     tags: Mapped[List["Tag"]] = relationship(
         secondary=link_tags_association, back_populates="links", lazy=False
     )

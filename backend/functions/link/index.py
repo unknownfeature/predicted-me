@@ -1,8 +1,10 @@
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, update, and_, delete as sql_delete, func
+from sqlalchemy import select, update, and_, delete as sql_delete, func, or_, inspect
+from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
+from backend.lib import constants
 from backend.lib.db import Note, Tag, User, Link, get_utc_timestamp
 from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory, post_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod, get_or_create_tags
@@ -16,11 +18,11 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
 
     link_id = path_params.get('id')
     note_id = query_params.get('note_id')
-    tags = query_params.get('tags').split(',') if 'tags' in query_params else []
-    search_text = query_params.get('search_text')
-    end_time, start_time = get_ts_start_and_end(query_params)
+    tags = query_params.get('tags').split(constants.params_delim) if 'tags' in query_params else []
+    link = query_params.get('link')
+    start_time, end_time = get_ts_start_and_end(query_params)
     conditions = [
-        Link.note.user_id == request_context.user.id
+        Link.user_id == request_context.user.id
     ]
     query = select(Link)
 
@@ -32,18 +34,16 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
 
         if tags:
             conditions.append(Link.tags.any(Tag.name.in_(tags)))
-        if search_text:
-            search_columns = Link.description, Link.url
+        if link:
+            striped = link.strip()
+            conditions.append(or_(Link.description.like(striped + constants.like),
+                                  Link.url.like(striped + constants.like),
+                                  match(inspect(Link).c.description, inspect(Link).c.url, against=striped)))
 
-            full_text_condition = func.match(*search_columns).against(
-                search_text,
-                natural=True
-            )
-
-            conditions.append(full_text_condition)
     elif link_id:
         conditions.append(Link.id == int(link_id))
     elif note_id:
+        query = query.join(Link.note)
         conditions.append(Note.id == int(note_id))
     query = query.where(and_(*conditions)) \
         .order_by(Link.time.desc()) \
@@ -51,7 +51,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         joinedload(Link.tags)
     )
 
-    links = session.execute(query).all()
+    links = session.scalars(query).unique().all()
 
     return [{
         'id': link.id,
@@ -61,7 +61,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         'origin': link.origin.value,
         'tagged': link.tagged,
         'time': link.time,
-        'tags': [tag for tag in link.tags],
+        constants.tags: [tag.display_name for tag in link.tags],
     } for link in links], 200
 
 def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):

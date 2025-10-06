@@ -1,11 +1,11 @@
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, update, and_, delete as sql_delete, func, or_, inspect
+from sqlalchemy import select, update, and_, delete as sql_delete, or_, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
 from backend.lib.db import Note, Tag, Task, Origin, Occurrence
-from backend.lib.func import constants
+from backend.lib import constants
 from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod
 
@@ -20,8 +20,9 @@ def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, A
     if not task:
         return {constants.status: constants.not_found}, 404
     
-    occurrence = Occurrence(**{f: body[f] for f in body if f in updatable_fields} | {constants.origin: Origin.user.value},
-                task=task)
+    occurrence = Occurrence(**{f: body[f] for f in body if f in updatable_fields} | {
+        constants.origin: Origin.user.value},
+                            task=task)
     session.add(occurrence)
     session.commit()
     return {constants.status: constants.success, constants.id: occurrence.id}, 201
@@ -33,7 +34,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
 
     occurrence_id = path_params.get(constants.id)
     note_id = query_params.get(constants.note_id)
-    tags = query_params.get(constants.tags).split('|') if constants.tags in query_params else []
+    tags = query_params.get(constants.tags).split(constants.params_delim) if constants.tags in query_params else []
     task = query_params.get(constants.task)
     completed = query_params.get(constants.completed)
     start_time, end_time = get_ts_start_and_end(query_params)
@@ -51,8 +52,10 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         if tags:
             conditions.append(Task.tags.any(Tag.display_name.in_(tags)))
         if task:
-            conditions.append(or_(Task.display_summary.like(task.strip() + '%'),
-                                     match(inspect(Task).c.display_summary, inspect(Task).c.description, against=task.strip())))
+            striped = task.strip()
+            conditions.append(or_(Task.display_summary.like(striped + constants.like), Task.description.like(
+                striped + constants.like),
+                                  match(inspect(Task).c.display_summary, inspect(Task).c.description, against=striped)))
 
         if completed:
             conditions.append(Occurrence.completed == completed)

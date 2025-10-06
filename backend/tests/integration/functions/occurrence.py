@@ -1,4 +1,5 @@
 import json
+import unittest
 from decimal import Decimal
 from typing import Tuple
 
@@ -654,10 +655,10 @@ class Test(unittest.TestCase):
             assert len(items) == 2
 
             assert items[0][constants.priority] == occurrence_priority_five
-            assert items[1][constants.priority] ==  occurrence_priority_two
+            assert items[1][constants.priority] == occurrence_priority_two
             
             assert items[0][constants.completed] == occurrence_five_completed
-            assert items[1][constants.completed] ==  occurrence_two_completed
+            assert items[1][constants.completed] == occurrence_two_completed
 
             assert items[0][constants.task][constants.summary] == task_two_display_summary
             assert items[1][constants.task][constants.summary] == task_one_display_summary

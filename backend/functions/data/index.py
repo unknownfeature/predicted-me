@@ -5,7 +5,7 @@ from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
 from backend.lib.db import Data, Metric, Note, Tag, Origin
-from backend.lib.func import constants
+from backend.lib import constants
 from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod
 
@@ -36,7 +36,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     note_id = query_params.get(constants.note_id)
 
     tags = query_params.get(constants.tags).split(
-        '|') if constants.tags in query_params else []  # todo display name still can have it but probably rare
+        constants.params_delim) if constants.tags in query_params else []  # todo display name still can have it but probably rare
     metric = query_params.get(constants.metric)
     start_time, end_time = get_ts_start_and_end(query_params)
 
@@ -54,8 +54,9 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
             conditions.append(Metric.tags.any(Tag.display_name.in_(tags)))
 
         if metric:
-            conditions.append(or_(Metric.display_name.like(metric.strip() + '%'),
-                 match(inspect(Metric).c.display_name, against=metric.strip())))
+            striped = metric.strip()
+            conditions.append(or_(Metric.display_name.like(striped + constants.like),
+                                  match(inspect(Metric).c.display_name, against=striped)))
     elif data_id:
         conditions.append(Data.id == int(data_id))
     elif note_id:
