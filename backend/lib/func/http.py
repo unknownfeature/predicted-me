@@ -27,7 +27,10 @@ def delete_factory(handler: Callable[[Session, int, int], None]) -> Callable[[Se
     def delete(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
         path_params = request_context.path_params
         id = path_params['id']
-        handler(session, request_context.user.id, id)
+        res = handler(session, request_context.user.id, id)
+        if res.rowcount == 0:
+            session.rollback()
+            return {'status': 'not found'}, 404
         session.commit()
         return {'status': 'success'}, 204
 
@@ -43,7 +46,10 @@ def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[s
         id = path_params['id']
 
         if update_fields:
-          handler(session, update_fields, request_context.user.id, id)
+          res = handler(session, update_fields, request_context.user.id, id)
+          if res.rowcount == 0:
+              session.rollback()
+              return {'status': 'not found'}, 404
           session.commit()
         return {'status': 'success'}, 204
 
@@ -54,7 +60,7 @@ def post_factory(entity_supplier: Callable[[RequestContext, Session], Any]) -> C
         new_entity = entity_supplier(request_context, session)
         session.add(new_entity)
         session.commit()
-        return {'status': 'success'}, 201
+        return {'status': 'success', 'id': new_entity.id}, 201
     return post
 
 

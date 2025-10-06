@@ -6,33 +6,70 @@ from typing import Dict, Any
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
-from backend.lib.db import Base, User, Metric
+from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp
+from backend.lib.func import constants
+from backend.lib.util import seconds_in_day
 from shared.variables import Env
 
 load_dotenv()
 connection_str = f'mysql+mysqlconnector://{os.getenv(Env.db_user)}:{os.getenv(Env.db_pass)}@{os.getenv(Env.db_endpoint)}:3306/{os.getenv(Env.db_name)}'
 
+legit_user_id = 1
+malicious_user_id =  2
+
+tag_one_display_name = 'tag one Test 4^'
+tag_two_display_name = 'tag & two_ la la'
+tag_three_display_name = 'tag ^ three ??'
+
+tag_one_name = normalize_identifier(tag_one_display_name)
+tag_two_name = normalize_identifier(tag_two_display_name)
+tag_three_name = normalize_identifier(tag_three_display_name)
+
+time_now = get_utc_timestamp()
+day_ago = time_now - seconds_in_day
+two_days_ago = time_now - seconds_in_day * 2
+three_days_ago = time_now - seconds_in_day * 3
+
+unique_piece = 'unique piece'
+
 
 def prepare_http_event(external_user_id: str) -> Dict[str, Any]:
     return {
-        'body': {},
-        'queryStringParameters': {},
-        'pathParameters': {},
+        constants.body: {},
+        constants.query_params: {},
+        constants.path_params: {},
         'requestContext': {'authorizer': {'jwt': {'claims': {'username': external_user_id}}}},
 
     }
+def refresh_cache(session):
+    session.close()
+    session = begin_session()
+    return session
 
 def get_metrics_by_name(name, session):
     return session.query(Metric).filter(Metric.name == name).all()
 
-def get_metrics_by_display_name(display_name, session):
+def get_metrics_by_display_name(display_name: str, session: Session):
     return session.query(Metric).filter(Metric.display_name == display_name).all()
+
+def get_tasks_by_display_summary(display_summary: str, session: Session):
+    return session.query(Task).filter(Task.display_summary == display_summary).all()
+
+def get_tasks_by_summary(summary: str, session: Session):
+    return session.query(Task).filter(Task.summary == summary).all()
+
+def get_tasks_by_description(desc: str, session: Session):
+    return session.query(Task).filter(Task.description == desc).all()
+
+def get_user_by_id(id: int, session: Session):
+    return session.query(User).get(id)
 
 class Trigger(str, Enum):
     http = 'http'
     sqs = 'sqs'
+    s3 = 's3'
 
 
 def baseSetUp(trigger: Trigger) -> Dict[str, Any]:

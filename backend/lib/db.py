@@ -4,7 +4,7 @@ import os
 import re
 from decimal import Decimal
 from enum import Enum
-from typing import List, Callable
+from typing import List, Callable, Optional
 
 import boto3
 from sqlalchemy import (
@@ -18,7 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Index,
     create_engine,
-    Table, Column, Engine
+    Table, Column, Engine, CheckConstraint
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -93,7 +93,7 @@ class Tag(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
-    name: Mapped[str] = mapped_column(String(500), unique=True)
+    name: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     display_name: Mapped[str] = mapped_column(String(500), unique=True)
 
     metrics: Mapped[List["Metric"]] = relationship(
@@ -124,11 +124,6 @@ class User(Base):
     parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    schedules: Mapped[list["DataSchedule"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy=True
-    )
 
     def __repr__(self) -> str:
         return f"User(id={self.id!r}, name={self.name!r})"
@@ -204,10 +199,10 @@ class Metric(Base):
         cascade="all, delete-orphan",
         lazy=True
     )
-    schedule: Mapped["DataSchedule"] = relationship(
+    schedule: Mapped[Optional["DataSchedule"]] = relationship(
         back_populates="metric",
         cascade="all, delete-orphan",
-        lazy=True
+        lazy=False
     )
 
     user: Mapped["User"] = relationship()
@@ -241,7 +236,7 @@ class Data(Base):
 
     metric: Mapped["Metric"] = relationship()
 
-    note: Mapped["Note"] = relationship()
+    note: Mapped[Optional["Note"]] = relationship()
 
     def __repr__(self) -> str:
         return (f"Data(id={self.id!r}, metric_id={self.metric_id!r}, "
@@ -298,7 +293,7 @@ class Link(Base):
         nullable=False
     )
 
-    note: Mapped["Note"] = relationship(back_populates="links")
+    note: Mapped[Optional["Note"]] = relationship(back_populates="links")
     tags: Mapped[List["Tag"]] = relationship(
         secondary=link_tags_association, back_populates="links", lazy=False
     )
@@ -329,20 +324,20 @@ class Task(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     user: Mapped["User"] = relationship()
 
-    origin: Mapped[Origin] = mapped_column(
-        SQLEnum(Origin),
-        nullable=False
-    )
-
-    note: Mapped["Note"] = relationship(back_populates="tasks")
+    note: Mapped[Optional["Note"]] = relationship(back_populates="tasks")
     tags: Mapped[List["Tag"]] = relationship(
         secondary=task_tags_association, back_populates="tasks", lazy=False
     )
 
-    schedule: Mapped["TaskSchedule"] = relationship(
+    occurrences: Mapped[List["Occurrence"]] = relationship(
         back_populates="task",
         cascade="all, delete-orphan",
         lazy=True
+    )
+    schedule: Mapped[Optional["OccurrenceSchedule"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        lazy=False
     )
 
     @validates('summary')
@@ -351,13 +346,10 @@ class Task(Base):
 
     def __repr__(self) -> str:
         return (f"Link(id={self.id!r},  "
-                f"value={self.description!r}, priority={self.priority!r}, origin={self.origin.value!r})")
+                f"value={self.description!r}, display_summary={self.display_summary!r}, origin={self.origin.value!r})")
 
-class TaskSchedule(Base):
-    __tablename__ = "task_schedule"
-    __table_args__ = (
-        UniqueConstraint('task_id', name='uq_task_schedule'),
-    )
+class OccurrenceSchedule(Base):
+    __tablename__ = "occurrence_schedule"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id"), unique=True)
@@ -365,6 +357,11 @@ class TaskSchedule(Base):
 
     recurrence_schedule: Mapped[str] = mapped_column(String(50))
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    __table_args__ = (
+        UniqueConstraint('task_id', name='uq_task_schedule'),
+        CheckConstraint(priority >= 1, name='schedule_priority_not_zero'),
+        CheckConstraint(priority <= 10, name='schedule_priority_less_than_ten')
+    )
 
     def __repr__(self) -> str:
         return (f"TaskSchedule(task_id={self.task_id!r}, "
@@ -389,6 +386,10 @@ class Occurrence(Base):
 
     note: Mapped["Note"] = relationship()
 
+    __table_args__ = (
+        CheckConstraint(priority >= 1, name='priority_not_zero'),
+        CheckConstraint(priority <= 10, name='priority_less_than_ten')
+    )
     def __repr__(self) -> str:
         return (f"Occurrence(id={self.id!r}, task_id={self.task_id!r}, "
                 f"priority={self.priority!r}, completed={self.completed!r}, origin={self.origin.value!r})")
@@ -397,7 +398,7 @@ secret_arn = os.getenv(Env.db_secret_arn)
 db_endpoint = os.getenv(Env.db_endpoint)
 db_name = os.getenv(Env.db_name)
 db_test = os.getenv(Env.db_test)
-db_port = 3306  # extract port into variables to
+db_port =  os.getenv(Env.db_port)
 
 secrets_client = boto3.client('secretsmanager', region_name=os.getenv(Env.aws_region))
 

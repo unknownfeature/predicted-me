@@ -28,13 +28,17 @@ class HttpMethod(Enum):
     DELETE = 'DELETE'
     PATCH = 'PATCH'
 
-def get_or_create_task(session: Session, display_summary: str, user_id: int) -> Task:
+
+def get_or_create_task(session: Session, display_summary: str, description: str, user_id: int, id: int = None) -> Task:
     summary = normalize_identifier(display_summary)
+    conditions = [Task.user_id == user_id, Task.summary == summary]
+    if id:
+        conditions.append(Task.id == id)
     existing = session.scalars(
-        select(Task).where(and_(Task.user_id == user_id, Task.summary == summary))).first()
+        select(Task).where(and_(*conditions))).first()
 
     if not existing:
-        new_one = Task(user_id=user_id, summary=summary, display_summary=display_summary)
+        new_one = Task(user_id=user_id, summary=summary, display_summary=display_summary, description=description)
         session.add(new_one)
         session.flush()
         return new_one
@@ -53,19 +57,6 @@ def get_or_create_tasks(session: Session, summary_to_display_summary: Dict[str, 
         session.flush()
         return results | existing
     return existing
-
-def get_or_create_metric(session: Session, display_name: str, user_id: int) -> Metric:
-    name = normalize_identifier(display_name)
-    existing = session.scalars(
-        select(Metric).where(and_(Metric.user_id == user_id, Metric.name == name))).first()
-
-    if not existing:
-        new_one = Metric(user_id=user_id, name=name, display_name=display_name)
-        session.add(new_one)
-        session.flush()
-        return new_one
-    return existing
-
 
 def get_or_create_metrics(session: Session, names_to_display_names: Dict[str, str], user_id: int) -> Dict[str, Metric]:
     existing =  {m.name: m for m in

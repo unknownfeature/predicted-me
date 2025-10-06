@@ -367,11 +367,37 @@ class Api:
         code_path=os.path.join(Common.functions_dir, 'data/index'),
         role_name='pm_data_api_function_role',
         integrations=[HttpIntegration(
-            url_path='/data/{id}',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                     api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            url_path='/metric/{id}/data',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
             name='pm_data_api_function_integration'
-        )]
+        ),
+            HttpIntegration(
+                url_path='/data/{id}',
+                methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                         api_gtw.HttpMethod.OPTIONS],
+                name='pm_data_api_function_integration'
+            )
+        ]
+    )
+
+    occurrence = ApiFunction(
+        name='pm_occurrence_api_function',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'occurrence/index'),
+        role_name='pm_occurrence_api_function_role',
+        integrations=[HttpIntegration(
+            url_path='/task/{id}/occurrence',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
+            name='pm_occurrence_api_function_integration'
+        ),
+            HttpIntegration(
+                url_path='/occurrence/{id}',
+                methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+                         api_gtw.HttpMethod.OPTIONS],
+                name='pm_occurrence_api_function_integration'
+            )
+        ]
     )
 
     link = ApiFunction(
@@ -409,7 +435,7 @@ class Api:
         code_path=os.path.join(Common.functions_dir, 'schedule/occurrence/index'),
         role_name='pm_occurrence_schedule_api_function_role',
         integrations=[HttpIntegration(
-            url_path='/schedule/task/{id}',
+            url_path='/schedule/occurrence/{id}',
             methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                      api_gtw.HttpMethod.OPTIONS],
             name='pm_occurrence_schedule_api_function_integration'
