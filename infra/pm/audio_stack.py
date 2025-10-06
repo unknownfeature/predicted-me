@@ -54,7 +54,7 @@ class PmAudioStack(Stack):
             Env.transcribe_bucket_in: self.transcribe_input_bucket.bucket_name,
             Env.transcribe_bucket_out: self.transcribe_output_bucket.bucket_name,
 
-        }, role_supplier=create_function_role_factory(Audio.transcribe_in, on_role),
+        }, role_supplier=create_function_role_factory(on_role),
                                        and_then=s3_integration_cb_factory([S3EventParams(self.transcribe_input_bucket,
                                                                                          s3.EventType.OBJECT_CREATED)]))
 
@@ -73,9 +73,9 @@ class PmAudioStack(Stack):
             Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
             Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
             Env.db_name: db_stack.db_instance.instance_identifier,
-            Env.db_port: db_stack.db_instance.instance_port,
+            Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
             Env.text_processing_topic_arn: text_stack.text_processing_topic.topic_arn,
-        }, role_supplier=create_role_with_db_access_factory(Audio.transcribe_out, on_role),
+        }, role_supplier=create_role_with_db_access_factory(db_stack.db_secret, on_role),
            and_then=function_with_db_access_cb_factory(db_stack.db_instance,
                      s3_integration_cb_factory([S3EventParams(self.transcribe_output_bucket, s3.EventType.OBJECT_CREATED)])),
                                        vpc = vpc_stack.vpc)

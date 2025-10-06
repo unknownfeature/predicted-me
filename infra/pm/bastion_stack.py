@@ -15,14 +15,14 @@ class PmBastionStack(Stack):
 
         sec_group = ec2.SecurityGroup(self, vpc=vpc_stack.vpc, id=Bastion.sec_group)
         sec_group.add_ingress_rule(ec2.Peer.ipv4(Bastion.sec_group_ingress_allow_cidr), ec2.Port.tcp(Bastion.sec_group_ingress_allow_port))
-
-        self.instance = ec2.Instance(self, Bastion.instance_name,
-                     vpc=vpc_stack.vpc,
-                     instance_type=ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
-                     machine_image=ec2.MachineImage.lookup(name=Bastion.ec2_ami),
-                     vpc_subnets=ec2.SubnetSelection(
-                         subnet_type=ec2.SubnetType.PUBLIC
-                     ),
-                     security_group=sec_group,
-                     key_name=os.getenv(Bastion.instance_key_name)
-                     )
+        #
+        # self.instance = ec2.Instance(self, Bastion.instance_name,
+        #              vpc=vpc_stack.vpc,
+        #              instance_type=ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
+        #              machine_image=ec2.MachineImage.lookup(name=Bastion.ec2_ami),
+        #              vpc_subnets=ec2.SubnetSelection(
+        #                  subnet_type=ec2.SubnetType.PUBLIC
+        #              ),
+        #              security_group=sec_group,
+        #              key_name=os.getenv(Bastion.instance_key_name)
+        #              )

@@ -399,7 +399,7 @@ db_name = os.getenv(Env.db_name)
 db_test = os.getenv(Env.db_test)
 db_port = 3306  # extract port into variables to
 
-secrets_client = boto3.client('secretsmanager')
+secrets_client = boto3.client('secretsmanager', region_name=os.getenv(Env.aws_region))
 
 
 def begin_session(auto_flush=True):

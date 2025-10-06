@@ -1,32 +1,18 @@
 from typing import Dict
 
-from infra.pm.db_stack import PmDbStack
 from aws_cdk import (
     Stack,
-    aws_s3 as s3, RemovalPolicy
+    aws_lambda as lmbd, )
+from aws_cdk import (
+    aws_s3 as s3, RemovalPolicy,
+    aws_sqs as aws_sqs,
+    aws_sns as sns,
+    aws_sns_subscriptions as subs,
+    Duration)
 
+from backend.lib.func import sqs
 from infra.pm.function_factories import FunctionFactoryParams
 from shared.variables import Common
-
-aws_iam as iam)
-from aws_cdk import (
-    Stack,
-    aws_iam as iam,
-    aws_lambda as lmbd, )
-
-from infra.pm.db_stack import PmDbStack
-
-
-def setup_bedrock_lambda_role(stack: Stack, db_stack: PmDbStack, role_name: str):
-    role = create_lambda_with_db_role(stack, db_stack, role_name)
-    role.add_to_policy(
-        iam.PolicyStatement(
-            actions=["bedrock:InvokeModel"],
-            resources=["*"],
-            effect=iam.Effect.ALLOW
-        )
-    )
-    return role
 
 
 def docker_code_asset(build_args: Dict[str, str]) -> lmbd.DockerImageCode:
@@ -41,7 +27,7 @@ def docker_code_asset(build_args: Dict[str, str]) -> lmbd.DockerImageCode:
 
 
 def create_function(stack: Stack, params: FunctionFactoryParams):
-    role = params.role_supplier(params.function_params)
+    role = params.role_supplier(stack, params.function_params)
 
     function = lmbd.DockerImageFunction(stack, params.function_params.name,
                                         function_name=params.function_params.name,
@@ -60,9 +46,18 @@ def create_function(stack: Stack, params: FunctionFactoryParams):
     return role, function
 
 
-def create_bucket(stack: Stack, name: str)
+def create_bucket(stack: Stack, name: str) -> s3.Bucket:
     return s3.Bucket(
         stack, name,
         removal_policy=RemovalPolicy.DESTROY, auto_delete_objects=True,
         block_public_access=s3.BlockPublicAccess.BLOCK_ALL
     )
+
+
+def create_queue(stack: Stack, name: str, visibility_timeout: Duration, with_subscription_to: sns.Topic) -> aws_sqs.Queue:
+    queue =  aws_sqs.Queue(stack, name, queue_name=name, visibility_timeout=visibility_timeout)
+    if with_subscription_to:
+        with_subscription_to.add_subscription(subs.SqsSubscription(queue))
+    return queue
+
+

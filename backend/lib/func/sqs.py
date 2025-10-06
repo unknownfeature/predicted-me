@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from backend.lib.db import begin_session
 from shared.variables import Env
 
-sns_client = boto3.client('sns')
+sns_client = boto3.client('sns', region_name=os.getenv(Env.aws_region))
 tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
 
 text_extraction_model = os.getenv(Env.generative_model)

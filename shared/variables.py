@@ -1,8 +1,8 @@
 import os
 from typing import List, Iterable
-
+from dotenv import load_dotenv
 from aws_cdk import Duration, aws_events as events, aws_apigatewayv2 as api_gtw
-
+load_dotenv()
 
 class Function:
     name: str
@@ -31,12 +31,12 @@ class HttpIntegration:
 
 
 class QueueIntegration:
-    queue_name: str
-    queue_visibility_timeout: Duration
+    name: str
+    visibility_timeout: Duration
 
-    def __init__(self, queue_name: str, queue_visibility_timeout: Duration):
-        self.queue_name = queue_name
-        self.queue_visibility_timeout = queue_visibility_timeout
+    def __init__(self, queue_name: str, visibility_timeout: Duration):
+        self.name = queue_name
+        self.visibility_timeout = visibility_timeout
 
 
 class Schedule:
@@ -259,7 +259,7 @@ class Text:
     stack_name = 'PmTextStack'
     topic_name = 'pm_text_processing_topic'
     model = Common.generative_model
-    max_tokens = 1024
+    max_tokens = '1024'
 
     metrics_extraction = QueueFunction(
         name='pm_metrics_extraction_func',
@@ -268,7 +268,7 @@ class Text:
         code_path=os.path.join(Common.functions_dir, 'text/metrics'),
         role_name='pm_metrics_extraction_role',
         integration=QueueIntegration(queue_name='pm_metrics_extraction_queue',
-                                     queue_visibility_timeout=Duration.minutes(2))
+                                     visibility_timeout=Duration.minutes(2))
     )
 
     links_extraction = QueueFunction(
@@ -278,7 +278,7 @@ class Text:
         code_path=os.path.join(Common.functions_dir, 'text/links'),
         role_name='pm_links_extraction_role',
         integration=QueueIntegration(queue_name='pm_links_extraction_queue',
-                                     queue_visibility_timeout=Duration.minutes(2))
+                                     visibility_timeout=Duration.minutes(2))
     )
 
     tasks_extraction = QueueFunction(
@@ -288,7 +288,7 @@ class Text:
         code_path=os.path.join(Common.functions_dir, 'text/tasks'),
         role_name='pm_tasks_extraction_role',
         integration=QueueIntegration(queue_name='pm_tasks_extraction_queue',
-                                     queue_visibility_timeout=Duration.minutes(2))
+                                     visibility_timeout=Duration.minutes(2))
     )
 
 
@@ -296,6 +296,7 @@ class Tagging:
     stack_name = 'PmTaggingStack'
     topic_name = 'pm_tagging_topic'
     model = Common.generative_model
+    max_tokens = '1024'
 
     metrics = QueueFunction(
         name='pm_metrics_tagging_func',
@@ -304,7 +305,7 @@ class Tagging:
         code_path=os.path.join(Common.functions_dir, 'tagging/metrics'),
         role_name='pm_metrics_tagging_role',
         integration=QueueIntegration(queue_name='pm_metrics_tagging_queue',
-                                     queue_visibility_timeout=Duration.minutes(2))
+                                     visibility_timeout=Duration.minutes(2))
     )
 
     links = QueueFunction(
@@ -314,7 +315,7 @@ class Tagging:
         code_path=os.path.join(Common.functions_dir, 'tagging/links'),
         role_name='pm_links_tagging_role',
         integration=QueueIntegration(queue_name='pm_links_tagging_queue',
-                                     queue_visibility_timeout=Duration.minutes(2))
+                                     visibility_timeout=Duration.minutes(2))
     )
 
     tasks = QueueFunction(
@@ -324,7 +325,7 @@ class Tagging:
         code_path=os.path.join(Common.functions_dir, 'tagging/tasks'),
         role_name='pm_tasks_tagging_role',
         integration=QueueIntegration(queue_name='pm_tasks_tagging_queue',
-                                     queue_visibility_timeout=Duration.minutes(2))
+                                     visibility_timeout=Duration.minutes(2))
     )
 
 

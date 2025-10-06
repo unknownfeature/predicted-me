@@ -1,5 +1,6 @@
 from typing import Dict, Sequence, Callable, Iterable
 
+import aws_cdk as cdk
 from aws_cdk import (
     Stack,
     aws_lambda as lmbd,
@@ -12,14 +13,13 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_ec2 as ec2,
     aws_events_targets as targets,
-    custom_resources as cr,
     aws_events as events,
     custom_resources as cr,
     aws_iam as iam)
 
-from shared.variables import Common, Function, ApiFunction, ScheduledFunction, CustomResourceTriggeredFunction
+from shared.variables import Function, ApiFunction, ScheduledFunction, CustomResourceTriggeredFunction
 
-import aws_cdk as cdk
+
 class S3EventParams:
     bucket: s3.Bucket
     event_type: s3.EventType
@@ -33,12 +33,12 @@ class FunctionFactoryParams:
     function_params: Function
     build_args: Dict[str, str]
     environment: Dict[str, str]
-    role_supplier: Callable[[Function], iam.Role]
-    and_then: Callable[[lmbd.IFunction], None]
+    role_supplier: Callable[[Stack, Function], iam.Role]
+    and_then: Callable[[lmbd.Function], None]
     vpc: ec2.Vpc
 
     def __init__(self, function_params: Function, build_args: Dict[str, str], environment: Dict[str, str],
-                 role_supplier: Callable[[Function], iam.Role], and_then: Callable[[lmbd.IFunction], None], vpc: ec2.Vpc = None):
+                 role_supplier: Callable[[Stack, Function], iam.Role], and_then: Callable[[lmbd.Function], None], vpc: ec2.Vpc = None):
         self.function_params = function_params
         self.build_args = build_args
         self.environment = environment
@@ -49,7 +49,7 @@ class FunctionFactoryParams:
 
 def integration_factory(integration_cb: Callable[[lmbd.IFunction], None],
                         and_then: Callable[[lmbd.Function], None]) -> Callable[[lmbd.IFunction], None]:
-    def integrate(func: lmbd.IFunction):
+    def integrate(func: lmbd.Function):
         if not integration_cb:
             return func
 
@@ -87,7 +87,7 @@ def s3_integration_cb_factory(integration_params: Iterable[S3EventParams]) -> Ca
     return cb
 
 
-def sqs_integration_cb_factory(queues: Sequence[sqs.IQueue]) -> Callable[[lmbd.Function], None]:
+def sqs_integration_cb_factory(queues: Sequence[sqs.Queue]) -> Callable[[lmbd.Function], None]:
     def cb(func: lmbd.IFunction):
         if not queues:
             return
@@ -148,22 +148,24 @@ def create_lambda_role(stack: Stack, role_name: str, and_then: Callable[[iam.Rol
     return role
 
 
-def add_db_access_cb_factory(db: rds.DatabaseInstance) -> Callable[[lmbd.IFunction], None]:
-    return lambda func: db.allow_default_port_from(func)
+
+def add_db_access_to_role_cb_factory(db_secret: rds.DatabaseSecret, and_then: Callable[[iam.Role], None] = None) -> Callable[[iam.Role], None]:
+     def on_role(role: iam.Role):
+        db_secret.grant_read(role)
+        if and_then:
+            and_then(role)
+
+     return on_role
 
 
-def add_db_access_to_role_cb_factory(db_secret: rds.DatabaseSecret) -> Callable[[iam.Role], None]:
-    return lambda role: db_secret.grant_read(role)
+def create_role_with_db_access_factory(db_secret: rds.DatabaseSecret, and_then: Callable[[iam.Role], None] = None) -> Callable[
+    [Stack, Function], iam.Role]:
+    return create_function_role_factory(add_db_access_to_role_cb_factory(db_secret, and_then))
 
 
-def create_role_with_db_access_factory(params: Function, db_secret: rds.DatabaseSecret) -> Callable[
-    [Function], iam.Role]:
-    return create_function_role_factory(params, add_db_access_to_role_cb_factory(db_secret))
-
-
-def create_function_role_factory(params: Function, on_role: Callable[[iam.Role], None]) -> Callable[
-    [Function], iam.Role]:
-    return lambda stack: create_lambda_role(stack, params.name, on_role)
+def create_function_role_factory(on_role: Callable[[iam.Role], None]) -> Callable[
+    [Stack, Function], iam.Role]:
+    return lambda stack, params: create_lambda_role(stack, params.role_name, on_role)
 
 
 def function_with_db_access_cb_factory(db_instance:rds.DatabaseInstance, and_then: Callable[[lmbd.Function], None]) -> Callable[[lmbd.Function], None]:

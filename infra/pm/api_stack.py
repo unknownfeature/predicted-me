@@ -3,9 +3,9 @@ from typing import Dict
 
 from aws_cdk import (
     Stack,
-    aws_apigatewayv2_alpha as api_gtw,
+    aws_apigatewayv2 as api_gtw,
     aws_lambda as lmbd,
-    aws_apigatewayv2_authorizers_alpha as auth)
+    aws_apigatewayv2_authorizers as auth)
 
 from constructs import Construct
 from shared.variables import Env, Api, Common, ApiFunction
@@ -84,7 +84,7 @@ class PmApiStack(Stack):
             Env.bda_input_bucket_name: image_stack.bda_input_bucket.bucket_name,
             Env.transcribe_bucket_in: audio_stack.transcribe_input_bucket.bucket_name,
 
-        }, role_supplier=create_function_role_factory(Api.presign, on_role),
+        }, role_supplier=create_function_role_factory(on_role),
                                        and_then=http_api_integration_cb_factory(self.http_api, Api.presign),
                                        vpc=vpc_stack.vpc)
 
@@ -102,9 +102,9 @@ class PmApiStack(Stack):
                 Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
                 Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
                 Env.db_name: db_stack.db_instance.instance_identifier,
-                Env.db_port: db_stack.db_instance.instance_port,
+                Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
             } | env_override if env_override is not None else {},
-            role_supplier=create_role_with_db_access_factory(function_params, db_stack.db_secret),
+            role_supplier=create_role_with_db_access_factory(db_stack.db_secret),
             and_then=function_with_db_access_cb_factory(db_stack.db_instance,
                                                         http_api_integration_cb_factory(self.http_api,
                                                                                         function_params), ),
