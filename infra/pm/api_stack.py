@@ -104,9 +104,7 @@ class PmApiStack(Stack):
                 Env.db_name: db_stack.db_instance.instance_identifier,
                 Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
             } | env_override if env_override is not None else {},
-            role_supplier=create_role_with_db_access_factory(db_stack.db_secret),
-            and_then=function_with_db_access_cb_factory(db_stack.db_instance,
-                                                        http_api_integration_cb_factory(self.http_api,
-                                                                                        function_params), ),
+            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy),
+            and_then=http_api_integration_cb_factory(self.http_api, function_params),
             vpc=vpc_stack.vpc,
         )

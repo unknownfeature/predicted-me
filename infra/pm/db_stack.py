@@ -52,6 +52,13 @@ class PmDbStack(Stack):
 
                                                 )
 
+        self.db_proxy = rds.DatabaseProxy(self, Db.proxy_name,
+                                          proxy_target=rds.ProxyTarget.from_instance(self.db_instance),
+                                          secrets=[self.db_secret],
+                                          vpc=vpc_stack.vpc,
+                                          iam_auth=True
+                                          )
+
         self.initializer_function = self._create_initializer_function(vpc_stack, Db.initializer_function)
 
         self.data_cleanup_lambda = self._create_scheduled_function_with_db(vpc_stack, Db.data_cleanup_function)
@@ -72,9 +79,8 @@ class PmDbStack(Stack):
                 Env.db_name: self.db_instance.instance_identifier,
                 Env.db_port: self.db_instance.db_instance_endpoint_port,
             },
-            role_supplier=create_role_with_db_access_factory(self.db_secret),
-            and_then=function_with_db_access_cb_factory(self.db_instance,
-                                                        schedule_cb_factory(self, function_params), ),
+            role_supplier=create_role_with_db_access_factory(self.db_proxy),
+            and_then=schedule_cb_factory(self, function_params),
             vpc=vpc_stack.vpc,
         ))
 
@@ -93,8 +99,7 @@ class PmDbStack(Stack):
                 Common.install_mysql_arg: true,
             },
             environment=env,
-            role_supplier=create_role_with_db_access_factory(self.db_secret),
-            and_then=function_with_db_access_cb_factory(self.db_instance,
-                                                        custom_resource_trigger_cb_factory(self, env, function_params), ),
+            role_supplier=create_role_with_db_access_factory(self.db_proxy),
+            and_then=custom_resource_trigger_cb_factory(self, env, function_params ),
             vpc=vpc_stack.vpc,
         ))

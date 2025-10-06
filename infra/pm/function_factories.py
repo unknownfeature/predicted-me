@@ -149,18 +149,18 @@ def create_lambda_role(stack: Stack, role_name: str, and_then: Callable[[iam.Rol
 
 
 
-def add_db_access_to_role_cb_factory(db_secret: rds.DatabaseSecret, and_then: Callable[[iam.Role], None] = None) -> Callable[[iam.Role], None]:
+def add_db_access_to_role_cb_factory(db_proxy: rds.DatabaseProxy, and_then: Callable[[iam.Role], None] = None) -> Callable[[iam.Role], None]:
      def on_role(role: iam.Role):
-        db_secret.grant_read(role)
+        db_proxy.grant_connect(role)
         if and_then:
             and_then(role)
 
      return on_role
 
 
-def create_role_with_db_access_factory(db_secret: rds.DatabaseSecret, and_then: Callable[[iam.Role], None] = None) -> Callable[
+def create_role_with_db_access_factory(db_proxy: rds.DatabaseProxy, and_then: Callable[[iam.Role], None] = None) -> Callable[
     [Stack, Function], iam.Role]:
-    return create_function_role_factory(add_db_access_to_role_cb_factory(db_secret, and_then))
+    return create_function_role_factory(add_db_access_to_role_cb_factory(db_proxy, and_then))
 
 
 def create_function_role_factory(on_role: Callable[[iam.Role], None]) -> Callable[
@@ -168,9 +168,10 @@ def create_function_role_factory(on_role: Callable[[iam.Role], None]) -> Callabl
     return lambda stack, params: create_lambda_role(stack, params.role_name, on_role)
 
 
+#  remove this todo
 def function_with_db_access_cb_factory(db_instance:rds.DatabaseInstance, and_then: Callable[[lmbd.Function], None]) -> Callable[[lmbd.Function], None]:
     def cb(func: lmbd.Function):
-        db_instance.connections.allow_default_port_from(func)
+        # db_instance.connections.all(func)
         if and_then:
             and_then(func)
     return cb

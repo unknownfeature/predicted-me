@@ -161,6 +161,7 @@ class Db:
     subnet_group = 'pm_db_subnet_group'
     port = 3306
     secret = 'pm_db_secret'
+    proxy_name = 'pm_db_proxy'
 
     initializer_function = CustomResourceTriggeredFunction(
         name='pm_db_initializer_func',

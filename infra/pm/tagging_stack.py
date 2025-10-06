@@ -54,7 +54,7 @@ class PmTaggingStack(Stack):
                 Env.generative_model: Tagging.model,
                 Env.max_tokens: Tagging.max_tokens,
 
-            }, role_supplier=create_role_with_db_access_factory(db_stack.db_secret, lambda role: role.add_to_policy(
+            }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, lambda role: role.add_to_policy(
                 bedrock_invoke_policy_statement)),
                                        and_then=sqs_integration_cb_factory([queue]),
                                        vpc=vpc_stack.vpc)
