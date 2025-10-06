@@ -1,11 +1,11 @@
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, update, and_, delete as sql_delete, or_, inspect
+from sqlalchemy import select, update, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib.db import Note, Tag, Task, Origin, Occurrence
 from backend.lib import constants
+from backend.lib.db import Note, Tag, Task, Origin, Occurrence
 from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod
 
@@ -35,7 +35,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     occurrence_id = path_params.get(constants.id)
     note_id = query_params.get(constants.note_id)
     tags = query_params.get(constants.tags).split(constants.params_delim) if constants.tags in query_params else []
-    task = query_params.get(constants.task)
+    task = query_params.get(constants.task, constants.empty).strip()
     completed = query_params.get(constants.completed)
     start_time, end_time = get_ts_start_and_end(query_params)
     conditions = [
@@ -51,14 +51,13 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
 
         if tags:
             conditions.append(Task.tags.any(Tag.display_name.in_(tags)))
+
         if task:
-            striped = task.strip()
-            conditions.append(or_(Task.display_summary.like(striped + constants.like), Task.description.like(
-                striped + constants.like),
-                                  match(inspect(Task).c.display_summary, inspect(Task).c.description, against=striped)))
+            conditions.append(match(inspect(Task).c.display_summary, inspect(Task).c.description, against=task))
 
         if completed:
             conditions.append(Occurrence.completed == completed)
+
     elif occurrence_id:
         conditions.append(Occurrence.id == int(occurrence_id))
     elif note_id:

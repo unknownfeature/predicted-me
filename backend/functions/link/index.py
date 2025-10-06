@@ -1,12 +1,12 @@
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, update, and_, delete as sql_delete, func, or_, inspect
+from sqlalchemy import select, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
 from backend.lib import constants
-from backend.lib.db import Note, Tag, User, Link, get_utc_timestamp
-from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory, post_factory
+from backend.lib.db import Note, Tag, Link
+from backend.lib.func.http import RequestContext, handler_factory, delete_factory, post_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod, get_or_create_tags
 
 updatable_fields = {'url', 'description', 'time'}
@@ -16,10 +16,10 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     query_params = request_context.query_params
     path_params = request_context.path_params
 
-    link_id = path_params.get('id')
-    note_id = query_params.get('note_id')
-    tags = query_params.get('tags').split(constants.params_delim) if 'tags' in query_params else []
-    link = query_params.get('link')
+    link_id = path_params.get(constants.id)
+    note_id = query_params.get(constants.note_id)
+    tags = query_params.get(constants.tags).split(constants.params_delim) if 'tags' in query_params else []
+    link = query_params.get(constants.link, constants.empty).strip()
     start_time, end_time = get_ts_start_and_end(query_params)
     conditions = [
         Link.user_id == request_context.user.id
@@ -34,11 +34,10 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
 
         if tags:
             conditions.append(Link.tags.any(Tag.name.in_(tags)))
+
         if link:
-            striped = link.strip()
-            conditions.append(or_(Link.description.like(striped + constants.like),
-                                  Link.url.like(striped + constants.like),
-                                  match(inspect(Link).c.description, inspect(Link).c.url, against=striped)))
+            conditions.append(match(inspect(Link).c.description, inspect(Link).c.url, against=link))
+
 
     elif link_id:
         conditions.append(Link.id == int(link_id))
