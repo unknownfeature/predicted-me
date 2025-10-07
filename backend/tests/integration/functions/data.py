@@ -573,6 +573,8 @@ class Test(unittest.TestCase):
             assert items[1][constants.metric][constants.tags][0] == tag_one_display_name
             assert items[1][constants.metric][constants.tags][1] == tag_two_display_name
 
+            assert items[1][constants.metric][constants.tagged]
+
             #############################################
 
             self.event[constants.query_params] = {}  # should default to now - 1d
@@ -724,9 +726,11 @@ class Test(unittest.TestCase):
         session.flush()
 
         metric_one = Metric(name=metric_one_name, display_name=metric_one_display_name, user=user,
+                            tagged=True,
                             tags=[tag_one, tag_two])
         metric_two = Metric(name=metric_two_name, display_name=metric_two_display_name, user=user,
                             tags=[tag_two, tag_three],
+                            tagged=True,
                             schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
                                                   recurrence_schedule=schedule_recurrence))
         # m1_d2 & m2_d5 3d  m1_d1 2d  m1_d3  1d  m2_d4 & m2_d6  now

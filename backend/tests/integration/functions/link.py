@@ -111,14 +111,21 @@ class Test(unittest.TestCase):
             link = links[0]
 
             assert link.url == link_one_url
+            assert len(link.tags) == 2
 
+            old_tag_names = [tag.display_name for tag in link.tags]
+            assert tag_one_display_name in old_tag_names
+            assert tag_two_display_name in old_tag_names
             link_id = link.id
 
             new_time = 25
+            new_tag_name = 'new_tag'
             self.event[constants.body] = {
                 constants.url: link_two_url + unique_piece,
                 constants.description: link_two_description,
                 constants.time: new_time,
+                #  one exists and one new, both should replace old ones
+                constants.tags: [new_tag_name, tag_three_display_name]
             }
             self.event[constants.path_params][constants.id] = link_id
             self.event[constants.http_method] = constants.patch
@@ -136,6 +143,14 @@ class Test(unittest.TestCase):
             assert link.url == link_two_url + unique_piece
             assert link.description == link_two_description
             assert link.time == link.time # time is not updatable
+            assert len(link.tags) == 2
+
+            new_tag_names = [tag.display_name for tag in link.tags]
+            assert new_tag_name in new_tag_names
+            assert tag_three_display_name in new_tag_names
+
+            #  make sure new tag was added and old tags were
+            assert session.query(Tag).count() == 4
 
             # just in case
             assert session.query(User).count() == 2
@@ -505,7 +520,7 @@ class Test(unittest.TestCase):
             assert items[0][constants.url] == link_four_url
             assert items[0][constants.description] == link_four_description
 
-
+            assert items[0][constants.tagged]
             #############################################
             self.event[constants.query_params] = {
                 constants.start: two_days_ago,
@@ -616,14 +631,15 @@ class Test(unittest.TestCase):
             note = Note(user=user)
             session.add(note)
             session.flush()
-            link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description,
+            link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description, tagged = True,
                             tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.audio_text)
-            link_two = Link(user=user, url=link_two_url, description=link_two_description, tags=[tag_one, tag_three], time=three_days_ago + 60, origin=Origin.user)
-            link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description,
+            link_two = Link(user=user, url=link_two_url, description=link_two_description, tagged = True,
+                            tags=[tag_one, tag_three], time=three_days_ago + 60, origin=Origin.user)
+            link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description, tagged = True,
                               tags=[tag_three, tag_two], time=day_ago - 60, origin=Origin.audio_text )
-            link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description,
+            link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description, tagged = True,
                              tags=[tag_two, tag_three], time= get_utc_timestamp() - 60, origin=Origin.audio_text)
-            link_five = Link(user=user, url=link_five_url, description=link_five_description,
+            link_five = Link(user=user, url=link_five_url, description=link_five_description, tagged = True,
                              tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.user )
             session.add_all([note, link_one, link_two, link_three, link_four, link_five])
             session.commit()

@@ -688,6 +688,8 @@ class Test(unittest.TestCase):
             assert items[0][constants.task][constants.summary] == task_two_display_summary
             assert items[1][constants.task][constants.summary] == task_two_display_summary
 
+            assert items[1][constants.task][constants.tagged]
+
             #############################################
             self.event[constants.query_params] = {
                 constants.start: two_days_ago,
@@ -833,10 +835,9 @@ class Test(unittest.TestCase):
                         tags=[tag_one, tag_two])
         task_two = Task(summary=task_two_summary, display_summary=task_two_display_summary, user=user,
                         description=task_two_description,
-                        tags=[tag_two, tag_three],
+                        tags=[tag_two, tag_three], tagged=True,
                         schedule=OccurrenceSchedule(priority=schedule_priority,
                                                     recurrence_schedule=schedule_recurrence))
-        # m1_d2 & m2_d5 3d  m1_d1 2d  m1_d3  1d  m2_d4 & m2_d6  now
 
         task_one.occurrences.extend(
             [Occurrence(priority=occurrence_priority_one, completed=occurrence_one_completed, time=three_days_ago + 60,

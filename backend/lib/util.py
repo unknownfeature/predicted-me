@@ -113,10 +113,10 @@ def get_or_create_tags(session: Session, tag_names: Set[str]) -> Dict[str, Tag]:
     if not tag_names:
         return {}
 
-    stmt = select(Tag).where(Tag.name.in_(tag_names))
+    stmt = select(Tag).where(Tag.display_name.in_(tag_names))
     existing_tags = session.scalars(stmt).all()
-    existing_tags_dict = {tag.name: tag for tag in existing_tags}
-    new_tags = {t.lower(): Tag(name = t) for t in tag_names if t not in existing_tags_dict}
+    existing_tags_dict = {tag.display_name: tag for tag in existing_tags}
+    new_tags = {t: Tag(name = normalize_identifier(t), display_name=t) for t in tag_names if t not in existing_tags_dict}
 
 
     if new_tags:
