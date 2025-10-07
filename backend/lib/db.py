@@ -303,6 +303,7 @@ class Task(Base):
     __tablename__ = 'task'
 
     __table_args__ = (
+        UniqueConstraint('summary', 'user_id', name='uq_task_summary'),
         Index(
 
             'ft_task_content',

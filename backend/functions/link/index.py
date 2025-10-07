@@ -77,10 +77,10 @@ def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any],
     if not id:
         return {constants.error:  constants.id_is_required}, 400
 
-    link_for_update = session.scalar(select(Link).where(and_(*[Link.id == id, Link.user_id == request_context.user.id])))
+    link_for_update = session.scalar(select(Link).where(and_(Link.id == id, Link.user_id == request_context.user.id)))
 
     if not link_for_update:
-        return {constants.error: constants.not_found}, 404
+        return {constants.status: constants.error, constants.error: constants.not_found}, 404
 
     tags_for_update = list(get_or_create_tags(session, set(body.get(constants.tags, []))).values())
 

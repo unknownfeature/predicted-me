@@ -105,7 +105,7 @@ def handler_factory(per_method_handlers: Dict[
                 session.rollback()
 
             traceback.print_exc()
-            return {'statusCode': 500, 'body': json.dumps({'error': 'Internal server error'}),
+            return {'statusCode': 500, 'body': json.dumps({'error': constants.internal_server_error}),
                     'headers': Common.cors_headers, }
 
         finally:

@@ -37,7 +37,7 @@ class Test(unittest.TestCase):
 
         assert result[constants.status_code] == 500
 
-        assert json.loads(result[constants.body])['error'] == 'Internal server error'
+        assert json.loads(result[constants.body])['error'] == constants.internal_server_error
         session = begin_session()
 
         try:

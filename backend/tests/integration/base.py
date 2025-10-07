@@ -57,6 +57,8 @@ def get_metrics_by_name(name: str, session: Session) -> List[Type[Metric]]:
 def get_metrics_by_display_name(display_name: str, session: Session) -> List[Type[Metric]]:
     return session.query(Metric).filter(Metric.display_name == display_name).all()
 
+def get_task_by_id(task_id: int, session: Session) -> Optional[Task]:
+    return session.query(Task).get(task_id)
 def get_tasks_by_display_summary(display_summary: str, session: Session) -> List[Type[Task]]:
     return session.query(Task).filter(Task.display_summary == display_summary).all()
 
