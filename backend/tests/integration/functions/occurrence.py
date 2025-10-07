@@ -52,7 +52,7 @@ class Test(unittest.TestCase):
         super().setUp()
         self.event = baseSetUp(Trigger.http)
 
-    def test_occurrence_post_returns_500(self):
+    def test_incomplete_occurrence_post_returns_500(self):
 
         self.event[constants.body] = {
             constants.completed: completed,

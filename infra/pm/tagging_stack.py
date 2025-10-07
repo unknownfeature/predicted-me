@@ -23,15 +23,15 @@ class PmTaggingStack(Stack):
 
         self.metrics_tagging_queue = create_queue(self, Tagging.metrics.integration.name,
                                                   visibility_timeout=Tagging.metrics.integration.visibility_timeout,
-                                                  with_subscription_to=self.tagging_topic)
+                                                  with_subscription_to=self.tagging_topic, max_retires=Tagging.metrics.integration.max_retries)
 
         self.links_tagging_queue = create_queue(self, Tagging.links.integration.name,
                                                 visibility_timeout=Tagging.links.integration.visibility_timeout,
-                                                with_subscription_to=self.tagging_topic)
+                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.links.integration.max_retries)
 
         self.tasks_tagging_queue = create_queue(self, Tagging.tasks.integration.name,
                                                 visibility_timeout=Tagging.tasks.integration.visibility_timeout,
-                                                with_subscription_to=self.tagging_topic)
+                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.tasks.integration.max_retries)
 
         self.metrics_tagging_function = self._create_sqs_triggered_function(db_stack, self.metrics_tagging_queue,
                                                                             vpc_stack, Tagging.metrics)

@@ -26,7 +26,7 @@ def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, A
     session.commit()
     return {constants.status: constants.success, constants.id: data.id}, 201
 
-
+# todo pages
 def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
 

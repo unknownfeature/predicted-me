@@ -53,7 +53,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
             conditions.append(Task.tags.any(Tag.display_name.in_(tags)))
 
         if task:
-            conditions.append(match(inspect(Task).c.display_summary, inspect(Task).c.description, against=task))
+            conditions.append(match(inspect(Task).c.display_summary, inspect(Task).c.description, against=task).in_natural_language_mode())
 
         if completed:
             conditions.append(Occurrence.completed == completed)

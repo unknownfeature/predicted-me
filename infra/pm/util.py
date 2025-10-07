@@ -54,10 +54,14 @@ def create_bucket(stack: Stack, name: str) -> s3.Bucket:
     )
 
 
-def create_queue(stack: Stack, name: str, visibility_timeout: Duration, with_subscription_to: sns.Topic) -> aws_sqs.Queue:
-    queue =  aws_sqs.Queue(stack, name, queue_name=name, visibility_timeout=visibility_timeout)
+def create_queue(stack: Stack, name: str, visibility_timeout: Duration, with_subscription_to: sns.Topic,
+                 max_retires: int) -> aws_sqs.Queue:
+    dlq_name = name + '_dlq'
+    queue = aws_sqs.Queue(stack, name, queue_name=name, visibility_timeout=visibility_timeout,
+                          dead_letter_queue=aws_sqs.DeadLetterQueue(
+                              queue=aws_sqs.Queue(stack, dlq_name, queue_name=dlq_name),
+                              max_receive_count=max_retires
+                          ))
     if with_subscription_to:
         with_subscription_to.add_subscription(subs.SqsSubscription(queue))
     return queue
-
-

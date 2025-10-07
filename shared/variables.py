@@ -34,9 +34,10 @@ class QueueIntegration:
     name: str
     visibility_timeout: Duration
 
-    def __init__(self, queue_name: str, visibility_timeout: Duration):
+    def __init__(self, queue_name: str, visibility_timeout: Duration, max_retries: int = 3,):
         self.name = queue_name
         self.visibility_timeout = visibility_timeout
+        self.max_retries = max_retries
 
 
 class Schedule:

@@ -43,10 +43,10 @@ class Origin(str, Enum):
 def get_utc_timestamp() -> int:
     return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
 
-
+# todo rewrite and test
 def normalize_identifier(name):
-    if not name:
-        raise ValueError("Identifier cannot be empty.")
+    if not name or not name.strip():
+        raise ValueError('Identifier cannot be empty.')
     s = name.lower()
     s = s.replace('\s+', '_')
     s = re.sub(r'[^a-z0-9_]', '', s)
@@ -58,30 +58,29 @@ class Base(DeclarativeBase):
 
 
 metric_tags_association = Table(
-    "metrics_tags",
+    'metrics_tags',
     Base.metadata,
-    Column("metric_id", BigInteger, ForeignKey("metric.id"), primary_key=True),
-    Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
+    Column('metric_id', BigInteger, ForeignKey('metric.id', ondelete='cascade'), primary_key=True),
+    Column('tag_id', BigInteger, ForeignKey('tag.id'), primary_key=True),
 )
 
 link_tags_association = Table(
-    "links_tags",
+    'links_tags',
     Base.metadata,
-    Column("link_id", BigInteger, ForeignKey("link.id"), primary_key=True),
-    Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
+    Column('link_id', BigInteger, ForeignKey('link.id', ondelete='cascade'), primary_key=True),
+    Column('tag_id', BigInteger, ForeignKey('tag.id'), primary_key=True),
 )
 
 task_tags_association = Table(
-    "tasks_tags",
+    'tasks_tags',
     Base.metadata,
-    Column("task_id", BigInteger, ForeignKey("task.id"), primary_key=True),
-    Column("tag_id", BigInteger, ForeignKey("tag.id"), primary_key=True),
+    Column('task_id', BigInteger, ForeignKey('task.id', ondelete='cascade'), primary_key=True),
+    Column('tag_id', BigInteger, ForeignKey('tag.id'), primary_key=True),
 )
 
 
 class Tag(Base):
-    __tablename__ = "tag"
-
+    __tablename__ = 'tag'
 
     __table_args__ = (
         Index(
@@ -96,18 +95,18 @@ class Tag(Base):
     name: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     display_name: Mapped[str] = mapped_column(String(500), unique=True)
 
-    metrics: Mapped[List["Metric"]] = relationship(
-        secondary=metric_tags_association, back_populates="tags"
+    metrics: Mapped[List['Metric']] = relationship(
+        secondary=metric_tags_association, back_populates='tags'
     )
-    links: Mapped[List["Link"]] = relationship(
-        secondary=link_tags_association, back_populates="tags"
+    links: Mapped[List['Link']] = relationship(
+        secondary=link_tags_association, back_populates='tags'
     )
-    tasks: Mapped[List["Task"]] = relationship(
-        secondary=task_tags_association, back_populates="tags"
+    tasks: Mapped[List['Task']] = relationship(
+        secondary=task_tags_association, back_populates='tags'
     )
 
     def __repr__(self) -> str:
-        return f"Tag(id={self.id!r}, name={self.name!r})"
+        return f'Tag(id={self.id!r}, name={self.name!r})'
 
     @validates('name')
     def validate_name(self, _, name):
@@ -115,22 +114,21 @@ class Tag(Base):
 
 
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = 'user'
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     external_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
     name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
-    parent_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    parent_user_id: Mapped[int | None] = mapped_column(ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-
     def __repr__(self) -> str:
-        return f"User(id={self.id!r}, name={self.name!r})"
+        return f'User(id={self.id!r}, name={self.name!r})'
 
 
 class Note(Base):
-    __tablename__ = "note"
+    __tablename__ = 'note'
     __table_args__ = (
         Index(
             'ft_note_content',
@@ -140,8 +138,8 @@ class Note(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    user: Mapped["User"] = relationship()
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
+    user: Mapped['User'] = relationship()
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     audio_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -151,30 +149,30 @@ class Note(Base):
     image_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
-    data_points: Mapped[list["Data"]] = relationship(
+    data_points: Mapped[list['Data']] = relationship(
         lazy=True,
-        back_populates="note",
-        cascade="all, delete-orphan"
+        back_populates='note',
+        cascade='all, delete-orphan'
     )
 
-    links: Mapped[list["Link"]] = relationship(
+    links: Mapped[list['Link']] = relationship(
         lazy=True,
-        back_populates="note",
-        cascade="all, delete-orphan"
+        back_populates='note',
+        cascade='all, delete-orphan'
     )
 
-    tasks: Mapped[list["Task"]] = relationship(
+    tasks: Mapped[list['Task']] = relationship(
         lazy=True,
-        back_populates="note",
-        cascade="all, delete-orphan"
+        back_populates='note',
+        cascade='all, delete-orphan'
     )
 
     def __repr__(self) -> str:
-        return f"Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time})"
+        return f'Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time})'
 
 
 class Metric(Base):
-    __tablename__ = "metric"
+    __tablename__ = 'metric'
     __table_args__ = (
         UniqueConstraint('name', name='uq_metric_name'),
         Index('idx_metric_name', 'name'),
@@ -190,27 +188,27 @@ class Metric(Base):
     display_name: Mapped[str] = mapped_column(String(500), unique=True)
 
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
-    tags: Mapped[List["Tag"]] = relationship(
-        secondary=metric_tags_association, back_populates="metrics", lazy=False,
+    tags: Mapped[List['Tag']] = relationship(
+        secondary=metric_tags_association, back_populates='metrics', lazy=False,
     )
 
-    data_points: Mapped[List["Data"]] = relationship(
-        back_populates="metric",
-        cascade="all, delete-orphan",
+    data_points: Mapped[List['Data']] = relationship(
+        back_populates='metric',
+        cascade='all, delete-orphan',
         lazy=True
     )
-    schedule: Mapped[Optional["DataSchedule"]] = relationship(
-        back_populates="metric",
-        cascade="all, delete-orphan",
+    schedule: Mapped[Optional['DataSchedule']] = relationship(
+        back_populates='metric',
+        cascade='all, delete-orphan',
         lazy=False
     )
 
-    user: Mapped["User"] = relationship()
+    user: Mapped['User'] = relationship()
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
 
     def __repr__(self) -> str:
-        return f"Metrics(id={self.id!r}, name={self.name!r}, tagged={self.tagged!r})"
+        return f'Metrics(id={self.id!r}, name={self.name!r}, tagged={self.tagged!r})'
 
     @validates('name')
     def validate_name(self, _, name):
@@ -218,11 +216,11 @@ class Metric(Base):
 
 
 class Data(Base):
-    __tablename__ = "data"
+    __tablename__ = 'data'
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    metric_id: Mapped[int] = mapped_column(ForeignKey("metric.id"))
-    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
+    metric_id: Mapped[int] = mapped_column(ForeignKey('metric.id'))
+    note_id: Mapped[int | None] = mapped_column(ForeignKey('note.id'), nullable=True)
 
     value: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -233,41 +231,38 @@ class Data(Base):
         SQLEnum(Origin),
         nullable=False
     )
+    #  todo think how to do orphan delete where orphan is metric
+    metric: Mapped['Metric'] = relationship()
 
-    metric: Mapped["Metric"] = relationship()
-
-    note: Mapped[Optional["Note"]] = relationship()
+    note: Mapped[Optional['Note']] = relationship()
 
     def __repr__(self) -> str:
-        return (f"Data(id={self.id!r}, metric_id={self.metric_id!r}, "
-                f"value={self.value!r}, units={self.units!r}, origin={self.origin.value!r})")
+        return (f'Data(id={self.id!r}, metric_id={self.metric_id!r}, '
+                f'value={self.value!r}, units={self.units!r}, origin={self.origin.value!r})')
 
 
 class DataSchedule(Base):
-    __tablename__ = "data_schedule"
+    __tablename__ = 'data_schedule'
     __table_args__ = (
         UniqueConstraint('metric_id', name='uq_metric_schedule'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    metric_id: Mapped[int] = mapped_column(ForeignKey("metric.id"), unique=True)
+    metric_id: Mapped[int] = mapped_column(ForeignKey('metric.id'), unique=True)
 
     recurrence_schedule: Mapped[str] = mapped_column(String(50))
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    metric: Mapped["Metric"] = relationship(back_populates="schedule")
+    metric: Mapped['Metric'] = relationship(back_populates='schedule')
 
     def __repr__(self) -> str:
-        return (f"DataSchedule(metric_id={self.metric_id!r}, "
-                f"schedule={self.recurrence_schedule!r}, target={self.target_value!r})")
-
-
-
+        return (f'DataSchedule(metric_id={self.metric_id!r}, '
+                f'schedule={self.recurrence_schedule!r}, target={self.target_value!r})')
 
 
 class Link(Base):
-    __tablename__ = "link"
+    __tablename__ = 'link'
 
     __table_args__ = (
         UniqueConstraint('url', 'user_id', name='uq_link_url'),
@@ -279,8 +274,8 @@ class Link(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    note_id: Mapped[int | None] = mapped_column(ForeignKey('note.id'), nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
 
     url: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
@@ -293,19 +288,19 @@ class Link(Base):
         nullable=False
     )
 
-    note: Mapped[Optional["Note"]] = relationship(back_populates="links")
-    user: Mapped["User"] = relationship()
-    tags: Mapped[List["Tag"]] = relationship(
-        secondary=link_tags_association, back_populates="links", lazy=False
+    note: Mapped[Optional['Note']] = relationship(back_populates='links')
+    user: Mapped['User'] = relationship()
+    tags: Mapped[List['Tag']] = relationship(
+        secondary=link_tags_association, back_populates='links', lazy=False
     )
 
     def __repr__(self) -> str:
-        return (f"Link(id={self.id!r},  "
-                f"value={self.url!r}, description={self.description!r}, origin={self.origin.value!r})")
+        return (f'Link(id={self.id!r},  '
+                f'value={self.url!r}, description={self.description!r}, origin={self.origin.value!r})')
 
 
 class Task(Base):
-    __tablename__ = "task"
+    __tablename__ = 'task'
 
     __table_args__ = (
         Index(
@@ -317,27 +312,27 @@ class Task(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
+    note_id: Mapped[int | None] = mapped_column(ForeignKey('note.id'), nullable=True)
     summary: Mapped[str] = mapped_column(String(500), nullable=False)
     display_summary: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str] = mapped_column(String(1000), nullable=False)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    user: Mapped["User"] = relationship()
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
+    user: Mapped['User'] = relationship()
 
-    note: Mapped[Optional["Note"]] = relationship(back_populates="tasks")
-    tags: Mapped[List["Tag"]] = relationship(
-        secondary=task_tags_association, back_populates="tasks", lazy=False
+    note: Mapped[Optional['Note']] = relationship(back_populates='tasks')
+    tags: Mapped[List['Tag']] = relationship(
+        secondary=task_tags_association, back_populates='tasks', lazy=False
     )
 
-    occurrences: Mapped[List["Occurrence"]] = relationship(
-        back_populates="task",
-        cascade="all, delete-orphan",
+    occurrences: Mapped[List['Occurrence']] = relationship(
+        back_populates='task',
+        cascade='all, delete-orphan',
         lazy=True
     )
-    schedule: Mapped[Optional["OccurrenceSchedule"]] = relationship(
-        back_populates="task",
-        cascade="all, delete-orphan",
+    schedule: Mapped[Optional['OccurrenceSchedule']] = relationship(
+        back_populates='task',
+        cascade='all, delete-orphan',
         lazy=False
     )
 
@@ -346,15 +341,16 @@ class Task(Base):
         return normalize_identifier(summary)
 
     def __repr__(self) -> str:
-        return (f"Link(id={self.id!r},  "
-                f"value={self.description!r}, display_summary={self.display_summary!r}, origin={self.origin.value!r})")
+        return (f'Link(id={self.id!r},  '
+                f'value={self.description!r}, display_summary={self.display_summary!r}, origin={self.origin.value!r})')
+
 
 class OccurrenceSchedule(Base):
-    __tablename__ = "occurrence_schedule"
+    __tablename__ = 'occurrence_schedule'
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"), unique=True)
-    task: Mapped["Task"] = relationship(back_populates="schedule")
+    task_id: Mapped[int] = mapped_column(ForeignKey('task.id'), unique=True)
+    task: Mapped['Task'] = relationship(back_populates='schedule')
 
     recurrence_schedule: Mapped[str] = mapped_column(String(50))
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -365,15 +361,16 @@ class OccurrenceSchedule(Base):
     )
 
     def __repr__(self) -> str:
-        return (f"TaskSchedule(task_id={self.task_id!r}, "
-                f"schedule={self.recurrence_schedule!r})")
+        return (f'TaskSchedule(task_id={self.task_id!r}, '
+                f'schedule={self.recurrence_schedule!r})')
+
 
 class Occurrence(Base):
-    __tablename__ = "occurrence"
+    __tablename__ = 'occurrence'
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
-    note_id: Mapped[int | None] = mapped_column(ForeignKey("note.id"), nullable=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey('task.id'))
+    note_id: Mapped[int | None] = mapped_column(ForeignKey('note.id'), nullable=True)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -383,23 +380,25 @@ class Occurrence(Base):
         nullable=False
     )
 
-    task: Mapped["Task"] = relationship()
+    task: Mapped['Task'] = relationship()
 
-    note: Mapped["Note"] = relationship()
+    note: Mapped['Note'] = relationship()
 
     __table_args__ = (
         CheckConstraint(priority >= 1, name='priority_not_zero'),
         CheckConstraint(priority <= 10, name='priority_less_than_ten')
     )
+
     def __repr__(self) -> str:
-        return (f"Occurrence(id={self.id!r}, task_id={self.task_id!r}, "
-                f"priority={self.priority!r}, completed={self.completed!r}, origin={self.origin.value!r})")
+        return (f'Occurrence(id={self.id!r}, task_id={self.task_id!r}, '
+                f'priority={self.priority!r}, completed={self.completed!r}, origin={self.origin.value!r})')
+
 
 secret_arn = os.getenv(Env.db_secret_arn)
 db_endpoint = os.getenv(Env.db_endpoint)
 db_name = os.getenv(Env.db_name)
 db_test = os.getenv(Env.db_test)
-db_port =  os.getenv(Env.db_port)
+db_port = os.getenv(Env.db_port)
 
 secrets_client = boto3.client('secretsmanager', region_name=os.getenv(Env.aws_region))
 

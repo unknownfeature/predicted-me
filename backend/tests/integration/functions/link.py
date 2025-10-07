@@ -2,7 +2,7 @@ import json
 import unittest
 
 from backend.functions.link.index import handler
-from backend.lib.db import Tag, Note, Link, Origin
+from backend.lib.db import Tag, Note, Origin
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 
@@ -18,18 +18,469 @@ link_three_description = 'description for link three'
 link_four_description = 'description for link four'
 link_five_description = 'description for link five ' + unique_piece
 
-
+# todo add test for tags persisting with the link and tags modification in patch
 class Test(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
         self.event = baseSetUp(Trigger.http)
 
+    def test_incomplete_post_returns_500(self):
 
-    def test_links_get_by_date_succeeds(self):
+
+        self.event[constants.body] = {
+            constants.description: link_one_description,
+
+        }
+
+        self.event[constants.http_method] = constants.post
+        result = handler(self.event, None)
+
+        assert result[constants.status_code] == 500
+
+        assert json.loads(result[constants.body])['error'] == 'Internal server error'
+        session = begin_session()
+
+        try:
+            assert len(get_links_by_description(link_one_description, session)) == 0
+        finally:
+            session.close()
+
+    def test_link_post_fails_for_duplicate(self):
+
+        self._setup_links()
+        session = begin_session()
+
+        try:
+
+            self.event[constants.body] = {
+                constants.url: link_two_url,
+                constants.description: link_two_description + unique_piece,
+            }
+            self.event[constants.http_method] = constants.post
+            result = handler( self.event, None)
+
+            assert result[constants.status_code] == 500
+
+
+        finally:
+            session.close()
+
+    def test_link_post_succeeds(self):
+
+        self.event[constants.body] = {
+            constants.url: link_one_url,
+            constants.description: link_one_description,
+        }
+
+        self.event[constants.http_method] = constants.post
+
+        result = handler(self.event, None)
+        assert result[constants.status_code] == 201
+        assert json.loads(result[constants.body])[constants.id] is not None
+
+        session = begin_session()
+
+        try:
+
+            links = get_links_by_description(link_one_description, session)
+            assert len(links) == 1
+
+            user = links[0]
+
+            user_id, external_id = get_user_ids_from_event(self.event, session)
+
+            # make sure user is correct
+            assert user_id == user.user_id
+            assert user.user.external_id == external_id
+
+
+        finally:
+            session.close()
+
+    def test_link_patch_succeeds(self):
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+
+            links = get_links_by_description(link_one_description, session)
+
+            assert len(links) == 1
+            link = links[0]
+
+            assert link.url == link_one_url
+
+            link_id = link.id
+
+            new_time = 25
+            self.event[constants.body] = {
+                constants.url: link_two_url + unique_piece,
+                constants.description: link_two_description,
+                constants.time: new_time,
+            }
+            self.event[constants.path_params][constants.id] = link_id
+            self.event[constants.http_method] = constants.patch
+            result = handler(self.event, None)
+
+            assert result[constants.status_code] == 204
+
+            # new cache bc sqlalchemy
+            session = refresh_cache(session)
+
+            # make sure it didn't insert ore metrics
+            link = get_link_by_id(link_id, session)
+
+            # but with updated fields
+            assert link.url == link_two_url + unique_piece
+            assert link.description == link_two_description
+            assert link.time == link.time # time is not updatable
+
+            # just in case
+            assert session.query(User).count() == 2
+
+        finally:
+            session.close()
+
+    def test_link_patch_fails_for_malicious_user(self):
+
+        self._setup_links()
+        session = begin_session()
+
+        try:
+
+            links = get_links_by_description(link_one_description, session)
+
+            assert len(links) == 1
+            link = links[0]
+
+            assert link.url == link_one_url
+
+            link_id = link.id
+            old_time = link.time
+
+            new_time = 25
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.body] = {
+                constants.url: link_two_url,
+                constants.description: link_two_description,
+                constants.time: new_time,
+            }
+            malicious_event[constants.path_params][constants.id] = link_id
+            malicious_event[constants.http_method] = constants.patch
+            result = handler(malicious_event, None)
+
+            assert result[constants.status_code] == 404
+
+            # new cache bc sqlalchemy
+            session = refresh_cache(session)
+
+            link = get_link_by_id(link_id, session)
+
+            # but with updated fields
+            assert link.url == link_one_url
+            assert link.description == link_one_description
+            assert link.time == old_time
+
+            # just in case
+            assert session.query(User).count() == 2
+
+        finally:
+            session.close()
+
+    def test_link_delete_succeeds(self):
+        self._setup_links()
+        session = begin_session()
+
+        try:
+            links = get_links_by_description(link_two_description, session)
+
+            assert len(links) == 1
+            link = links[0]
+            link_id = link.id
+
+            self.event = prepare_http_event(get_user_by_id(legit_user_id, session).external_id)
+            self.event[constants.body] = {}
+            self.event[constants.path_params][constants.id] = link_id
+            self.event[constants.http_method] = constants.delete
+            result = handler(self.event, None)
+
+            assert result[constants.status_code] == 204
+
+            # new cache
+            session = refresh_cache(session)
+
+            # make sure it didn't insert ore links
+            links = get_links_by_description(link_two_description, session)
+            assert len(links) == 0
+
+        finally:
+            session.close()
+
+    def test_link_delete_fails_for_malicious_user(self):
+
+        self._setup_links()
+        session = begin_session()
+
+        try:
+            links = get_links_by_description(link_two_description, session)
+
+            assert len(links) == 1
+            link = links[0]
+            link_id = link.id
+
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.body] = {}
+            malicious_event[constants.path_params][constants.id] = link_id
+            malicious_event[constants.http_method] = constants.delete
+            result = handler(malicious_event, None)
+
+            assert result[constants.status_code] == 404
+
+            # new cache
+            session = refresh_cache(session)
+
+            links = get_links_by_description(link_two_description, session)
+            assert len(links) == 1
+
+        finally:
+            session.close()
+
+    def test_link_get_by_link_id_succeeds(self):
+
+        self._setup_links()
+
         session = begin_session()
         try:
-            self._setup_links_for_search(session)
+            self.event[constants.http_method] = constants.get
+
+            self.event[constants.path_params][constants.id] = 1
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 1
+            assert items[0][constants.id] == 1
+
+            self.event[constants.query_params] = {}
+            self.event[constants.path_params] = {}
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 1
+
+        finally:
+            session.close()
+
+    def test_link_get_by_link_id_fails_for_malicious_user(self):
+
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.http_method] = constants.get
+
+            malicious_event[constants.path_params][constants.id] = 1
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0
+
+            malicious_event[constants.query_params] = {}
+            malicious_event[constants.path_params] = {}
+
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0
+
+        finally:
+            session.close()
+
+    def test_link_get_by_note_succeeds(self):
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+            self.event[constants.http_method] = constants.get
+
+            self.event[constants.query_params] = {
+                constants.note_id: 1,
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 3
+            assert items[0][constants.note_id] == 1
+            assert items[0][constants.origin] == Origin.audio_text.value
+
+            self.event[constants.query_params] = {
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 1
+
+
+        finally:
+            session.close()
+
+    def test_link_get_by_note_fails_for_malicious_user(self):
+
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.http_method] = constants.get
+
+            malicious_event[constants.query_params] = {
+                constants.note_id: 1,
+                # start and end will be  == now - 1 day which is outside for this particular data point but it should be ignored
+            }
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0
+
+        finally:
+            session.close()
+
+    def test_link_get_by_tags_display_names_succeeds(self):
+
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+            self.event[constants.http_method] = constants.get
+
+            ##########################################
+            self.event[constants.query_params] = {
+                constants.tags: f'{tag_two_display_name}',
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp()
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 4
+
+            ##########################################
+            self.event[constants.query_params] = {
+                constants.tags: f'{tag_three_display_name}|{tag_one_display_name}',
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp()
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 5
+
+        finally:
+            session.close()
+
+    def test_link_get_by_tags_display_names_fails_for_malicious_user(self):
+
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.http_method] = constants.get
+
+            ##########################################
+            malicious_event[constants.query_params] = {
+                constants.tags: f'{tag_two_display_name}',
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp()
+            }
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0
+
+            ##########################################
+            malicious_event[constants.query_params] = {
+                constants.tags: f'{tag_three_display_name}|{tag_one_display_name}',
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp()
+            }
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0
+
+        finally:
+            session.close()
+
+    def test_link_get_by_url_and_description_succeeds(self):
+
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+            self.event[constants.http_method] = constants.get
+            self.event[constants.query_params] = {
+                constants.link: 'one',
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 1
+            prev_link_id = items[0][constants.id]
+
+            self.event[constants.query_params] = {
+                constants.link: unique_piece,
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+            }
+
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 2 # in url and description
+            this_link_id = items[0][constants.id]
+
+            assert prev_link_id != this_link_id
+
+        finally:
+            session.close()
+
+    def test_link_get_by_description_fails_for_malicious_user(self):
+        self._setup_links()
+
+        session = begin_session()
+
+        try:
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.query_params] = {
+                constants.link: link_one_description,
+                constants.start: three_days_ago - seconds_in_day,
+            }
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0
+
+
+        finally:
+            session.close()
+
+    def test_links_get_by_date_succeeds(self):
+        self._setup_links()
+        session = begin_session()
+        try:
             self.event[constants.http_method] = constants.get
             self.event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
@@ -91,9 +542,10 @@ class Test(unittest.TestCase):
             session.close()
 
     def test_links_get_by_date_fails_for_malicious_user(self):
+
+        self._setup_links()
         session = begin_session()
         try:
-            self._setup_links_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
             malicious_event[constants.http_method] = constants.get
@@ -109,32 +561,36 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def _setup_links_for_search(self, session):
-        user_id, external_user_id = get_user_ids_from_event(self.event, session)
+    def _setup_links(self):
 
-        tag_one = Tag(name=tag_one_name, display_name=tag_one_display_name)
-        tag_two = Tag(name=tag_two_name, display_name=tag_two_display_name)
+        session = begin_session()
+        try:
+            user_id, external_user_id = get_user_ids_from_event(self.event, session)
 
-        tag_three = Tag(name=tag_three_name, display_name=tag_three_display_name)
+            tag_one = Tag(name=tag_one_name, display_name=tag_one_display_name)
+            tag_two = Tag(name=tag_two_name, display_name=tag_two_display_name)
 
-        user = session.query(User).get(user_id)
+            tag_three = Tag(name=tag_three_name, display_name=tag_three_display_name)
 
-        assert user.external_id == external_user_id
-        note = Note(user=user)
-        session.add(note)
-        session.flush()
-        # 3d| l2  l1  l5 | 2d| l3 | 1d |  l4 |now
-        link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description,
-                        tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.audio_text)
-        link_two = Link(user=user, url=link_two_url, description=link_two_description, tags=[tag_one, tag_three], time=three_days_ago + 60, origin=Origin.user)
-        link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description,
-                          tags=[tag_three, tag_two], time=day_ago - 60, origin=Origin.audio_text )
-        link_five = Link(user=user, url=link_five_url, description=link_five_description,
-                         tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.user )
-        link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description,
-                         tags=[tag_two, tag_three], time= get_utc_timestamp() - 60, origin=Origin.audio_text)
-        session.add_all([note, link_one, link_two, link_three, link_four, link_five])
-        session.commit()
+            user = session.query(User).get(user_id)
+
+            assert user.external_id == external_user_id
+            note = Note(user=user)
+            session.add(note)
+            session.flush()
+            link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description,
+                            tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.audio_text)
+            link_two = Link(user=user, url=link_two_url, description=link_two_description, tags=[tag_one, tag_three], time=three_days_ago + 60, origin=Origin.user)
+            link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description,
+                              tags=[tag_three, tag_two], time=day_ago - 60, origin=Origin.audio_text )
+            link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description,
+                             tags=[tag_two, tag_three], time= get_utc_timestamp() - 60, origin=Origin.audio_text)
+            link_five = Link(user=user, url=link_five_url, description=link_five_description,
+                             tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.user )
+            session.add_all([note, link_one, link_two, link_three, link_four, link_five])
+            session.commit()
+        finally:
+            session.close()
 
     def tearDown(self):
         baseTearDown()

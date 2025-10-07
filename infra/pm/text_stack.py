@@ -27,15 +27,15 @@ class PmTextStack(Stack):
 
         self.metrics_extraction_queue = create_queue(self, Text.metrics_extraction.integration.name,
                                                      visibility_timeout=Text.metrics_extraction.integration.visibility_timeout,
-                                                     with_subscription_to=self.text_processing_topic)
+                                                     with_subscription_to=self.text_processing_topic, max_retires=Text.metrics_extraction.integration.max_retries)
 
         self.links_extraction_queue = create_queue(self, Text.links_extraction.integration.name,
                                                    visibility_timeout=Text.links_extraction.integration.visibility_timeout,
-                                                   with_subscription_to=self.text_processing_topic)
+                                                   with_subscription_to=self.text_processing_topic, max_retires=Text.links_extraction.integration.max_retries)
 
         self.tasks_extraction_queue = create_queue(self, Text.tasks_extraction.integration.name,
                                                    visibility_timeout=Text.tasks_extraction.integration.visibility_timeout,
-                                                   with_subscription_to=self.text_processing_topic)
+                                                   with_subscription_to=self.text_processing_topic, max_retires=Text.tasks_extraction.integration.max_retries)
 
        
 

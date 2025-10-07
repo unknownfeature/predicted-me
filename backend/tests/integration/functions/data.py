@@ -63,7 +63,7 @@ class Test(unittest.TestCase):
         super().setUp()
         self.event = baseSetUp(Trigger.http)
 
-    def test_data_post_returns_500(self):
+    def test_data_incomplete_post_returns_500(self):
         name = normalize_identifier(display_name)
 
         self.event[constants.body] = {

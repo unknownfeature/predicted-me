@@ -5,11 +5,9 @@ from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
 from backend.lib import constants
-from backend.lib.db import Note, Tag, Link
+from backend.lib.db import Note, Tag, Link, Origin
 from backend.lib.func.http import RequestContext, handler_factory, delete_factory, post_factory
 from backend.lib.util import get_ts_start_and_end, HttpMethod, get_or_create_tags
-
-updatable_fields = {'url', 'description', 'time'}
 
 
 def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
@@ -18,9 +16,11 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
 
     link_id = path_params.get(constants.id)
     note_id = query_params.get(constants.note_id)
-    tags = query_params.get(constants.tags).split(constants.params_delim) if 'tags' in query_params else []
+
+    tags = query_params.get(constants.tags).split(constants.params_delim) if constants.tags in query_params else []
     link = query_params.get(constants.link, constants.empty).strip()
     start_time, end_time = get_ts_start_and_end(query_params)
+
     conditions = [
         Link.user_id == request_context.user.id
     ]
@@ -33,17 +33,19 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         ])
 
         if tags:
-            conditions.append(Link.tags.any(Tag.name.in_(tags)))
+            conditions.append(Link.tags.any(Tag.display_name.in_(tags)))
 
         if link:
-            conditions.append(match(inspect(Link).c.description, inspect(Link).c.url, against=link))
+            conditions.append(match(inspect(Link).c.description, inspect(Link).c.url, against=link).in_natural_language_mode())
 
 
     elif link_id:
         conditions.append(Link.id == int(link_id))
+
     elif note_id:
         query = query.join(Link.note)
         conditions.append(Note.id == int(note_id))
+
     query = query.where(and_(*conditions)) \
         .order_by(Link.time.desc()) \
         .options(
@@ -53,27 +55,33 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     links = session.scalars(query).unique().all()
 
     return [{
-        'id': link.id,
-        'note_id': link.note_id,
-        'url': link.url,
-        'description': link.description,
-        'origin': link.origin.value,
-        'tagged': link.tagged,
-        'time': link.time,
+        constants.id: link.id,
+        constants.note_id: link.note_id,
+        constants.url: link.url,
+        constants.description: link.description,
+        constants.origin: link.origin.value,
+        constants.tagged: link.tagged,
+        constants.time: link.time,
         constants.tags: [tag.display_name for tag in link.tags],
     } for link in links], 200
 
 def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
     body = request_context.body
     path_params = request_context.path_params
-    id = path_params['id']
-    description = body.get('description')
-    url = body.get('url')
+    id = path_params.get(constants.id)
+
+    description = body.get(constants.description)
+    url = body.get(constants.url)
 
     if not id:
-        return {'error': 'id is required'}, 400
-    link_for_update = session.scalar(select(Link).where(and_([Link.id == id, Link.user_id == request_context.user.id])))
-    tags_for_update = list(get_or_create_tags(session, set(body.get('tags', []))).values())
+        return {constants.error:  constants.id_is_required}, 400
+
+    link_for_update = session.scalar(select(Link).where(and_(*[Link.id == id, Link.user_id == request_context.user.id])))
+
+    if not link_for_update:
+        return {constants.error: constants.not_found}, 404
+
+    tags_for_update = list(get_or_create_tags(session, set(body.get(constants.tags, []))).values())
 
     if tags_for_update:
         link_for_update.tags = tags_for_update
@@ -83,19 +91,21 @@ def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any],
 
     if url:
         link_for_update.url = url
-    if tags_for_update or description or url:
-         session.commit()
-    return {'status': 'success'}, 204
 
+    if tags_for_update or description or url:
+         session.add(link_for_update)
+         session.commit()
+
+    return {constants.status: constants.success}, 204
 
 
 delete_handler = lambda session, user_id, id: session.execute(sql_delete(Link).where(
-                                                     and_([Link.id == id, Link.note.has(Note.user_id == user_id)])))
+                                                     and_(*[Link.id == id, Link.user_id == user_id])))
 
 
-post_handler = lambda context, session: Link(user_id=context.user.id, url=context.body['url'],
-                                    description=context.body['description'],
-                                    tags=list(get_or_create_tags(session, set(context.body.get('tags', []))).values()))
+post_handler = lambda context, session: Link(user_id=context.user.id, url=context.body[constants.url],
+                                    description=context.body[constants.description], origin=Origin.user.value,
+                                    tags=list(get_or_create_tags(session, set(context.body.get(constants.tags, []))).values()))
 handler = handler_factory({
     HttpMethod.GET.value: get,
     HttpMethod.POST.value: post_factory(post_handler),
