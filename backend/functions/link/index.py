@@ -47,11 +47,11 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         query = query.join(Link.note)
         conditions.append(Note.id == int(note_id))
 
-    query = query.where(and_(*conditions)) \
-        .order_by(Link.time.desc()) \
-        .options(
-        joinedload(Link.tags)
-    ).offset(offset).limit(limit)
+    query = (query.where(and_(*conditions))
+             .offset(offset)
+             .limit(limit)
+             .order_by(Link.time.desc()).options(joinedload(Link.tags)))
+
 
     links = session.scalars(query).unique().all()
 

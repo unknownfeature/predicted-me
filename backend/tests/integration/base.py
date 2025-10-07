@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp, Link
+from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp, Link, Note
 from backend.lib import constants
 from backend.lib.func.http import seconds_in_day
 from shared.variables import Env
@@ -74,6 +74,13 @@ def get_link_by_id(link_id: int, session: Session) -> Optional[Link]:
 
 def get_user_by_id(user_id: int, session: Session) -> Optional[User]:
     return session.query(User).get(user_id)
+
+def get_note_by_text(text: str, session: Session) -> Optional[Note]:
+    return session.query(Note).get(text)
+
+def get_notes_by_text(text: str, session: Session) -> List[Type[Note]]:
+    return session.query(Note).filter(Note.text == text).all()
+
 class Trigger(str, Enum):
     http = 'http'
     sqs = 'sqs'

@@ -66,12 +66,12 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     elif note_id:
         query = query.join(Occurrence.note)
         conditions.append(Note.id == int(note_id))
-    query = query.where(and_(*conditions)).offset(offset).limit(limit) \
-        .order_by(Occurrence.priority.desc(), Occurrence.time.desc()) \
-        .options(
-        joinedload(Occurrence.task).joinedload(Task.tags),
-        joinedload(Occurrence.task).joinedload(Task.schedule)
-    )
+    query = (query.where(and_(*conditions)).offset(offset).limit(limit).order_by(Occurrence.priority.desc(), Occurrence.time.desc())
+    .options(
+        joinedload(Occurrence.task)
+        .joinedload(Task.tags), joinedload(Occurrence.task)
+        .joinedload(Task.schedule)
+    ))
 
     occurrences = session.scalars(query).unique().all()
 

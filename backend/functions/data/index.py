@@ -63,12 +63,11 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         query = query.join(Data.note)
         conditions.append(Note.id == int(note_id))
 
-    query = query.where(and_(*conditions)) \
-        .order_by(Data.time.desc()) \
-        .options(
-        joinedload(Data.metric).joinedload(Metric.tags),
-        joinedload(Data.metric).joinedload(Metric.schedule)
-    ).offset(offset).limit(limit)
+    query = (query.where(and_(*conditions)).order_by(Data.time.desc())
+             .options( joinedload(Data.metric)
+                       .joinedload(Metric.tags), joinedload(Data.metric)
+                       .joinedload(Metric.schedule))
+             .offset(offset).limit(limit))
 
     data_points = session.scalars(query).unique().all()
 
