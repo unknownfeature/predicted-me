@@ -536,6 +536,44 @@ class Test(unittest.TestCase):
             assert items[1][constants.description] == link_five_description
             assert items[2][constants.description] == link_two_description
 
+            ###############################################
+            # pagination
+            ##############################################
+
+            # offset defaults to 0 and limit to 100 so all 5 return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 5
+
+            # offset defaults to 0, limit 4 so 4 return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+                constants.limit: 4,
+
+            }
+
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 4
+
+            # offset defaults 4, limit 100 abd we only have 5 left so 1 will return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+                constants.offset: 4,
+
+            }
+
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 1
+
             assert session.query(Link).count() == 5
 
         finally:

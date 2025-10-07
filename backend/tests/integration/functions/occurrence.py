@@ -723,6 +723,43 @@ class Test(unittest.TestCase):
             
             assert items[0][constants.task][constants.summary] == task_one_display_summary
 
+            # pagination
+            ##############################################
+
+            # offset defaults to 0 and limit to 100 so all 6 return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 6
+
+            # offset defaults to 0, limit 4 so 4 return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+                constants.limit: 4,
+
+            }
+
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 4
+
+            # offset defaults 4, limit 100 abd we only have 6 left so 2 will return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+                constants.offset: 4,
+
+            }
+
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 2
+
             assert session.query(Task).count() == 2
             assert session.query(Occurrence).count() == 6
 

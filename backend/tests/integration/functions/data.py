@@ -547,7 +547,6 @@ class Test(unittest.TestCase):
     def test_data_get_by_date_succeeds(self):
         session = begin_session()
         try:
-            #  m1_d2 & m2_d5 3d |   m1_d1 2d |  m1_d3  1d | m2_d4 & m2_d6  now
 
             self._setup_data_for_search(session)
             self.event[constants.http_method] = constants.get
@@ -617,6 +616,44 @@ class Test(unittest.TestCase):
 
             assert items[0][constants.value] == data_one_value
             assert items[0][constants.metric][constants.name] == metric_one_display_name
+
+            ##############################################
+            # pagination
+            ##############################################
+
+            # offset defaults to 0 and limit to 100 so all 6 return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 6
+
+            # offset defaults to 0, limit 4 so 4 return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+                constants.limit: 4,
+
+            }
+
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 4
+
+            # offset defaults 4, limit 100 abd we only have 6 left so 2 will return
+            self.event[constants.query_params] = {
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp(),
+                constants.offset: 4,
+
+            }
+
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            assert len(json.loads(result[constants.body])) == 2
 
             assert session.query(Metric).count() == 2
             assert session.query(Data).count() == 6

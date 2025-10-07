@@ -8,9 +8,7 @@ import boto3
 from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 
-from backend.lib.db import User, get_utc_timestamp, Origin, Tag, Metric, normalize_identifier, Task
-
-seconds_in_day = 24 * 60 * 60
+from backend.lib.db import User, Origin, Tag, Metric, normalize_identifier, Task
 
 text_getters = {
     Origin.text.value: lambda x: x.text,
@@ -79,27 +77,6 @@ def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[in
 
     return user.id if user else None, external_user
 
-def get_ts_start_and_end(query_params):
-    start_param = query_params.get('start')
-    end_param = query_params.get('end')
-
-    if not start_param and end_param:
-        end_time = int(end_param)
-        start_time = end_time - seconds_in_day
-    elif start_param and not end_param:
-        start_time = int(start_param)
-        end_time =  get_utc_timestamp()
-    elif start_param and end_param:
-        start_time = int(start_param)
-        end_time = int(end_param)
-    else:
-        now_utc = get_utc_timestamp()
-        start_time = now_utc - seconds_in_day
-        end_time = now_utc
-
-    if start_time >= end_time:
-        raise ValueError('Start time must be before end time.')
-    return start_time, end_time
 
 def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) -> List[Dict[str, Any]]:
     try:

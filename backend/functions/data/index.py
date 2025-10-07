@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from backend.lib import constants
 from backend.lib.db import Data, Metric, Note, Tag, Origin
-from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory
-from backend.lib.util import get_ts_start_and_end, HttpMethod
+from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory, get_offset_and_limit, get_ts_start_and_end
+from backend.lib.util import HttpMethod
 
 updatable_fileds = {constants.value, constants.units, constants.time}
 
@@ -26,7 +26,6 @@ def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, A
     session.commit()
     return {constants.status: constants.success, constants.id: data.id}, 201
 
-# todo pages
 def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = request_context.query_params
 
@@ -39,6 +38,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         constants.params_delim) if constants.tags in query_params else []  # todo display name still can have it but probably rare
     metric = query_params.get(constants.metric, constants.empty).strip()
     start_time, end_time = get_ts_start_and_end(query_params)
+    offset, limit = get_offset_and_limit(query_params)
 
     conditions = [
         Metric.user_id == request_context.user.id
@@ -68,7 +68,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         .options(
         joinedload(Data.metric).joinedload(Metric.tags),
         joinedload(Data.metric).joinedload(Metric.schedule)
-    )
+    ).offset(offset).limit(limit)
 
     data_points = session.scalars(query).unique().all()
 

@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from backend.lib import constants
 from backend.lib.db import Note, Tag, Link, Origin
-from backend.lib.func.http import RequestContext, handler_factory, delete_factory, post_factory
-from backend.lib.util import get_ts_start_and_end, HttpMethod, get_or_create_tags
+from backend.lib.func.http import RequestContext, handler_factory, delete_factory, post_factory, get_offset_and_limit, get_ts_start_and_end
+from backend.lib.util import  HttpMethod, get_or_create_tags
 
 
 def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
@@ -20,6 +20,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     tags = query_params.get(constants.tags).split(constants.params_delim) if constants.tags in query_params else []
     link = query_params.get(constants.link, constants.empty).strip()
     start_time, end_time = get_ts_start_and_end(query_params)
+    offset, limit = get_offset_and_limit(query_params)
 
     conditions = [
         Link.user_id == request_context.user.id
@@ -50,7 +51,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         .order_by(Link.time.desc()) \
         .options(
         joinedload(Link.tags)
-    )
+    ).offset(offset).limit(limit)
 
     links = session.scalars(query).unique().all()
 

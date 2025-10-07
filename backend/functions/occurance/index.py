@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from backend.lib import constants
 from backend.lib.db import Note, Tag, Task, Origin, Occurrence
-from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory
-from backend.lib.util import get_ts_start_and_end, HttpMethod
+from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory, get_offset_and_limit, \
+    get_ts_start_and_end
+from backend.lib.util import HttpMethod
 
 updatable_fields = {constants.completed, constants.priority, constants.time}
 
@@ -19,7 +20,7 @@ def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, A
         select(Task).where(and_(*[Task.user_id == request_context.user.id, Task.id == id]))).first()
     if not task:
         return {constants.status: constants.not_found}, 404
-    
+
     occurrence = Occurrence(**{f: body[f] for f in body if f in updatable_fields} | {
         constants.origin: Origin.user.value},
                             task=task)
@@ -38,6 +39,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     task = query_params.get(constants.task, constants.empty).strip()
     completed = query_params.get(constants.completed)
     start_time, end_time = get_ts_start_and_end(query_params)
+    offset, limit = get_offset_and_limit(query_params)
     conditions = [
         Task.user_id == request_context.user.id
     ]
@@ -53,7 +55,8 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
             conditions.append(Task.tags.any(Tag.display_name.in_(tags)))
 
         if task:
-            conditions.append(match(inspect(Task).c.display_summary, inspect(Task).c.description, against=task).in_natural_language_mode())
+            conditions.append(match(inspect(Task).c.display_summary, inspect(Task).c.description,
+                                    against=task).in_natural_language_mode())
 
         if completed:
             conditions.append(Occurrence.completed == completed)
@@ -63,7 +66,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     elif note_id:
         query = query.join(Occurrence.note)
         conditions.append(Note.id == int(note_id))
-    query = query.where(and_(*conditions)) \
+    query = query.where(and_(*conditions)).offset(offset).limit(limit) \
         .order_by(Occurrence.priority.desc(), Occurrence.time.desc()) \
         .options(
         joinedload(Occurrence.task).joinedload(Task.tags),
@@ -94,11 +97,14 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
 
 
 patch_handler = lambda session, update_fields, user_id, id: session.execute(update(Occurrence)
-                                                        .values(**update_fields).where(Occurrence.task_id == Task.id)
-                                                        .where(and_(*[Occurrence.id == id, Task.user_id == user_id])))
+                                                                            .values(**update_fields).where(
+    Occurrence.task_id == Task.id)
+                                                                            .where(
+    and_(*[Occurrence.id == id, Task.user_id == user_id])))
 
-delete_handler = lambda session, user_id, id: session.execute(sql_delete(Occurrence).where(Occurrence.task_id == Task.id)
-                                                        .where(and_(*[Occurrence.id == id, Task.user_id == user_id])))
+delete_handler = lambda session, user_id, id: session.execute(
+    sql_delete(Occurrence).where(Occurrence.task_id == Task.id)
+    .where(and_(*[Occurrence.id == id, Task.user_id == user_id])))
 
 handler = handler_factory({
     HttpMethod.GET.value: get,
@@ -107,7 +113,3 @@ handler = handler_factory({
     HttpMethod.DELETE.value: delete_factory(delete_handler),
 
 })
-
-
-
-

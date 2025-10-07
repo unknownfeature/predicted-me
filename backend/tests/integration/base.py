@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp, Link
 from backend.lib import constants
-from backend.lib.util import seconds_in_day
+from backend.lib.func.http import seconds_in_day
 from shared.variables import Env
 
 load_dotenv()
