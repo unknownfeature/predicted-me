@@ -1,14 +1,15 @@
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, and_, or_, func, inspect
+from sqlalchemy import select, and_, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session
 
 from backend.lib import constants
-from backend.lib.constants import error, id_is_required
+from backend.lib.constants import id_is_required
 from backend.lib.db import normalize_identifier, Task, Tag
 from backend.lib.func.http import RequestContext, handler_factory, post_factory, get_offset_and_limit
 from backend.lib.util import HttpMethod, get_or_create_tags
+
 
 def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]]|Dict[str, str], int]:
     path_params = request_context.path_params
