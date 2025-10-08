@@ -4,8 +4,8 @@ from decimal import Decimal
 from typing import Tuple
 
 from backend.functions.occurance.index import handler
-from backend.lib.db import Tag, Occurrence, Origin, \
-    Note, OccurrenceSchedule
+from backend.lib.db import Occurrence, Origin, \
+    OccurrenceSchedule
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 
@@ -19,7 +19,6 @@ task_two_summary = normalize_identifier(task_two_display_summary)
 task_two_description = 'Some task with two description special characters, such as "%" 2 and a unique piece'
 
 schedule_priority = 4
-schedule_recurrence = '1 * * * * *'
 
 occurrence_priority_one = 1
 occurrence_priority_two = 2
@@ -664,7 +663,11 @@ class Test(unittest.TestCase):
             assert items[1][constants.task][constants.summary] == task_one_display_summary
 
             assert items[0][constants.task][constants.schedule][constants.priority] == schedule_priority
-            assert items[0][constants.task][constants.schedule][constants.recurrence_schedule] == schedule_recurrence
+            assert items[0][constants.task][constants.schedule][constants.minute] == '1'
+            assert items[0][constants.task][constants.schedule][constants.hour] == '2'
+            assert items[0][constants.task][constants.schedule][constants.day_of_month] == '3'
+            assert items[0][constants.task][constants.schedule][constants.month] == '4'
+            assert items[0][constants.task][constants.schedule][constants.day_of_week] == '5'
 
             assert len(items[0][constants.task][constants.tags]) == 2
             
@@ -836,8 +839,8 @@ class Test(unittest.TestCase):
         task_two = Task(summary=task_two_summary, display_summary=task_two_display_summary, user=user,
                         description=task_two_description,
                         tags=[tag_two, tag_three], tagged=True,
-                        schedule=OccurrenceSchedule(priority=schedule_priority,
-                                                    recurrence_schedule=schedule_recurrence))
+                        schedule=OccurrenceSchedule(priority=schedule_priority, minute='1', hour='2', day_of_month='3',
+                                                    month='4', day_of_week='5'))
 
         task_one.occurrences.extend(
             [Occurrence(priority=occurrence_priority_one, completed=occurrence_one_completed, time=three_days_ago + 60,

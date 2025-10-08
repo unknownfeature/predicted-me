@@ -4,11 +4,12 @@ import os
 import re
 from decimal import Decimal
 from enum import Enum
-from typing import List, Callable, Optional
+from typing import List, Optional
 
 import boto3
 from sqlalchemy import (
     BigInteger,
+    Integer,
     Boolean,
     String,
     Text,
@@ -18,7 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Index,
     create_engine,
-    Table, Column, Engine, CheckConstraint
+    Table, Column, CheckConstraint
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -255,15 +256,19 @@ class DataSchedule(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     metric_id: Mapped[int] = mapped_column(ForeignKey('metric.id'), unique=True)
 
-    recurrence_schedule: Mapped[str] = mapped_column(String(50))
+    minute: Mapped[str] = mapped_column(String(100), nullable=False)
+    hour: Mapped[str] = mapped_column(String(100), nullable=False)
+    day_of_month: Mapped[str] = mapped_column(String(100), nullable=False)
+    month: Mapped[str] = mapped_column(String(100), nullable=False)
+    day_of_week: Mapped[str] = mapped_column(String(100), nullable=False)
+
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     metric: Mapped['Metric'] = relationship(back_populates='schedule')
 
     def __repr__(self) -> str:
-        return (f'DataSchedule(metric_id={self.metric_id!r}, '
-                f'schedule={self.recurrence_schedule!r}, target={self.target_value!r})')
+        return (f'DataSchedule(metric_id={self.metric_id!r},  target={self.target_value!r})') #todo add repr
 
 
 class Link(Base):
@@ -358,7 +363,13 @@ class OccurrenceSchedule(Base):
     task_id: Mapped[int] = mapped_column(ForeignKey('task.id'), unique=True)
     task: Mapped['Task'] = relationship(back_populates='schedule')
 
-    recurrence_schedule: Mapped[str] = mapped_column(String(50))
+    minute: Mapped[str] = mapped_column(String(100), nullable=False)
+    hour: Mapped[str] = mapped_column(String(100), nullable=False)
+    day_of_month: Mapped[str] = mapped_column(String(100), nullable=False)
+    month: Mapped[str] = mapped_column(String(100), nullable=False)
+    day_of_week: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
     __table_args__ = (
         UniqueConstraint('task_id', name='uq_task_schedule'),
@@ -367,8 +378,7 @@ class OccurrenceSchedule(Base):
     )
 
     def __repr__(self) -> str:
-        return (f'TaskSchedule(task_id={self.task_id!r}, '
-                f'schedule={self.recurrence_schedule!r})')
+        return (f'TaskSchedule(task_id={self.task_id!r}, priority={self.priority!r} )')
 
 
 class Occurrence(Base):

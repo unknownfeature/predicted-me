@@ -66,7 +66,8 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
     elif note_id:
         query = query.join(Occurrence.note)
         conditions.append(Note.id == int(note_id))
-    query = (query.where(and_(*conditions)).offset(offset).limit(limit).order_by(Occurrence.priority.desc(), Occurrence.time.desc())
+    query = (query.where(and_(*conditions)).offset(offset).limit(limit).order_by(Occurrence.priority.desc(),
+                                                                                 Occurrence.time.desc())
     .options(
         joinedload(Occurrence.task)
         .joinedload(Task.tags), joinedload(Occurrence.task)
@@ -90,16 +91,20 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
             constants.tags: [tag.display_name for tag in occurrence.task.tags],
             constants.schedule: {} if occurrence.task.schedule is None else {
                 constants.id: occurrence.task.schedule.id,
-                constants.recurrence_schedule: occurrence.task.schedule.recurrence_schedule,
+                constants.minute: occurrence.task.schedule.minute,
+                constants.hour: occurrence.task.schedule.hour,
+                constants.day_of_month: occurrence.task.schedule.day_of_month,
+                constants.month: occurrence.task.schedule.month,
+                constants.day_of_week: occurrence.task.schedule.day_of_week,
                 constants.priority: occurrence.task.schedule.priority,
             }
         }} for occurrence in occurrences], 200
 
 
 patch_handler = lambda session, update_fields, user_id, id: session.execute(update(Occurrence)
-                                                                            .values(**update_fields).where(
+.values(**update_fields).where(
     Occurrence.task_id == Task.id)
-                                                                            .where(
+.where(
     and_(*[Occurrence.id == id, Task.user_id == user_id])))
 
 delete_handler = lambda session, user_id, id: session.execute(

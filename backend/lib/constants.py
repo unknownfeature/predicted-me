@@ -4,20 +4,17 @@ path_params = 'pathParameters'
 http_method = 'httpMethod'
 status_code = 'statusCode'
 
-
 get = 'GET'
 post = 'POST'
 patch = 'PATCH'
 delete = 'DELETE'
-
-
 
 metric = 'metric'
 schedule = 'schedule'
 recurrence_schedule = 'recurrence_schedule'
 tags = 'tags'
 target_value = 'target_value'
-name  = 'name'
+name = 'name'
 value = 'value'
 start = 'start'
 end = 'end'
@@ -62,3 +59,12 @@ audio_transcribed = 'audio_transcribed'
 image_text = 'image_text'
 image_description = 'image_description'
 audio_text = 'audio_text'
+
+minute = 'minute'
+hour = 'hour'
+day_of_month = 'day_of_month'
+month = 'month'
+day_of_week = 'day_of_week'
+
+user_id='user_id'
+metric_id = 'metric_id'

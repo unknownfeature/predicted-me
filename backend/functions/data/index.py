@@ -85,7 +85,11 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
             constants.tags: [tag.display_name for tag in dp.metric.tags],
             constants.schedule: {} if dp.metric.schedule is None else {
                 constants.id: dp.metric.schedule.id,
-                constants.recurrence_schedule: dp.metric.schedule.recurrence_schedule,
+                constants.minute: dp.metric.schedule.minute,
+                constants.hour: dp.metric.schedule.hour,
+                constants.day_of_month: dp.metric.schedule.day_of_month,
+                constants.month: dp.metric.schedule.month,
+                constants.day_of_week: dp.metric.schedule.day_of_week,
                 constants.target_value: float(dp.metric.schedule.target_value),
                 constants.units: dp.metric.schedule.units,
             }

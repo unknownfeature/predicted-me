@@ -567,7 +567,11 @@ class Test(unittest.TestCase):
 
             assert items[0][constants.metric][constants.schedule][constants.target_value] == schedule_target_value
             assert items[0][constants.metric][constants.schedule][constants.units] == schedule_units
-            assert items[0][constants.metric][constants.schedule][constants.recurrence_schedule] == schedule_recurrence
+            assert items[0][constants.metric][constants.schedule][constants.minute] == '1'
+            assert items[0][constants.metric][constants.schedule][constants.hour] == '2'
+            assert items[0][constants.metric][constants.schedule][constants.day_of_month] == '3'
+            assert items[0][constants.metric][constants.schedule][constants.month] == '4'
+            assert items[0][constants.metric][constants.schedule][constants.day_of_week] == '5'
 
             assert len(items[1][constants.metric][constants.tags]) == 2
             assert items[1][constants.metric][constants.tags][0] == tag_one_display_name
@@ -732,7 +736,8 @@ class Test(unittest.TestCase):
                             tags=[tag_two, tag_three],
                             tagged=True,
                             schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
-                                                  recurrence_schedule=schedule_recurrence))
+                                                  minute='1', hour='2', day_of_month='3',
+                                                  month='4', day_of_week='5'))
         # m1_d2 & m2_d5 3d  m1_d1 2d  m1_d3  1d  m2_d4 & m2_d6  now
 
         metric_one.data_points.extend(
