@@ -5,9 +5,10 @@ from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
 from backend.lib import constants
-from backend.lib.db import Note, Tag, Link, Origin
-from backend.lib.func.http import RequestContext, handler_factory, delete_factory, post_factory, get_offset_and_limit, get_ts_start_and_end
-from backend.lib.util import  HttpMethod, get_or_create_tags
+from backend.lib.db import Note, Tag, Link, Origin, normalize_identifier
+from backend.lib.func.http import RequestContext, handler_factory, delete_factory, post_factory, get_offset_and_limit, \
+    get_ts_start_and_end
+from backend.lib.util import HttpMethod, get_or_create_tags
 
 
 def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
@@ -37,7 +38,8 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
             conditions.append(Link.tags.any(Tag.display_name.in_(tags)))
 
         if link:
-            conditions.append(match(inspect(Link).c.description, inspect(Link).c.url, against=link).in_natural_language_mode())
+            conditions.append(
+                match(inspect(Link).c.description, inspect(Link).c.display_summary, inspect(Link).c.url, against=link).in_natural_language_mode())
 
 
     elif link_id:
@@ -52,19 +54,20 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
              .limit(limit)
              .order_by(Link.time.desc()).options(joinedload(Link.tags)))
 
-
     links = session.scalars(query).unique().all()
 
     return [{
         constants.id: link.id,
         constants.note_id: link.note_id,
         constants.url: link.url,
+        constants.summary: link.display_summary,
         constants.description: link.description,
         constants.origin: link.origin.value,
         constants.tagged: link.tagged,
         constants.time: link.time,
         constants.tags: [tag.display_name for tag in link.tags],
     } for link in links], 200
+
 
 def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
     body = context.body
@@ -73,9 +76,10 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
 
     description = body.get(constants.description)
     url = body.get(constants.url)
+    display_summary = body.get(constants.summary)
 
     if not id:
-        return {constants.error:  constants.id_is_required}, 400
+        return {constants.error: constants.id_is_required}, 400
 
     link_for_update = session.scalar(select(Link).where(and_(Link.id == id, Link.user_id == context.user.id)))
 
@@ -90,23 +94,32 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
     if description:
         link_for_update.description = description
 
+
+    if display_summary:
+        link_for_update.display_summary = display_summary
+        link_for_update.summary = normalize_identifier(display_summary)
+
     if url:
         link_for_update.url = url
 
     if tags_for_update or description or url:
-         session.add(link_for_update)
-         session.commit()
+        session.add(link_for_update)
+        session.commit()
 
     return {constants.status: constants.success}, 204
 
 
 delete_handler = lambda session, user_id, id: session.execute(sql_delete(Link).where(
-                                                     and_(*[Link.id == id, Link.user_id == user_id])))
-
+    and_(*[Link.id == id, Link.user_id == user_id])))
 
 post_handler = lambda context, session: Link(user_id=context.user.id, url=context.body[constants.url],
-                                    description=context.body[constants.description], origin=Origin.user.value,
-                                    tags=list(get_or_create_tags(context.user.id, session, set(context.body.get(constants.tags, []))).values()))
+                                             display_summary=context.body[constants.summary],
+                                             summary=normalize_identifier(context.body[constants.summary]),
+                                             description=context.body[constants.description],
+                                             origin=Origin.user.value,
+                                             tags=list(get_or_create_tags(context.user.id, session,
+                                                                          set(context.body.get(constants.tags,
+                                                                                               []))).values()))
 handler = handler_factory({
     HttpMethod.GET.value: get,
     HttpMethod.POST.value: post_factory(post_handler),

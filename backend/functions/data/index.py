@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from backend.lib import constants
 from backend.lib.db import Data, Metric, Note, Tag, Origin
-from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory, get_offset_and_limit, get_ts_start_and_end
+from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory, get_offset_and_limit, \
+    get_ts_start_and_end
 from backend.lib.util import HttpMethod
 
 updatable_fileds = {constants.value, constants.units, constants.time}
@@ -17,7 +18,7 @@ def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int
     id = context.path_params[constants.id]
 
     metric = session.scalars(
-        select(Metric).where(and_(* [Metric.user_id == context.user.id, Metric.id == id]))).first()
+        select(Metric).where(and_(*[Metric.user_id == context.user.id, Metric.id == id]))).first()
     if not metric:
         return {constants.status: constants.not_found}, 404
     data = Data(**{f: body[f] for f in body if f in updatable_fileds} | {constants.origin: Origin.user.value},
@@ -25,6 +26,7 @@ def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int
     session.add(data)
     session.commit()
     return {constants.status: constants.success, constants.id: data.id}, 201
+
 
 def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = context.query_params
@@ -64,9 +66,9 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
         conditions.append(Note.id == int(note_id))
 
     query = (query.where(and_(*conditions)).order_by(Data.time.desc())
-             .options( joinedload(Data.metric)
-                       .joinedload(Metric.tags), joinedload(Data.metric)
-                       .joinedload(Metric.schedule))
+             .options(joinedload(Data.metric)
+                      .joinedload(Metric.tags), joinedload(Data.metric)
+                      .joinedload(Metric.schedule))
              .offset(offset).limit(limit))
 
     data_points = session.scalars(query).unique().all()
@@ -96,12 +98,14 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
         }} for dp in data_points], 200
 
 
-patch_handler = lambda session, update_fields, user_id, id: session.execute(update(Data)
-                                                        .values(**update_fields).where(Data.metric_id == Metric.id)
-                                                        .where(and_(*[Data.id == id, Metric.user_id == user_id])))
+patch_handler = lambda session, update_fields, user_id, path_params: session.execute(update(Data)
+                                                                                     .values( **update_fields)
+                                                                                     .where(and_(Data.metric_id == Metric.id,
+                                                                                                 Data.id == path_params[constants.id],
+                                                                                                 Metric.user_id == user_id)))
 
 delete_handler = lambda session, user_id, id: session.execute(sql_delete(Data).where(Data.metric_id == Metric.id)
-                                                        .where(and_(*[Data.id == id, Metric.user_id == user_id])))
+                                                              .where(and_(*[Data.id == id, Metric.user_id == user_id])))
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

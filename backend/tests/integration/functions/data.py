@@ -738,7 +738,6 @@ class Test(unittest.TestCase):
                             schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
                                                   minute='1', hour='2', day_of_month='3',
                                                   month='4', day_of_week='5'))
-        # m1_d2 & m2_d5 3d  m1_d1 2d  m1_d3  1d  m2_d4 & m2_d6  now
 
         metric_one.data_points.extend(
             [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, origin=Origin.user),

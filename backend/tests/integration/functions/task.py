@@ -81,6 +81,8 @@ class Test(unittest.TestCase):
              result = handler(malicious_event, None)
 
              assert result[constants.status_code] == 201
+             session = refresh_cache(session)
+             assert len(get_tasks_by_display_summary(task_two_display_summary, session)) == 2
 
 
          finally:
@@ -114,6 +116,7 @@ class Test(unittest.TestCase):
             # make sure user is correct
             assert user_id == user.user_id
             assert user.user.external_id == external_id
+
 
 
         finally:

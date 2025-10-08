@@ -71,6 +71,10 @@ class Test(unittest.TestCase):
 
              assert result[constants.status_code] == 201
 
+             session = refresh_cache(session)
+
+             assert len(get_metrics_by_display_name(metric_two_display_name, session)) == 2
+
 
          finally:
              session.close()

@@ -56,10 +56,10 @@ class PmApiStack(Stack):
         self.link_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack, Api.link))
 
         self.data_schedule_api_function = create_function(self,
-                                                          self._create_api_function_with_db_params(db_stack, vpc_stack, Api.data_schedule))
+                                                          self._create_api_function_with_db_params(db_stack, vpc_stack, Api.metric_schedule))
 
         self.occurrence_schedule_api_function = create_function(self,
-                                                                self._create_api_function_with_db_params(db_stack, vpc_stack, Api.occurrence_schedule))
+                                                                self._create_api_function_with_db_params(db_stack, vpc_stack, Api.task_schedule))
 
         self.task_api_function = create_function(self,
                                                  self._create_api_function_with_db_params(db_stack, vpc_stack,Api.task))

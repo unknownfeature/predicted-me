@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, selectinload
 
 from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp, Link, Note, \
-    Tag
+    Tag, DataSchedule, Occurrence, OccurrenceSchedule
 from backend.lib import constants
 from backend.lib.func.http import seconds_in_day
 from shared.variables import Env
@@ -72,6 +72,9 @@ def get_tasks_by_description(desc: str, session: Session) -> List[Type[Task]]:
 def get_links_by_description(desc: str, session: Session) -> List[Type[Link]]:
     return session.query(Link).filter(Link.description == desc).all()
 
+def get_links_by_display_summary(display_summary: str, session: Session) -> List[Type[Link]]:
+    return session.query(Link).filter(Link.display_summary == display_summary).all()
+
 def get_links_by_url(url: str, session: Session) -> List[Type[Link]]:
     return session.query(Link).distinct().filter(Link.url == url).options(selectinload(Link.tags)).all()
 
@@ -89,6 +92,13 @@ def get_notes_by_text(text: str, session: Session) -> List[Type[Note]]:
 
 def get_tags_by_display_name(display_name: str, session: Session) -> List[Type[Tag]]:
     return session.query(Tag).filter(Tag.display_name == display_name).all()
+
+def get_data_schedule_by_id(id: int, session: Session) -> Optional[DataSchedule]:
+    return session.query(DataSchedule).filter(DataSchedule.id == id).first()
+
+def get_occurrence_schedule_by_id(id: int, session: Session) -> Optional[OccurrenceSchedule]:
+    return session.query(OccurrenceSchedule).filter(OccurrenceSchedule.id == id).first()
+
 
 class Trigger(str, Enum):
     http = 'http'

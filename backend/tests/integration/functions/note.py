@@ -3,14 +3,13 @@ import unittest
 from unittest.mock import patch
 
 from backend.functions.note.index import handler
-from backend.lib.db import Tag, Origin, DataSchedule, Data
+from backend.lib.db import Origin, Data
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 from backend.tests.integration.functions.data import metric_one_name, metric_one_display_name, metric_two_name, \
-    metric_two_display_name, schedule_target_value, schedule_units, data_one_value, data_two_value, data_three_value, \
+    metric_two_display_name, data_one_value, data_two_value, data_three_value, \
     data_one_units, data_two_units, data_three_units, data_four_value, data_five_value, data_four_units, \
     data_five_units
-from backend.tests.integration.functions.occurrence import schedule_recurrence
 
 note_one_audio_key = 'one.mp4'
 note_two_audio_key = 'two.mp4'
@@ -538,9 +537,7 @@ class Test(unittest.TestCase):
                                 tags=[tag_one, tag_two])
             metric_two = Metric(name=metric_two_name, display_name=metric_two_display_name, user=user,
                                 tags=[tag_two, tag_three],
-                                tagged=True,
-                                schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
-                                                      recurrence_schedule=schedule_recurrence))
+                                tagged=True)
 
             metric_one.data_points.extend(
                 [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, origin=Origin.audio_text,

@@ -189,7 +189,7 @@ class Db:
         timeout=Duration.minutes(1),
         memory_size=1024,
         code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/purge/index'),
-        role_name='pm_db_occurrence_cleanup_func_role', 
+        role_name='pm_db_occurrence_cleanup_func_role',
         schedule_params=Schedule(rule_name='pm_db_occurrence_cleanup_rule', schedule=events.Schedule.cron(minute='0', hour='0')),
     )
 
@@ -360,7 +360,7 @@ class Api:
             name='pm_note_api_function_integration'
         )]
     )
-
+    # todo add this path param to path and delete
     data = ApiFunction(
         name='pm_data_api_function',
         timeout=Duration.minutes(1),
@@ -373,7 +373,7 @@ class Api:
             name='pm_data_api_function_integration'
         ),
             HttpIntegration(
-                url_path='/data/{id}',
+                url_path='metric/{metric_id}/data/{id}',
                 methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                          api_gtw.HttpMethod.OPTIONS],
                 name='pm_data_api_function_integration'
@@ -393,7 +393,7 @@ class Api:
             name='pm_occurrence_api_function_integration'
         ),
             HttpIntegration(
-                url_path='/occurrence/{id}',
+                url_path='/task/{task_id}/occurrence/{id}',
                 methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                          api_gtw.HttpMethod.OPTIONS],
                 name='pm_occurrence_api_function_integration'
@@ -415,32 +415,43 @@ class Api:
         )]
     )
 
-    data_schedule = ApiFunction(
-        name='pm_data_schedule_api_function',
+    metric_schedule = ApiFunction(
+        name='pm_metric_schedule_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'schedule/data/index'),
-        role_name='pm_data_schedule_api_function_role',
+        code_path=os.path.join(Common.functions_dir, 'schedule/metric/index'),
+        role_name='pm_metric_schedule_api_function_role',
         integrations=[HttpIntegration(
-            url_path='/schedule/metric/{id}',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+            url_path='/metric/{metric_id}/schedule/{id}',
+            methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                      api_gtw.HttpMethod.OPTIONS],
-            name='pm_data_schedule_api_function_integration'
-        )]
+            name='pm_task_schedule_api_function_integration'
+        ),
+            HttpIntegration(
+                url_path='/metric/{id}/schedule',
+                methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
+                name='pm_task_schedule_api_function_integration'
+            )]
     )
 
-    occurrence_schedule = ApiFunction(
-        name='pm_occurrence_schedule_api_function',
+    task_schedule = ApiFunction(
+        name='pm_task_schedule_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'schedule/occurrence/index'),
-        role_name='pm_occurrence_schedule_api_function_role',
+        code_path=os.path.join(Common.functions_dir, 'schedule/task/index'),
+        role_name='pm_task_schedule_api_function_role',
         integrations=[HttpIntegration(
-            url_path='/schedule/occurrence/{id}',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
+            url_path='/task/{task_id}/schedule/{id}',
+            methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                      api_gtw.HttpMethod.OPTIONS],
-            name='pm_occurrence_schedule_api_function_integration'
-        )]
+            name='pm_task_schedule_api_function_integration'
+        ),
+            HttpIntegration(
+                url_path='/task/{id}/schedule',
+                methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
+                name='pm_task_schedule_api_function_integration'
+            )
+        ]
     )
 
     task = ApiFunction(

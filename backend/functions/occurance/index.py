@@ -101,15 +101,13 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
         }} for occurrence in occurrences], 200
 
 
-patch_handler = lambda session, update_fields, user_id, id: session.execute(update(Occurrence)
+patch_handler = lambda session, update_fields, user_id, path_params: session.execute(update(Occurrence)
 .values(**update_fields).where(
-    Occurrence.task_id == Task.id)
-.where(
-    and_(*[Occurrence.id == id, Task.user_id == user_id])))
+    and_(Occurrence.task_id == Task.id, Occurrence.id == path_params[constants.id], Task.user_id == user_id)))
 
 delete_handler = lambda session, user_id, id: session.execute(
     sql_delete(Occurrence).where(Occurrence.task_id == Task.id)
-    .where(and_(*[Occurrence.id == id, Task.user_id == user_id])))
+    .where(and_(Occurrence.id == id, Task.user_id == user_id)))
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

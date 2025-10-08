@@ -42,17 +42,16 @@ def delete_factory(handler: Callable[[Session, int, int], None]) -> Callable[
     return delete
 
 
-def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[str, Any], int, int], None]) -> Callable[
+def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[str, str], int, Dict[str, str]], None]) -> Callable[
     [Session, RequestContext], Tuple[Dict[str, Any], int]]:
     def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
         body = request_context.body
         path_params = request_context.path_params
 
         update_fields = {f: body[f] for f in body if f in updatable_fields}
-        id = path_params['id']
 
         if update_fields:
-            res = handler(session, update_fields, request_context.user.id, id)
+            res = handler(session, update_fields, request_context.user.id, path_params)
             if res.rowcount == 0:
                 session.rollback()
                 return {'status': 'not found'}, 404

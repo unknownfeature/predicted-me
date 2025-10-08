@@ -68,3 +68,4 @@ day_of_week = 'day_of_week'
 
 user_id='user_id'
 metric_id = 'metric_id'
+task_id = 'task_id'

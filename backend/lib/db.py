@@ -262,7 +262,7 @@ class DataSchedule(Base):
     month: Mapped[str] = mapped_column(String(100), nullable=False)
     day_of_week: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    target_value: Mapped[float | None] = mapped_column(Numeric, nullable=True)  # Renamed to target_value for clarity
+    target_value: Mapped[float | None] = mapped_column(Numeric, nullable=False)
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     metric: Mapped['Metric'] = relationship(back_populates='schedule')
@@ -276,9 +276,11 @@ class Link(Base):
 
     __table_args__ = (
         UniqueConstraint('url', 'user_id', name='uq_link_url'),
+        UniqueConstraint('summary', 'user_id', name='uq_link_summary'),
+
         Index(
             'ft_link_content',
-            'description', 'url',
+            'description', 'display_summary', 'url',
             mysql_prefix='FULLTEXT',
         ),
     )
@@ -288,6 +290,8 @@ class Link(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
 
     url: Mapped[str] = mapped_column(String(500))
+    summary: Mapped[str] = mapped_column(String(500), nullable=False)
+    display_summary: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -303,6 +307,10 @@ class Link(Base):
     tags: Mapped[List['Tag']] = relationship(
         secondary=link_tags_association, back_populates='links', lazy=False
     )
+
+    @validates('summary')
+    def validate_name(self, _, summary):
+        return normalize_identifier(summary)
 
     def __repr__(self) -> str:
         return (f'Link(id={self.id!r},  '

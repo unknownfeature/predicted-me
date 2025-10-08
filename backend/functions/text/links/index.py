@@ -27,9 +27,13 @@ link_schema = {
                 "type": "string",
                 "description": f"The full URL as it appears in the text. Max length: {inspect(Link).c.url.type.length} characters."
             },
+            "summary": {
+                "type": "string",
+                "description": f"A brief summary of the link's description. Max length: {inspect(Link).c.display_summary.type.length} characters."
+            },
             "description": {
                 "type": "string",
-                "description": f"A concise summary of the link's content based on the surrounding text. Max length: {inspect(Link).c.description.type.length} characters."
+                "description": f"A concise description of the link's content based on the surrounding text. Max length: {inspect(Link).c.description.type.length} characters."
             },
         },
         "required": ["url", "description"]

@@ -18,6 +18,13 @@ link_three_description = 'description for link three'
 link_four_description = 'description for link four'
 link_five_description = 'description for link five ' + unique_piece
 
+link_one_summary = 'summary for link one'
+link_two_summary = 'summary for link two'
+link_three_summary = 'summary for link three'
+link_four_summary = 'summary for link four'
+link_five_summary = 'summary for link five ' + unique_piece
+
+
 class Test(unittest.TestCase):
 
     def setUp(self):
@@ -25,7 +32,6 @@ class Test(unittest.TestCase):
         self.event = baseSetUp(Trigger.http)
 
     def test_incomplete_post_returns_500(self):
-
 
         self.event[constants.body] = {
             constants.description: link_one_description,
@@ -54,42 +60,75 @@ class Test(unittest.TestCase):
 
             self.event[constants.body] = {
                 constants.url: link_two_url,
+                constants.summary: link_two_url + unique_piece,
                 constants.description: link_two_description + unique_piece,
             }
             self.event[constants.http_method] = constants.post
-            result = handler( self.event, None)
+            result = handler(self.event, None)
 
             assert result[constants.status_code] == 500
 
 
+
+            self.event[constants.body] = {
+                constants.url: link_two_url + unique_piece,
+                constants.summary: link_two_summary,
+                constants.description: link_two_description + unique_piece,
+            }
+            self.event[constants.http_method] = constants.post
+            result = handler(self.event, None)
+
+            assert result[constants.status_code] == 500
+
         finally:
             session.close()
 
-
     def test_link_post_succeeds_for_duplicate_from_another_user(self):
 
-         self._setup_links()
-         session = begin_session()
+        self._setup_links()
+        session = begin_session()
 
-         try:
-             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-             malicious_event[constants.body] = {
-                 constants.url: link_one_url,
-                 constants.description: link_one_description,
-             }
-             malicious_event[constants.http_method] = constants.post
-             result = handler(malicious_event, None)
+        try:
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.body] = {
+                constants.url: link_one_url,
+                constants.summary: link_one_url + unique_piece,
+                constants.description: link_one_description,
+            }
+            malicious_event[constants.http_method] = constants.post
+            result = handler(malicious_event, None)
 
-             assert result[constants.status_code] == 201
+            assert result[constants.status_code] == 201
 
-         finally:
-             session.close()
+            session = refresh_cache(session)
+
+            assert len(get_links_by_url(link_one_url, session)) == 2
+
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.body] = {
+                constants.url: link_two_url + unique_piece,
+                constants.summary: link_two_summary,
+                constants.description: link_one_description,
+            }
+            malicious_event[constants.http_method] = constants.post
+            result = handler(malicious_event, None)
+
+            assert result[constants.status_code] == 201
+
+            session = refresh_cache(session)
+            
+            assert len(get_links_by_display_summary(link_two_summary, session)) == 2
+
+
+        finally:
+            session.close()
 
     def test_link_post_succeeds(self):
 
         self.event[constants.body] = {
             constants.url: link_one_url,
             constants.description: link_one_description,
+            constants.summary: link_one_summary,
         }
 
         self.event[constants.http_method] = constants.post
@@ -105,13 +144,19 @@ class Test(unittest.TestCase):
             links = get_links_by_description(link_one_description, session)
             assert len(links) == 1
 
-            user = links[0]
+            link = links[0]
+
+            assert link.display_summary == link_one_summary
+            assert link.description == link_one_description
+            assert link.url == link_one_url
+            assert link.summary == normalize_identifier(link_one_summary)
+
 
             user_id, external_id = get_user_ids_from_event(self.event, session)
 
             # make sure user is correct
-            assert user_id == user.user_id
-            assert user.user.external_id == external_id
+            assert user_id == link.user_id
+            assert link.user.external_id == external_id
 
 
         finally:
@@ -142,6 +187,7 @@ class Test(unittest.TestCase):
             self.event[constants.body] = {
                 constants.url: link_two_url + unique_piece,
                 constants.description: link_two_description,
+                constants.summary: link_two_summary + unique_piece,
                 constants.time: new_time,
                 #  one exists and one new, both should replace old ones
                 constants.tags: [new_tag_name, tag_three_display_name]
@@ -161,7 +207,9 @@ class Test(unittest.TestCase):
             # but with updated fields
             assert link.url == link_two_url + unique_piece
             assert link.description == link_two_description
-            assert link.time == link.time # time is not updatable
+            assert link.display_summary == link_two_summary + unique_piece
+            assert link.summary == normalize_identifier(link_two_summary + unique_piece)
+            assert link.time == link.time  # time is not updatable
             assert len(link.tags) == 2
 
             new_tag_names = [tag.display_name for tag in link.tags]
@@ -482,7 +530,7 @@ class Test(unittest.TestCase):
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
-            assert len(items) == 2 # in url and description
+            assert len(items) == 2  # in url and description
             this_link_id = items[0][constants.id]
 
             assert prev_link_id != this_link_id
@@ -524,8 +572,6 @@ class Test(unittest.TestCase):
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
             assert len(items) == 0
-
-
 
             #############################################
 
@@ -623,7 +669,7 @@ class Test(unittest.TestCase):
             malicious_event[constants.http_method] = constants.get
             malicious_event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
-                constants.end: get_utc_timestamp(), #
+                constants.end: get_utc_timestamp(),  #
             }
             malicious_event[constants.path_params] = {}
             result = handler(malicious_event, None)
@@ -650,16 +696,21 @@ class Test(unittest.TestCase):
             note = Note(user=user)
             session.add(note)
             session.flush()
-            link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description, tagged = True,
-                            tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.audio_text)
-            link_two = Link(user=user, url=link_two_url, description=link_two_description, tagged = True,
-                            tags=[tag_one, tag_three], time=three_days_ago + 60, origin=Origin.user)
-            link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description, tagged = True,
-                              tags=[tag_three, tag_two], time=day_ago - 60, origin=Origin.audio_text )
-            link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description, tagged = True,
-                             tags=[tag_two, tag_three], time= get_utc_timestamp() - 60, origin=Origin.audio_text)
-            link_five = Link(user=user, url=link_five_url, description=link_five_description, tagged = True,
-                             tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.user )
+            link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description, tagged=True,
+                            tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.audio_text,
+                            display_summary=link_one_summary, summary=normalize_identifier(link_one_summary))
+            link_two = Link(user=user, url=link_two_url, description=link_two_description, tagged=True,
+                            tags=[tag_one, tag_three], time=three_days_ago + 60, origin=Origin.user,
+                            display_summary=link_two_summary, summary=normalize_identifier(link_two_summary))
+            link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description, tagged=True,
+                              tags=[tag_three, tag_two], time=day_ago - 60, origin=Origin.audio_text,
+                            display_summary=link_three_summary, summary=normalize_identifier(link_three_summary))
+            link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description, tagged=True,
+                             tags=[tag_two, tag_three], time=get_utc_timestamp() - 60, origin=Origin.audio_text,
+                            display_summary=link_four_summary, summary=normalize_identifier(link_four_summary))
+            link_five = Link(user=user, url=link_five_url, description=link_five_description, tagged=True,
+                             tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.user,
+                            display_summary=link_five_summary, summary=normalize_identifier(link_five_summary))
             session.add_all([note, link_one, link_two, link_three, link_four, link_five])
             session.commit()
         finally:
