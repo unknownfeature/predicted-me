@@ -68,9 +68,9 @@ def text_supplier(session: Session, note_id, _):
     # todo could be duplicates? not sure
     return (
         f"\n{json.dumps([{
-            'id': d.metric_id,
-            'name': d.metric.name,
-            'units': d.units} for d in untagged_data
+            constants.id: d.metric_id,
+            constants.name: d.metric.name,
+            constants.units: d.units} for d in untagged_data
         ])}"
     )
 
@@ -78,7 +78,7 @@ def text_supplier(session: Session, note_id, _):
 def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
     merge_tags(session, data, lambda: select(Metric)
                .join(Metric.data_points).where(and_(
-        Metric.id.in_([item['id'] for item in data]),
+        Metric.id.in_([item[constants.id] for item in data]),
         Data.note_id == note_id,
         Metric.tagged == False
     )

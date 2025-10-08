@@ -10,8 +10,8 @@ from sqlalchemy import select, update
 from backend.lib.db import Note, Origin, begin_session
 from shared.variables import Env
 
-s3_client = boto3.client('s3')
-sns_client = boto3.client('sns')
+s3_client = boto3.client(constants.s3)
+sns_client = boto3.client(constants.sns)
 sns_topic_arn = os.getenv(Env.text_processing_topic_arn)
 
 #  maybe pass blueprint attributes via env too todo
@@ -19,36 +19,36 @@ sns_topic_arn = os.getenv(Env.text_processing_topic_arn)
 
 def process_output_file(bucket, key):
     s3_response = s3_client.get_object(Bucket=bucket, Key=key)
-    file_content = s3_response['Body'].read().decode('utf-8')
+    file_content = s3_response[constants.Body].read().decode('utf-8')
 
     return [json.loads(line) for line in file_content.strip().split('\n') if line]
 
 
 def handler(event, context):
     try:
-        record = event['Records'][0]
-        bucket_name = record['s3']['bucket']['name']
-        object_key = unquote_plus(record['s3']['object']['key'])
+        record = event[constants.Records][0]
+        bucket_name = record[constants.s3][constants.bucket][constants.name]
+        object_key = unquote_plus(record[constants.s3][constants.object][constants.key])
         image_key_uuid_str = extract_uuid_from_key(object_key)
 
 
     except Exception as e:
         print(f"Error during key extraction/parsing: {e}")
         traceback.print_exc()
-        return {'statusCode': 400, 'body': 'Invalid S3 key structure or missing UUID.'}
+        return {constants.statusCode: 400, constants.body: 'Invalid S3 key structure or missing UUID.'}
 
     image_descriptions = process_output_file(bucket_name, object_key)
 
     if not image_descriptions:
         print(f"No valid inference results found for key {image_key_uuid_str}.")
-        return {'statusCode': 200, 'body': 'No data to write.'}
+        return {constants.statusCode: 200, constants.body: 'No data to write.'}
 
     session = begin_session()
 
-    desc_data = image_descriptions[0].get('inference_result', {})
+    desc_data = image_descriptions[0].get(constants.inference_result, {})
 
-    image_description = desc_data.get('image_description')
-    image_text = desc_data.get('image_text')
+    image_description = desc_data.get(constants.image_description)
+    image_text = desc_data.get(constants.image_text)
     try:
 
         note_query = select(Note).where(Note.image_key == image_key_uuid_str)
@@ -78,20 +78,20 @@ def handler(event, context):
         print(f"Database transaction failed: {e}")
         traceback.print_exc()
         #  todo handle error
-        return {'statusCode': 500, 'body': f"Couldn't process output due to the error: {traceback.format_exc()}."}
+        return {constants.statusCode: 500, constants.body: f"Couldn't process output due to the error: {traceback.format_exc()}."}
 
     finally:
         session.close()
 
-    return {'statusCode': 200,
-            'body': f"Processed output and potentially triggered tagging for Note ID {note_id}."}
+    return {constants.statusCode: 200,
+            constants.body: f"Processed output and potentially triggered tagging for Note ID {note_id}."}
 
 
 def send_text_to_sns(image_description, note_id, origin):
     if image_description:
         sns_payload = {
-            'note_id': note_id,
-            'origin': origin
+            constants.note_id: note_id,
+            constants.origin: origin
         }
 
         sns_client.publish(

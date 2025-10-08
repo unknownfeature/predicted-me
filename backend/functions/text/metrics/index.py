@@ -13,7 +13,7 @@ from backend.lib.func.text import note_text_supplier
 from backend.lib.util import get_or_create_metrics
 from shared.variables import Env
 
-sns_client = boto3.client('sns')
+sns_client = boto3.client(constants.sns)
 tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
 
 generative_model = os.getenv(Env.generative_model)
@@ -27,7 +27,7 @@ metrics_schema = {
         "properties": {
             "name": {
                 "type": "string",
-                "description": f"Normalized name of the metric (e.g., 'distance_run', 'heart_rate'). Max length: {inspect(Metric).c.name.type.length} characters."
+                "description": f"Normalized name of the metric (e.g., constants.distance_run, constants.heart_rate). Max length: {inspect(Metric).c.name.type.length} characters."
             },
             "value": {
                 "type": "number",
@@ -35,7 +35,7 @@ metrics_schema = {
             },
             "units": {
                 "type": "string",
-                "description": f"The unit of measurement (e.g., 'miles', 'kcal', 'bpm'). If no units are mentioned, use a standard unit or 'unknown'. Max length: {inspect(Data).c.units.type.length} characters."
+                "description": f"The unit of measurement (e.g., constants.miles, constants.kcal, constants.bpm). If no units are mentioned, use a standard unit or constants.unknown. Max length: {inspect(Data).c.units.type.length} characters."
             }
         },
         "required": ["name", "value", "units"]
@@ -62,12 +62,12 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
     # todo review this, look suspicious
     note_query = select(Note).where(Note.id == note_id)
     target_note = session.scalar(note_query)
-    metrics_map = get_or_create_metrics(session, {normalize_identifier(item['name']) : item['name'] for item in data}, target_note.user_id)
+    metrics_map = get_or_create_metrics(session, {normalize_identifier(item[constants.name]) : item[constants.name] for item in data}, target_note.user_id)
     metrics_to_add = [
-        Data(value=d.get('value'), units=d.get('units'),
-             metric=metrics_map[normalize_identifier(d.get('name'))],
+        Data(value=d.get(constants.value), units=d.get(constants.units),
+             metric=metrics_map[normalize_identifier(d.get(constants.name))],
              note=target_note, origin=Origin(origin))
-     for d in data if 'name' in data]
+     for d in data if constants.name in data]
 
     session.add_all(metrics_to_add)
     session.commit()
@@ -75,7 +75,7 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
     sns_client.publish(
         TopicArn=tagging_topic_arn,
         Note=json.dumps({
-            'note_id': target_note.id,
+            constants.note_id: target_note.id,
         }),
         Subject='Extracted metrics ready for tagging'
     )

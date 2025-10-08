@@ -10,8 +10,8 @@ from shared.variables import Env
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-s3_client = boto3.client('s3')
-transcribe_client = boto3.client('transcribe')
+s3_client = boto3.client(constants.s3)
+transcribe_client = boto3.client(constants.transcribe)
 
 input_bucket_name = os.environ.get(Env.transcribe_bucket_in)
 output_bucket_name = os.environ.get(Env.transcribe_bucket_out)
@@ -21,8 +21,8 @@ output_bucket_name = os.environ.get(Env.transcribe_bucket_out)
 def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
     try:
-        record = event['Records'][0]
-        input_key = unquote_plus(record['s3']['object']['key'])
+        record = event[constants.Records][0]
+        input_key = unquote_plus(record[constants.s3][constants.object][constants.key])
 
 
         file_uri = f"s3://{input_bucket_name}/{input_key}"
@@ -31,12 +31,12 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         transcribe_client.start_transcription_job(
             TranscriptionJobName=input_key,
             LanguageCode='en-US', # todo add ability to select language (in distant future)
-            Media={'MediaFileUri': file_uri, 'MediaFormat': media_format},
+            Media={constants.MediaFileUri: file_uri, constants.MediaFormat: media_format},
             OutputBucketName=output_bucket_name,
             OutputKey= f'{input_key}.json'
         )
 
-        return {'statusCode': 200, 'job_name': input_key, 'file_key': input_key}
+        return {constants.statusCode: 200, constants.job_name: input_key, constants.file_key: input_key}
 
     except Exception as e:
         logger.error(f"Error starting Transcribe job for {input_key}: {e}")

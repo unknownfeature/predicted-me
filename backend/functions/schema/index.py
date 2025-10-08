@@ -4,19 +4,19 @@ import boto3
 
 from backend.lib.db import setup_engine, Base
 
-secrets_client = boto3.client('secretsmanager')
+secrets_client = boto3.client(constants.secretsmanager)
 
 
 def handler(event, _):
 
-    request_type = event['RequestType']
+    request_type = event[constants.RequestType]
 
-    if request_type == 'Create':
+    if request_type == constants.Create:
         print("Create event received. Initializing schema.")
         return on_create(event)
 
 
-    return {'status': 'success'}
+    return {constants.status: constants.success}
 
 
 def on_create(event):
@@ -30,8 +30,8 @@ def on_create(event):
         Base.metadata.create_all(engine)
         print("Schema creation successful.")
 
-        return {'status': 'success'}
+        return {constants.status: constants.success}
 
     except Exception as e:
         traceback.print_exc()
-        return {'Status': 'FAILED', 'Reason': str(e)}
+        return {constants.Status: constants.FAILED, constants.Reason: str(e)}

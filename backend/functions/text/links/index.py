@@ -12,7 +12,7 @@ from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.text import note_text_supplier
 from shared.variables import Env
 
-sns_client = boto3.client('sns')
+sns_client = boto3.client(constants.sns)
 tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
 
 generative_model = os.getenv(Env.generative_model)
@@ -48,7 +48,7 @@ prompt = (
     "If no links are found, output an empty array [].\n\n"
     f"**JSON Schema**:\n{json.dumps(link_schema, indent=3)}\n\n"
     "--- EXAMPLES ---\n"
-    "Text: 'I've been learning a lot about AI. This article was helpful: https://ml-articles.com/intro. It covers the basics.'\n"
+    "Text: constants.Ive been learning a lot about AI. This article was helpful: https://ml-articles.com/intro. It covers the basics.'\n"
     "Output: [{\"url\": \"https://ml-articles.com/intro\", \"description\": \"An article about AI that covers the basics.\"}]\n\n"
     "Text: 'You can find our privacy policy at https://site.com/privacy and our terms of service are here: https://site.com/terms.'\n"
     "Output: [{\"url\": \"https://site.com/privacy\", \"description\": \"privacy policy\"}, {\"url\": \"https://site.com/terms\", \"description\": \"terms of service\"}]\n"
@@ -61,10 +61,10 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
 
     session.execute((
         insert(Link.__table__)
-        .values([d | {'note_id': note_id, 'origin': origin} for d in data])
+        .values([d | {constants.note_id: note_id, constants.origin: origin} for d in data])
 
         .on_conflict_do_nothing(
-            index_elements=['ulr']
+            index_elements=[constants.ulr]
         )
     ))
 
@@ -72,7 +72,7 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
     sns_client.publish(
         TopicArn=tagging_topic_arn,
         Note=json.dumps({
-            'note_id': note_id,
+            constants.note_id: note_id,
         }),
         Subject='Extracted tasks ready for tagging'
     )

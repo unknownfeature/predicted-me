@@ -18,9 +18,9 @@ bda_model_name = os.getenv(Env.bda_model_name)
 
 def handler(event, context):
     try:
-        record = event['Records'][0]
-        input_bucket = record['s3']['bucket']['name']
-        input_key = record['s3']['object']['key']
+        record = event[constants.Records][0]
+        input_bucket = record[constants.s3][constants.bucket][constants.name]
+        input_key = record[constants.s3][constants.object][constants.key]
 
         input_s3_uri = f"s3://{input_bucket}/{input_key}"
         output_s3_uri = f"s3://{output_bucket}/{input_key}/"
@@ -29,19 +29,19 @@ def handler(event, context):
             jobName=f"image-analysis-{context.aws_request_id}",
             executionRoleArn=job_execution_role,
             inputDataConfig={
-                's3Uri': input_s3_uri
+                constants.s3Uri: input_s3_uri
             },
             outputDataConfig={
-                's3Uri': output_s3_uri
+                constants.s3Uri: output_s3_uri
             },
             blueprintName=blueprint_name,
             modelIdentifier=bda_model_name
         )
 
-        print(f"BDA Job started successfully. Job ID: {response['jobId']}")
+        print(f"BDA Job started successfully. Job ID: {response[constants.jobId]}")
 
-        return {'statusCode': 200, 'body': json.dumps({'jobId': response['jobId']})}
+        return {constants.statusCode: 200, constants.body: json.dumps({constants.jobId: response[constants.jobId]})}
 
     except Exception as e:
         print(f"Error during BDA job orchestration: {e}")
-        return {'statusCode': 500, 'body': f'Error starting BDA job: {e}'}
+        return {constants.statusCode: 500, constants.body: f'Error starting BDA job: {e}'}

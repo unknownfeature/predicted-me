@@ -13,7 +13,7 @@ from backend.lib.func.text import note_text_supplier
 from backend.lib.util import get_or_create_tasks
 from shared.variables import Env
 
-sns_client = boto3.client('sns')
+sns_client = boto3.client(constants.sns)
 tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
 
 generative_model = os.getenv(Env.generative_model)
@@ -62,12 +62,12 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
     # todo review this, look suspicious
     note_query = select(Note).where(Note.id == note_id)
     target_note = session.scalar(note_query)
-    metrics_map = get_or_create_tasks(session, {normalize_identifier(item['display_summary']) : item['name'] for item in data}, target_note.user_id)
+    metrics_map = get_or_create_tasks(session, {normalize_identifier(item[constants.display_summary]) : item[constants.name] for item in data}, target_note.user_id)
     metrics_to_add = [
-        Occurrence(priority=d.get('priority'),
-             task=metrics_map[normalize_identifier(d.get('display_summary'))],
+        Occurrence(priority=d.get(constants.priority),
+             task=metrics_map[normalize_identifier(d.get(constants.display_summary))],
              note=target_note, origin=Origin(origin))
-     for d in data if 'name' in data]
+     for d in data if constants.name in data]
 
     session.add_all(metrics_to_add)
     session.commit()
@@ -75,7 +75,7 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
     sns_client.publish(
         TopicArn=tagging_topic_arn,
         Note=json.dumps({
-            'note_id': target_note.id,
+            constants.note_id: target_note.id,
         }),
         Subject='Extracted tasks ready for tagging'
     )

@@ -2,10 +2,10 @@ import json
 import os
 from typing import List, Dict, Any
 
-from sqlalchemy import select, inspect, and_
+from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session, selectinload
 
-from backend.lib.db import Tag, Link
+from backend.lib.db import Tag, Task
 from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.sqs import handler_factory
 from backend.lib.util import merge_tags
@@ -21,7 +21,7 @@ output_schema = {
         "properties": {
             "id": {
                 "type": "number",
-                "description": "The original ID of the link being tagged."
+                "description": "The original ID of the task being tagged."
             },
             "tags": {
                 "type": "array",
@@ -36,13 +36,13 @@ output_schema = {
 }
 
 tagging_prompt = (
-    "You are an expert taxonomy and categorization engine. Your job is to analyze a list of link descriptions and assign "
+    "You are an expert taxonomy and categorization engine. Your job is to analyze a list of task descriptions and assign "
     "1 to 3 relevant categories to each one from the allowed taxonomy. "
     "Your output must be ONLY a JSON array that strictly adheres to the provided schema.\n\n"
 
     f"**Output JSON Schema**:\n{json.dumps(output_schema, indent=3)}\n\n"
     "--- EXAMPLES ---\n"
-    "Input link descriptions:\n"
+    "Input task descriptions:\n"
     "[\n"
     "  {\"id\": 201, \"description\": \"A review of the latest smartphone releases for the year, comparing camera and battery life.\"},\n"
     "  {\"id\": 202, \"description\": \"Official page for Nike Air Max shoes. View the latest styles and purchase online.\"},\n"
@@ -55,35 +55,35 @@ tagging_prompt = (
     "  {\"id\": 203, \"tags\": [\"food_drink\", \"lifestyle\"]}\n"
     "]\n"
     "--- END EXAMPLES ---\n\n"
-    "**Links to Tag**:\n"
+    "**Tasks to Tag**:\n"
 )
 
 
 def text_supplier(session: Session, note_id, _):
-    query = select(Link).where(and_([Link.note_id == note_id, not Link.tagged]))
+    query = select(Task).where(and_([Task.note_id == note_id, not Task.tagged]))
 
-    untagged_links = session.execute(query).all()
+    untagged_tasks = session.execute(query).all()
 
-    if not untagged_links:
+    if not untagged_tasks:
         print(f"No tasks to tag{note_id} are already tagged. Skipping.")
         return
 
     return (
         f"\n{json.dumps([{
-            'id': l.id,
-            'description': l.description} for l in untagged_links
+            constants.id: t.id,
+            constants.description: t.description} for t in untagged_tasks
         ])}"
     )
 
 
 def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
-    merge_tags(session, data, lambda: select(Link).where(
+    merge_tags(session, data, lambda: select(Task).where(
         and_(
-            Link.id.in_([item['id'] for item in data]),
-            Link.tagged == False,
-            Link.note_id == note_id
+            Task.id.in_([item[constants.id] for item in data]),
+            Task.tagged == False,
+            Task.note_id == note_id
         )
-    ).options(selectinload(Link.tags)))
+    ).options(selectinload(Task.tags)))
 
 
 handler = handler_factory(

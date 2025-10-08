@@ -25,8 +25,8 @@ def handler(event, context):
         print(f"Successfully deleted { result.rowcount} rows.")
 
         return {
-            'statusCode': 200,
-            'body': json.dumps(f"Deleted { result.rowcount} rows.")
+            constants.statusCode: 200,
+            constants.body: json.dumps(f"Deleted { result.rowcount} rows.")
         }
 
 

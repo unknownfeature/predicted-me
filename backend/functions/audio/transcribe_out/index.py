@@ -11,8 +11,8 @@ from shared.variables import Env
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-s3_client = boto3.client('s3')
-sns_client = boto3.client('sns')
+s3_client = boto3.client(constants.s3)
+sns_client = boto3.client(constants.sns)
 
 from backend.lib.db import Note, Origin, begin_session
 from sqlalchemy import select
@@ -30,14 +30,14 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     session = begin_session()
 
     try:
-        record = event['Records'][0]
-        output_key = unquote_plus(record['s3']['object']['key'])
+        record = event[constants.Records][0]
+        output_key = unquote_plus(record[constants.s3][constants.object][constants.key])
 
         s3_response = s3_client.get_object(Bucket=output_bucket_name, Key=output_key)
-        transcript_json = json.loads(s3_response['Body'].read())
+        transcript_json = json.loads(s3_response[constants.Body].read())
 
-        job_name = transcript_json['jobName']
-        transcript_text = transcript_json['results']['transcripts'][0]['transcript']
+        job_name = transcript_json[constants.jobName]
+        transcript_text = transcript_json[constants.results][constants.transcripts][0][constants.transcript]
 
         note_id = get_note_id_from_transcribe_job(job_name, session)
 
@@ -56,8 +56,8 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         logger.info(f"Successfully transcribed and updated Note ID {note_id}.")
 
         sns_payload = {
-            'note_id': note_id,
-            'origin': Origin.audio_text.value,
+            constants.note_id: note_id,
+            constants.origin: Origin.audio_text.value,
         }
 
         sns_client.publish(
@@ -68,7 +68,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
         logger.info(f"Published SNS notification for metrics extraction.")
 
-        return {'statusCode': 200, 'note_id': note_id}
+        return {constants.statusCode: 200, constants.note_id: note_id}
 
     except Exception as e:
         session.rollback()

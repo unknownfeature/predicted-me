@@ -21,26 +21,26 @@ class PmTaggingStack(Stack):
         self.tagging_topic = sns.Topic(self, Tagging.topic_name, display_name=Tagging.topic_name,
                                        topic_name=Tagging.topic_name)
 
-        self.metrics_tagging_queue = create_queue(self, Tagging.metrics.integration.name,
-                                                  visibility_timeout=Tagging.metrics.integration.visibility_timeout,
-                                                  with_subscription_to=self.tagging_topic, max_retires=Tagging.metrics.integration.max_retries)
+        self.metrics_tagging_queue = create_queue(self, Tagging.metric.integration.name,
+                                                  visibility_timeout=Tagging.metric.integration.visibility_timeout,
+                                                  with_subscription_to=self.tagging_topic, max_retires=Tagging.metric.integration.max_retries)
 
-        self.links_tagging_queue = create_queue(self, Tagging.links.integration.name,
-                                                visibility_timeout=Tagging.links.integration.visibility_timeout,
-                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.links.integration.max_retries)
+        self.links_tagging_queue = create_queue(self, Tagging.link.integration.name,
+                                                visibility_timeout=Tagging.link.integration.visibility_timeout,
+                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.link.integration.max_retries)
 
-        self.tasks_tagging_queue = create_queue(self, Tagging.tasks.integration.name,
-                                                visibility_timeout=Tagging.tasks.integration.visibility_timeout,
-                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.tasks.integration.max_retries)
+        self.tasks_tagging_queue = create_queue(self, Tagging.task.integration.name,
+                                                visibility_timeout=Tagging.task.integration.visibility_timeout,
+                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.task.integration.max_retries)
 
         self.metrics_tagging_function = self._create_sqs_triggered_function(db_stack, self.metrics_tagging_queue,
-                                                                            vpc_stack, Tagging.metrics)
+                                                                            vpc_stack, Tagging.metric)
 
         self.links_tagging_function = self._create_sqs_triggered_function(db_stack, self.links_tagging_queue, vpc_stack,
-                                                                          Tagging.links)
+                                                                          Tagging.link)
 
         self.tasks_tagging_function = self._create_sqs_triggered_function(db_stack, self.tasks_tagging_queue, vpc_stack,
-                                                                          Tagging.tasks)
+                                                                          Tagging.task)
 
     def _create_sqs_triggered_function(self, db_stack: PmDbStack, queue: sqs.Queue, vpc_stack: PmVpcStack,
                                        function_params: QueueFunction) -> lmbd.Function:

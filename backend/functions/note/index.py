@@ -14,7 +14,7 @@ from backend.lib.func.http import handler_factory, RequestContext, get_ts_start_
 from backend.lib.util import  HttpMethod
 from shared.variables import Env
 
-sns_client = boto3.client('sns')
+sns_client = boto3.client(constants.sns)
 sns_topic_arn = os.getenv(Env.text_processing_topic_arn)
 
 

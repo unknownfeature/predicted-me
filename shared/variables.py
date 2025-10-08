@@ -300,33 +300,33 @@ class Tagging:
     model = Common.generative_model
     max_tokens = '1024'
 
-    metrics = QueueFunction(
-        name='pm_metrics_tagging_func',
+    metric = QueueFunction(
+        name='pm_metric_tagging_func',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path=os.path.join(Common.functions_dir, 'tagging/metrics'),
-        role_name='pm_metrics_tagging_role',
-        integration=QueueIntegration(queue_name='pm_metrics_tagging_queue',
+        code_path=os.path.join(Common.functions_dir, 'tagging/metric'),
+        role_name='pm_metric_tagging_role',
+        integration=QueueIntegration(queue_name='pm_metric_tagging_queue',
                                      visibility_timeout=Duration.minutes(2))
     )
 
-    links = QueueFunction(
-        name='pm_links_tagging_func',
+    link = QueueFunction(
+        name='pm_link_tagging_func',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path=os.path.join(Common.functions_dir, 'tagging/links'),
-        role_name='pm_links_tagging_role',
-        integration=QueueIntegration(queue_name='pm_links_tagging_queue',
+        code_path=os.path.join(Common.functions_dir, 'tagging/link'),
+        role_name='pm_link_tagging_role',
+        integration=QueueIntegration(queue_name='pm_link_tagging_queue',
                                      visibility_timeout=Duration.minutes(2))
     )
 
-    tasks = QueueFunction(
-        name='pm_tasks_tagging_func',
+    task = QueueFunction(
+        name='pm_task_tagging_func',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path=os.path.join(Common.functions_dir, 'tagging/tasks'),
-        role_name='pm_tasks_tagging_role',
-        integration=QueueIntegration(queue_name='pm_tasks_tagging_queue',
+        code_path=os.path.join(Common.functions_dir, 'tagging/task'),
+        role_name='pm_task_tagging_role',
+        integration=QueueIntegration(queue_name='pm_task_tagging_queue',
                                      visibility_timeout=Duration.minutes(2))
     )
 
