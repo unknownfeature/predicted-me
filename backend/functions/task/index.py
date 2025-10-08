@@ -11,18 +11,18 @@ from backend.lib.func.http import RequestContext, handler_factory, post_factory,
 from backend.lib.util import HttpMethod, get_or_create_tags
 
 
-def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]]|Dict[str, str], int]:
-    path_params = request_context.path_params
+def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]|Dict[str, str], int]:
+    path_params = context.path_params
 
     id = path_params.get(constants.id)
 
-    query_params = request_context.query_params
+    query_params = context.query_params
     offset, limit = get_offset_and_limit(query_params)
 
     text = query_params.get(constants.text, constants.empty).strip()
     tags = query_params.get(constants.tags).split(constants.params_delim) if constants.tags in query_params else []
 
-    conditions = [Task.user_id == request_context.user.id]
+    conditions = [Task.user_id == context.user.id]
     if id:
         conditions.append(Task.id == id)
     else:
@@ -47,9 +47,9 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     } for task in tasks], 200
 
 
-def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
-    body = request_context.body
-    path_params = request_context.path_params
+def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
+    body = context.body
+    path_params = context.path_params
 
     id = path_params[constants.id]
 
@@ -59,8 +59,8 @@ def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any],
     if not id:
         return {constants.error: id_is_required}, 400
 
-    task_for_update = session.scalar(select(Task).where(and_(Task.id == id, Task.user_id == request_context.user.id)))
-    tags_for_update = list(get_or_create_tags(session, set(body.get(constants.tags, []))).values())
+    task_for_update = session.scalar(select(Task).where(and_(Task.id == id, Task.user_id == context.user.id)))
+    tags_for_update = list(get_or_create_tags(context.user.id, session, set(body.get(constants.tags, []))).values())
     if not task_for_update:
         return {constants.status: constants.error, constants.error: constants.not_found}, 400
     if tags_for_update:
@@ -81,7 +81,7 @@ post_handler = lambda context, session: Task(user_id=context.user.id,
                                              summary=normalize_identifier(context.body[constants.summary]),
                                     display_summary=context.body[constants.summary],
                                              description=context.body[constants.description],
-                                    tags=list(get_or_create_tags(session, set(context.body.get(constants.tags, []))).values()))
+                                    tags=list(get_or_create_tags(context.user.id, session, set(context.body.get(constants.tags, []))).values()))
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

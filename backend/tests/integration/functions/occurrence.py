@@ -795,8 +795,8 @@ class Test(unittest.TestCase):
         try:
             user_id, external_user_id = get_user_ids_from_event(self.event, session)
 
-            tag_one = Tag(name=tag_one_name, display_name=tag_one_display_name)
-            tag_two = Tag(name=tag_two_name, display_name=tag_two_display_name)
+            tag_one = Tag(user_id=user_id, name=tag_one_name, display_name=tag_one_display_name)
+            tag_two = Tag(user_id=user_id, name=tag_two_name, display_name=tag_two_display_name)
 
             user = session.query(User).get(user_id)
             task_one = Task(display_summary=display_summary, summary=task_one_display_summary,
@@ -818,10 +818,10 @@ class Test(unittest.TestCase):
     def _setup_occurrences_for_search(self, session):
         user_id, external_user_id = get_user_ids_from_event(self.event, session)
 
-        tag_one = Tag(name=tag_one_name, display_name=tag_one_display_name)
-        tag_two = Tag(name=tag_two_name, display_name=tag_two_display_name)
+        tag_one = Tag(user_id=user_id, name=tag_one_name, display_name=tag_one_display_name)
+        tag_two = Tag(user_id=user_id, name=tag_two_name, display_name=tag_two_display_name)
 
-        tag_three = Tag(name=tag_three_name, display_name=tag_three_display_name)
+        tag_three = Tag(user_id=user_id, name=tag_three_name, display_name=tag_three_display_name)
 
         user = session.query(User).get(user_id)
 

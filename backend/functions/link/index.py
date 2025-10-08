@@ -10,9 +10,9 @@ from backend.lib.func.http import RequestContext, handler_factory, delete_factor
 from backend.lib.util import  HttpMethod, get_or_create_tags
 
 
-def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
-    query_params = request_context.query_params
-    path_params = request_context.path_params
+def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
+    query_params = context.query_params
+    path_params = context.path_params
 
     link_id = path_params.get(constants.id)
     note_id = query_params.get(constants.note_id)
@@ -23,7 +23,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     offset, limit = get_offset_and_limit(query_params)
 
     conditions = [
-        Link.user_id == request_context.user.id
+        Link.user_id == context.user.id
     ]
     query = select(Link)
 
@@ -66,9 +66,9 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
         constants.tags: [tag.display_name for tag in link.tags],
     } for link in links], 200
 
-def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
-    body = request_context.body
-    path_params = request_context.path_params
+def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
+    body = context.body
+    path_params = context.path_params
     id = path_params.get(constants.id)
 
     description = body.get(constants.description)
@@ -77,12 +77,12 @@ def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any],
     if not id:
         return {constants.error:  constants.id_is_required}, 400
 
-    link_for_update = session.scalar(select(Link).where(and_(Link.id == id, Link.user_id == request_context.user.id)))
+    link_for_update = session.scalar(select(Link).where(and_(Link.id == id, Link.user_id == context.user.id)))
 
     if not link_for_update:
         return {constants.status: constants.error, constants.error: constants.not_found}, 404
 
-    tags_for_update = list(get_or_create_tags(session, set(body.get(constants.tags, []))).values())
+    tags_for_update = list(get_or_create_tags(context.user.id, session, set(body.get(constants.tags, []))).values())
 
     if tags_for_update:
         link_for_update.tags = tags_for_update
@@ -106,7 +106,7 @@ delete_handler = lambda session, user_id, id: session.execute(sql_delete(Link).w
 
 post_handler = lambda context, session: Link(user_id=context.user.id, url=context.body[constants.url],
                                     description=context.body[constants.description], origin=Origin.user.value,
-                                    tags=list(get_or_create_tags(session, set(context.body.get(constants.tags, []))).values()))
+                                    tags=list(get_or_create_tags(context.user.id, session, set(context.body.get(constants.tags, []))).values()))
 handler = handler_factory({
     HttpMethod.GET.value: get,
     HttpMethod.POST.value: post_factory(post_handler),

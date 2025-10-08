@@ -68,7 +68,7 @@ def post_factory(entity_supplier: Callable[[RequestContext, Session], Any]) -> C
         new_entity = entity_supplier(request_context, session)
         session.add(new_entity)
         session.commit()
-        return {'status': 'success', 'id': new_entity.id}, 201
+        return {constants.status: constants.success, constants.id: new_entity.id}, 201
 
     return post
 

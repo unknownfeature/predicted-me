@@ -5,9 +5,10 @@ from typing import Dict, Any, Optional, List, Type
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, selectinload
 
-from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp, Link, Note
+from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp, Link, Note, \
+    Tag
 from backend.lib import constants
 from backend.lib.func.http import seconds_in_day
 from shared.variables import Env
@@ -71,6 +72,9 @@ def get_tasks_by_description(desc: str, session: Session) -> List[Type[Task]]:
 def get_links_by_description(desc: str, session: Session) -> List[Type[Link]]:
     return session.query(Link).filter(Link.description == desc).all()
 
+def get_links_by_url(url: str, session: Session) -> List[Type[Link]]:
+    return session.query(Link).distinct().filter(Link.url == url).options(selectinload(Link.tags)).all()
+
 def get_link_by_id(link_id: int, session: Session) -> Optional[Link]:
     return session.query(Link).filter(Link.id == link_id).first()
 
@@ -82,6 +86,9 @@ def get_note_by_text(text: str, session: Session) -> Optional[Note]:
 
 def get_notes_by_text(text: str, session: Session) -> List[Type[Note]]:
     return session.query(Note).filter(Note.text == text).all()
+
+def get_tags_by_display_name(display_name: str, session: Session) -> List[Type[Tag]]:
+    return session.query(Tag).filter(Tag.display_name == display_name).all()
 
 class Trigger(str, Enum):
     http = 'http'

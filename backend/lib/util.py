@@ -109,14 +109,14 @@ def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) 
         raise e
 
 
-def get_or_create_tags(session: Session, tag_names: Set[str]) -> Dict[str, Tag]:
+def get_or_create_tags(user_id: int, session: Session, tag_names: Set[str]) -> Dict[str, Tag]:
     if not tag_names:
         return {}
 
-    stmt = select(Tag).where(Tag.display_name.in_(tag_names))
+    stmt = select(Tag).where(and_(Tag.display_name.in_(tag_names), Tag.user_id == user_id))
     existing_tags = session.scalars(stmt).all()
     existing_tags_dict = {tag.display_name: tag for tag in existing_tags}
-    new_tags = {t: Tag(name = normalize_identifier(t), display_name=t) for t in tag_names if t not in existing_tags_dict}
+    new_tags = {t: Tag(user_id = user_id, name = normalize_identifier(t), display_name=t) for t in tag_names if t not in existing_tags_dict}
 
 
     if new_tags:

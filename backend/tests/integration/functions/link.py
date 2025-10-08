@@ -65,6 +65,26 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
+
+    def test_link_post_succeeds_for_duplicate_from_another_user(self):
+
+         self._setup_links()
+         session = begin_session()
+
+         try:
+             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+             malicious_event[constants.body] = {
+                 constants.url: link_one_url,
+                 constants.description: link_one_description,
+             }
+             malicious_event[constants.http_method] = constants.post
+             result = handler(malicious_event, None)
+
+             assert result[constants.status_code] == 201
+
+         finally:
+             session.close()
+
     def test_link_post_succeeds(self):
 
         self.event[constants.body] = {
@@ -619,10 +639,10 @@ class Test(unittest.TestCase):
         try:
             user_id, external_user_id = get_user_ids_from_event(self.event, session)
 
-            tag_one = Tag(name=tag_one_name, display_name=tag_one_display_name)
-            tag_two = Tag(name=tag_two_name, display_name=tag_two_display_name)
+            tag_one = Tag(user_id=user_id, name=tag_one_name, display_name=tag_one_display_name)
+            tag_two = Tag(user_id=user_id, name=tag_two_name, display_name=tag_two_display_name)
 
-            tag_three = Tag(name=tag_three_name, display_name=tag_three_display_name)
+            tag_three = Tag(user_id=user_id, name=tag_three_name, display_name=tag_three_display_name)
 
             user = session.query(User).get(user_id)
 

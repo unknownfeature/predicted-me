@@ -13,11 +13,11 @@ from backend.lib.util import HttpMethod
 updatable_fields = {constants.completed, constants.priority, constants.time}
 
 
-def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, Any], int]:
-    body = request_context.body
-    id = request_context.path_params[constants.id]
+def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int]:
+    body = context.body
+    id = context.path_params[constants.id]
     task = session.scalars(
-        select(Task).where(and_(*[Task.user_id == request_context.user.id, Task.id == id]))).first()
+        select(Task).where(and_(*[Task.user_id == context.user.id, Task.id == id]))).first()
     if not task:
         return {constants.status: constants.not_found}, 404
 
@@ -29,9 +29,9 @@ def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, A
     return {constants.status: constants.success, constants.id: occurrence.id}, 201
 
 
-def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
-    query_params = request_context.query_params
-    path_params = request_context.path_params
+def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
+    query_params = context.query_params
+    path_params = context.path_params
 
     occurrence_id = path_params.get(constants.id)
     note_id = query_params.get(constants.note_id)
@@ -41,7 +41,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     start_time, end_time = get_ts_start_and_end(query_params)
     offset, limit = get_offset_and_limit(query_params)
     conditions = [
-        Task.user_id == request_context.user.id
+        Task.user_id == context.user.id
     ]
     query = select(Occurrence).join(Occurrence.task)
 

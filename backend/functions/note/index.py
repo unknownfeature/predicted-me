@@ -32,8 +32,8 @@ def send_text_to_sns(note_id: int, origin=Origin.text.value):
     )
 
 
-def post(session: Session, request_context: RequestContext) -> Tuple[dict[str, Any], int]:
-    body = request_context.body
+def post(session: Session, context: RequestContext) -> Tuple[dict[str, Any], int]:
+    body = context.body
 
     text = body.get(constants.text, constants.empty).strip()
     image_key = body.get(constants.image_key)
@@ -44,7 +44,7 @@ def post(session: Session, request_context: RequestContext) -> Tuple[dict[str, A
 
 
     new_note = Note(
-        user_id=request_context.user.id,
+        user_id=context.user.id,
         text=text,
         image_key=image_key,
         audio_key=audio_key,
@@ -69,10 +69,10 @@ def post(session: Session, request_context: RequestContext) -> Tuple[dict[str, A
     }, 201
 
 
-def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
+def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
 
-    query_params = request_context.query_params
-    path_params = request_context.path_params
+    query_params = context.query_params
+    path_params = context.path_params
 
     start_time, end_time = get_ts_start_and_end(query_params)
 
@@ -89,7 +89,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     note_query = select(Note)
 
     conditions = [
-        Note.user_id == request_context.user.id,
+        Note.user_id == context.user.id,
     ]
 
     if not id:

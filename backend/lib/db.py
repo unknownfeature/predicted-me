@@ -78,7 +78,8 @@ task_tags_association = Table(
     Column('tag_id', BigInteger, ForeignKey('tag.id'), primary_key=True),
 )
 
-
+#  todo in a distant future maybe UI should pass tag ids as well tho nam + user_id lookup is indexed
+#   and it's better to check that particular tag bwlongs to the user so not sure
 class Tag(Base):
     __tablename__ = 'tag'
 
@@ -88,13 +89,14 @@ class Tag(Base):
             'display_name',
             mysql_prefix='FULLTEXT',
         ),
+        UniqueConstraint('name', 'user_id', name='uq_tag_name'),
+
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
-    name: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
-    display_name: Mapped[str] = mapped_column(String(500), unique=True)
-
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(500))
     metrics: Mapped[List['Metric']] = relationship(
         secondary=metric_tags_association, back_populates='tags'
     )
@@ -104,6 +106,9 @@ class Tag(Base):
     tasks: Mapped[List['Task']] = relationship(
         secondary=task_tags_association, back_populates='tags'
     )
+    user: Mapped['User'] = relationship()
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
 
     def __repr__(self) -> str:
         return f'Tag(id={self.id!r}, name={self.name!r})'
@@ -174,7 +179,7 @@ class Note(Base):
 class Metric(Base):
     __tablename__ = 'metric'
     __table_args__ = (
-        UniqueConstraint('name', name='uq_metric_name'),
+        UniqueConstraint('name', 'user_id',  name='uq_metric_name'),
         Index('idx_metric_name', 'name'),
         Index(
             'ft_display_name',
@@ -184,8 +189,8 @@ class Metric(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    name: Mapped[str] = mapped_column(String(500), unique=True)
-    display_name: Mapped[str] = mapped_column(String(500), unique=True)
+    name: Mapped[str] = mapped_column(String(500))
+    display_name: Mapped[str] = mapped_column(String(500))
 
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     tags: Mapped[List['Tag']] = relationship(

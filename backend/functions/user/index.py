@@ -1,22 +1,24 @@
-from typing import Dict, Any, List
+from typing import Dict, Tuple
 
-from sqlalchemy import select, update, and_, delete as sql_delete, func, Tuple
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from backend.lib.db import Tag, Metric, User, get_utc_timestamp
-from backend.lib.func.http import RequestContext, handler_factory, patch_factory, post_factory
-from backend.lib.util import HttpMethod, merge_tags
-
-
-def get(session: Session, request_context: RequestContext) -> Tuple[Dict[str, Any], int]:
-    query = select(User).where(User.id == request_context.user.id)
-
-    user = session.execute(query).first()
-
-    return {'name': user.name, 'id': request_context.user.id}, 200
+from backend.lib import constants
+from backend.lib.db import User
+from backend.lib.func.http import RequestContext, handler_factory, post_factory
+from backend.lib.util import HttpMethod
 
 
-post_handler = lambda context, _: User(**{'external_id': context.user.external_id})
+def get(session: Session, context: RequestContext) -> Tuple[Dict[str, str], int]:
+    query = select(User).where(User.id == context.user.id)
+
+    user = session.scalars(query).first()
+
+    #  todo this is for the future
+    return {constants.name: user.name, constants.id: context.user.id}, 200
+
+
+post_handler = lambda context, _: User(external_id=context.user.external_id)
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

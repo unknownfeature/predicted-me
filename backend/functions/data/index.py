@@ -12,12 +12,12 @@ from backend.lib.util import HttpMethod
 updatable_fileds = {constants.value, constants.units, constants.time}
 
 
-def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, Any], int]:
-    body = request_context.body
-    id = request_context.path_params[constants.id]
+def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int]:
+    body = context.body
+    id = context.path_params[constants.id]
 
     metric = session.scalars(
-        select(Metric).where(and_(* [Metric.user_id == request_context.user.id, Metric.id == id]))).first()
+        select(Metric).where(and_(* [Metric.user_id == context.user.id, Metric.id == id]))).first()
     if not metric:
         return {constants.status: constants.not_found}, 404
     data = Data(**{f: body[f] for f in body if f in updatable_fileds} | {constants.origin: Origin.user.value},
@@ -26,10 +26,10 @@ def post(session: Session, request_context: RequestContext) -> Tuple[Dict[str, A
     session.commit()
     return {constants.status: constants.success, constants.id: data.id}, 201
 
-def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
-    query_params = request_context.query_params
+def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
+    query_params = context.query_params
 
-    path_params = request_context.path_params
+    path_params = context.path_params
 
     data_id = path_params.get(constants.id)
     note_id = query_params.get(constants.note_id)
@@ -41,7 +41,7 @@ def get(session: Session, request_context: RequestContext) -> Tuple[List[Dict[st
     offset, limit = get_offset_and_limit(query_params)
 
     conditions = [
-        Metric.user_id == request_context.user.id
+        Metric.user_id == context.user.id
     ]
     query = select(Data).join(Data.metric)
 

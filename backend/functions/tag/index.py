@@ -1,32 +1,43 @@
 from typing import Dict, Any, List, Tuple
 
-from sqlalchemy import select, update, and_, delete as sql_delete, func, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select, and_, inspect
+from sqlalchemy.dialects.mysql import match
+from sqlalchemy.orm import Session
 
+from backend.lib import constants
 from backend.lib.db import Tag, normalize_identifier
-from backend.lib.func.http import RequestContext, handler_factory, post_factory
+from backend.lib.func.http import RequestContext, handler_factory, post_factory, get_offset_and_limit
 from backend.lib.util import HttpMethod
 
-def get(session: Session,request_context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
-    query_params = request_context.query_params
 
-    name = query_params.get('name')
+def get(session: Session,context: RequestContext) -> Tuple[List[Dict[str, Any]]|Dict[str, str], int]:
+    query_params = context.query_params
 
-    full_text_condition = func.match(*Tag.display_name).against(
-        name,
-        natural=True
-    )
+    name = query_params.get(constants.name)
 
-    query = select(Tag).where(or_(Tag.name.like == name + '%', full_text_condition)).order_by(Tag.name.asc())
 
-    tags = session.execute(query).all()
+    offset, limit = get_offset_and_limit(query_params)
+
+    conditions = [Tag.user_id == context.user.id]
+    if name:
+        conditions.append(match(inspect(Tag).c.display_name,
+                                     against=name).in_natural_language_mode(), )
+
+    query = (select(Tag).where(and_(*conditions))
+
+             .offset(offset)
+             .limit(limit)
+             .order_by(Tag.name.asc()))
+
+    tags = session.scalars(query).all()
 
     return [{
-        'id': tag.id,
-        'name': tag.display_name,
+        constants.id: tag.id,
+        constants.name: tag.display_name,
     } for tag in tags], 200
 
-post_handler = lambda context, _: Tag(**{'name': normalize_identifier(context.body['name'])})
+
+post_handler = lambda context, _: Tag(display_name=context.body[constants.name], name=normalize_identifier(context.body[constants.name]),  user_id=context.user.id)
 
 handler = handler_factory({
     HttpMethod.GET.value: get,
