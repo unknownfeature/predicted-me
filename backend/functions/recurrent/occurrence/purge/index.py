@@ -17,7 +17,7 @@ def handler(event, _):
 
         print(f'Deleting data older than: {three_months_ago.isoformat()} ({cutoff_timestamp})')
 
-        delete_stmt = delete(Occurrence).where(Data.time < cutoff_timestamp)
+        delete_stmt = delete(Occurrence).where(Occurrence.time < cutoff_timestamp)
 
         result = session.execute(delete_stmt)
         session.commit()

@@ -2,6 +2,7 @@ import traceback
 
 import boto3
 
+from backend.lib import constants
 from backend.lib.db import setup_engine, Base
 
 secrets_client = boto3.client(constants.secretsmanager)
