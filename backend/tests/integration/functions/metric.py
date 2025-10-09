@@ -2,7 +2,6 @@ import json
 import unittest
 
 from backend.functions.metric.index import handler
-from backend.lib.db import Tag
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 
@@ -73,7 +72,9 @@ class Test(unittest.TestCase):
 
              session = refresh_cache(session)
 
-             assert len(get_metrics_by_display_name(metric_two_display_name, session)) == 2
+             metrics = get_metrics_by_display_name(metric_two_display_name, session)
+             assert len(metrics) == 2
+             assert not metrics[1].tagged
 
 
          finally:
@@ -83,6 +84,7 @@ class Test(unittest.TestCase):
 
         self.event[constants.body] = {
             constants.name: metric_one_display_name,
+          constants.tags: [tag_two_display_name, tag_three_display_name]
         }
 
         self.event[constants.http_method] = constants.post
@@ -98,13 +100,14 @@ class Test(unittest.TestCase):
             metrics = get_metrics_by_display_name(metric_one_display_name, session)
             assert len(metrics) == 1
 
-            user = metrics[0]
+            metric = metrics[0]
 
             user_id, external_id = get_user_ids_from_event(self.event, session)
 
-            # make sure user is correct
-            assert user_id == user.user_id
-            assert user.user.external_id == external_id
+            # make sure metric is correct
+            assert user_id == metric.user_id
+            assert metric.user.external_id == external_id
+            assert metric.tagged
 
 
         finally:
@@ -151,6 +154,7 @@ class Test(unittest.TestCase):
             # but with updated fields
             assert metric.display_name == metric_two_display_name + unique_piece
             assert len(metric.tags) == 2
+            assert metric.tagged
 
             new_tag_names = [tag.display_name for tag in metric.tags]
             assert new_tag_name in new_tag_names

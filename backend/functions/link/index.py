@@ -90,6 +90,7 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
 
     if tags_for_update:
         link_for_update.tags = tags_for_update
+        link_for_update.tagged = True
 
     if description:
         link_for_update.description = description
@@ -117,6 +118,7 @@ post_handler = lambda context, session: Link(user_id=context.user.id, url=contex
                                              summary=normalize_identifier(context.body[constants.summary]),
                                              description=context.body[constants.description],
                                              origin=Origin.user.value,
+                                             tagged=len(context.body.get(constants.tags, [])) > 0,
                                              tags=list(get_or_create_tags(context.user.id, session,
                                                                           set(context.body.get(constants.tags,
                                                                                                []))).values()))

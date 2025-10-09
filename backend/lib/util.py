@@ -5,9 +5,10 @@ from enum import Enum
 from typing import Dict, Any, List, Set, Callable, Tuple
 
 import boto3
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, Executable
 from sqlalchemy.orm import Session
 
+from backend.lib import constants
 from backend.lib.db import User, Origin, Tag, Metric, normalize_identifier, Task
 
 text_getters = {
@@ -109,14 +110,15 @@ def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) 
         raise e
 
 
-def get_or_create_tags(user_id: int, session: Session, tag_names: Set[str]) -> Dict[str, Tag]:
-    if not tag_names:
+def get_or_create_tags(user_id: int, session: Session, tag_display_names: Set[str]) -> Dict[str, Tag]:
+    if not tag_display_names:
         return {}
 
-    stmt = select(Tag).where(and_(Tag.display_name.in_(tag_names), Tag.user_id == user_id))
+    names_map = {normalize_identifier(name): name for name in tag_display_names}
+    stmt = select(Tag).where(and_(Tag.name.in_(names_map.keys()), Tag.user_id == user_id))
     existing_tags = session.scalars(stmt).all()
-    existing_tags_dict = {tag.display_name: tag for tag in existing_tags}
-    new_tags = {t: Tag(user_id = user_id, name = normalize_identifier(t), display_name=t) for t in tag_names if t not in existing_tags_dict}
+    existing_tags_dict = {tag.name: tag for tag in existing_tags}
+    new_tags = {t: Tag(user_id = user_id, name = t, display_name=names_map[t]) for t in names_map if t not in existing_tags_dict}
 
 
     if new_tags:
@@ -125,22 +127,23 @@ def get_or_create_tags(user_id: int, session: Session, tag_names: Set[str]) -> D
 
     return existing_tags_dict | new_tags
 
-def merge_tags(session: Session, data: List[Dict[str, Any]], stmt_supplier: Callable[[], Any]):
+# todo refactor this
+def add_tags(user_id: int, session: Session, data: List[Dict[str, Any]], stmt_supplier: Callable[[], Executable]):
+
     if not data:
         return
 
-    tag_map = get_tags_map_for_update(data, session)
-    data_map = {item['id']: item.get('tags', []) for item in data}
+    tag_map = get_tags_map_for_update(user_id, data, session)
+    data_map = {item[constants.id]: [normalize_identifier(t) for t in item.get(constants.tags, [])] for item in data}
 
     entities_to_update = session.scalars(stmt_supplier()).unique().all()
     for entity in entities_to_update:
         entity.tags.clear()
-        entity.tags.extend([tag_map[tag_name.lower()] for tag_name in data_map[entity.id] if
-                            tag_name.lower() not in {tag.name for tag in entity.tags}])
+        entity.tags.extend([tag_map[tag_name] for tag_name in data_map[entity.id] if
+                            tag_name not in {tag.name for tag in entity.tags}])
         entity.tagged = True
 
 
-def get_tags_map_for_update(data: List[Dict[str, str]], session):
-    all_tag_names = {tag.lower() for item in data for tag in item.get('tags', [])}
-    tag_map = get_or_create_tags(session, all_tag_names)
-    return tag_map
+def get_tags_map_for_update(user_id: int, data: List[Dict[str, str]], session):
+    all_tag_names = {tag for item in data for tag in item.get(constants.tags, [])}
+    return  get_or_create_tags(user_id, session, all_tag_names)

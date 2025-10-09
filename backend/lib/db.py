@@ -338,7 +338,6 @@ class Task(Base):
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
     user: Mapped['User'] = relationship()
-
     note: Mapped[Optional['Note']] = relationship(back_populates='tasks')
     tags: Mapped[List['Tag']] = relationship(
         secondary=task_tags_association, back_populates='tasks', lazy=False

@@ -3,10 +3,11 @@ import os
 from typing import List, Any, Dict
 
 import boto3
-from sqlalchemy import inspect, select
+from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session
 
-from backend.lib.db import Task, Note, normalize_identifier, Occurrence, Origin
+from backend.lib import constants
+from backend.lib.db import Task, Note, normalize_identifier, Origin
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.text import note_text_supplier
@@ -24,7 +25,7 @@ task_schema = {
     "items": {
         "type": "object",
         "properties": {
-            "display_summary": {
+            "summary": {
                 "type": "string",
                 "description": f"A short and unique summary of the task. Max length: {inspect(Task).c.display_summary.type.length} characters."
             },
@@ -51,35 +52,42 @@ prompt = ("You are an expert at identifying actionable tasks from text. Analyze 
           "Ignore metrics and links.\n\n"
           f"**JSON Schema**:\n{json.dumps(task_schema, indent=3)}\n\n"
           "--- EXAMPLES ---\n"
-          "Text: 'My to-do list for tomorrow: 1. Finish the report. 2. Call the client back. Also, I really have to schedule that dentist appointment, it's critical.'\n"
-          "Output: [{\"description\": \"Finish the report\", \"priority\": 5}, {\"description\": \"Call the client back\", \"priority\": 5}, {\"description\": \"schedule that dentist appointment\", \"priority\": 9}]\n\n"
+          "Text: 'My to-do list for tomorrow: 1. Finish the report that I've been working for a while. 2. Call the client who called me 2 days agoback. Also, I really have to schedule that dentist appointment, it's critical.'\n"
+          "Output: [{\"summary\": \"Finish the report\", \"description\": \"More details on the report which is needed to be finished\", \"priority\": 5}, {\"summary\": \"Call the client back\", \"priority\": 5}, { \"description\": \"More details on dentist appointment if possible to extarct from the context\", \"summary\": \"schedule that dentist appointment\", \"priority\": 9}]\n\n"
           "Text: 'add task: buy milk, priority high'\n"
-          "Output: [{\"description\": \"buy milk\", \"priority\": 8}]\n"
+          "Output: [{\"summary\": \"buy milk\", \"priority\": 8, \"description\": \"detailed description of buyng milk if possible to extract otherwise the same as summary\"}]\n"
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
-    # todo review this, look suspicious
-    note_query = select(Note).where(Note.id == note_id)
-    target_note = session.scalar(note_query)
-    metrics_map = get_or_create_tasks(session, {normalize_identifier(item[constants.display_summary]) : item[constants.name] for item in data}, target_note.user_id)
-    metrics_to_add = [
-        Occurrence(priority=d.get(constants.priority),
-             task=metrics_map[normalize_identifier(d.get(constants.display_summary))],
-             note=target_note, origin=Origin(origin))
-     for d in data if constants.name in data]
+    note = session.query(Note).filter(Note.id == note_id).first()
+    if not note:
+        print(f"Note {note_id} not found")
+        return
+    existing = [l.summary for l in session.scalars(
+        select(Task).where(and_(Task.url.in_([d[constants.url] for d in data]), Task.user_id == note.user_id))).unique()]
 
-    session.add_all(metrics_to_add)
-    session.commit()
+    new_ones = [Task(origin=Origin(origin),
+                     url=l[constants.url],
+                     user=note.user,
+                     note=note,
+                     summary=normalize_identifier(l[constants.summary]),
+                     display_summary=l[constants.summary],
+                     description=l[constants.description]) for l in data if l[constants.url] not in existing]
+    if new_ones:
+        session.add_all(new_ones)
 
+    send_to_sns(note_id)
+
+
+def send_to_sns(note_id):
     sns_client.publish(
         TopicArn=tagging_topic_arn,
         Note=json.dumps({
-            constants.note_id: target_note.id,
+            constants.note_id: note_id,
         }),
         Subject='Extracted tasks ready for tagging'
     )
-
 
 
 handler = handler_factory(

@@ -83,7 +83,10 @@ class Test(unittest.TestCase):
              assert result[constants.status_code] == 201
              session = refresh_cache(session)
              assert len(get_tasks_by_display_summary(task_two_display_summary, session)) == 2
-
+             tasks = get_tasks_by_description(task_two_description + unique_piece, session)
+             assert len(tasks) == 1
+             task = tasks[0]
+             assert not task.tagged
 
          finally:
              session.close()
@@ -94,6 +97,7 @@ class Test(unittest.TestCase):
         self.event[constants.body] = {
             constants.summary: task_one_display_summary,
             constants.description: task_one_description,
+            constants.tags: [tag_two_display_name, tag_three_display_name]
         }
 
         self.event[constants.http_method] = constants.post
@@ -109,13 +113,15 @@ class Test(unittest.TestCase):
             tasks = get_tasks_by_description(task_one_description, session)
             assert len(tasks) == 1
 
-            user = tasks[0]
+            task = tasks[0]
 
             user_id, external_id = get_user_ids_from_event(self.event, session)
 
-            # make sure user is correct
-            assert user_id == user.user_id
-            assert user.user.external_id == external_id
+            # make sure task is correct
+            assert user_id == task.user_id
+            assert task.tagged
+            assert len(task.tags) == 2
+            assert task.user.external_id == external_id
 
 
 
@@ -164,6 +170,7 @@ class Test(unittest.TestCase):
             # but with updated fields
             assert task.display_summary == task_two_display_summary + unique_piece
             assert task.description == task_two_description
+            assert task.tagged
             assert len(task.tags) == 2
 
             new_tag_names = [tag.display_name for tag in task.tags]

@@ -3,20 +3,21 @@ import os
 from typing import Any, Dict, List
 
 import boto3
-from sqlalchemy import insert, inspect
+from sqlalchemy import insert, inspect, select, and_
 from sqlalchemy.orm import Session
 
-from backend.lib.db import Link
+from backend.lib import constants
+from backend.lib.db import Link, normalize_identifier, Note, Origin
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.text import note_text_supplier
 from shared.variables import Env
 
-sns_client = boto3.client(constants.sns)
+sns_client = boto3.client(constants.sns, region_name=os.getenv(Env.aws_region))
 tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
 
 generative_model = os.getenv(Env.generative_model)
-max_tokens =  int(os.getenv(Env.max_tokens))
+max_tokens = int(os.getenv(Env.max_tokens))
 
 link_schema = {
     "type": "array",
@@ -40,7 +41,6 @@ link_schema = {
     }
 }
 
-
 prompt = (
     "You are an expert at extracting links from text. Analyze the text below and extract all web links (http/https). "
     "For each link, derive a concise description from its anchor text or surrounding context. "
@@ -49,26 +49,36 @@ prompt = (
     f"**JSON Schema**:\n{json.dumps(link_schema, indent=3)}\n\n"
     "--- EXAMPLES ---\n"
     "Text: constants.Ive been learning a lot about AI. This article was helpful: https://ml-articles.com/intro. It covers the basics.'\n"
-    "Output: [{\"url\": \"https://ml-articles.com/intro\", \"description\": \"An article about AI that covers the basics.\"}]\n\n"
+    "Output: [{\"url\": \"https://ml-articles.com/intro\",\"summary\": \"An article about AI that covers the basics.\", \"description\": \"More detail.ed description of what exactly basics this article covers\"}]\n\n"
     "Text: 'You can find our privacy policy at https://site.com/privacy and our terms of service are here: https://site.com/terms.'\n"
-    "Output: [{\"url\": \"https://site.com/privacy\", \"description\": \"privacy policy\"}, {\"url\": \"https://site.com/terms\", \"description\": \"terms of service\"}]\n"
+    "Output: [{\"url\": \"https://site.com/privacy\", \"summary\": \"privacy policy\",  \"description\": \"More detailed description of privacy policy\"}, {\"url\": \"https://site.com/terms\", \"summary\": \"terms of service\", \"description\": \"More detailed description of terms of service\"}]\n"
     "--- END EXAMPLES ---\n\n"
     "**Text to Analyze**:\n"
 )
 
 
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+    note = session.query(Note).filter(Note.id == note_id).first()
+    if not note:
+        print(f"Note {note_id} not found")
+        return
+    existing = [l.url for l in session.scalars(
+        select(Link).where(and_(Link.url.in_([d[constants.url] for d in data]), Link.user_id == note.user_id))).unique()]
 
-    session.execute((
-        insert(Link.__table__)
-        .values([d | {constants.note_id: note_id, constants.origin: origin} for d in data])
+    new_ones = [Link(origin=Origin(origin),
+                     url=l[constants.url],
+                     user=note.user,
+                     note=note,
+                     summary=normalize_identifier(l[constants.summary]),
+                     display_summary=l[constants.summary],
+                     description=l[constants.description]) for l in data if l[constants.url] not in existing]
+    if new_ones:
+        session.add_all(new_ones)
 
-        .on_conflict_do_nothing(
-            index_elements=[constants.ulr]
-        )
-    ))
+    send_to_sns(note_id)
 
 
+def send_to_sns(note_id):
     sns_client.publish(
         TopicArn=tagging_topic_arn,
         Note=json.dumps({
@@ -80,4 +90,3 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
 
 handler = handler_factory(
     process_record_factory(Params(prompt, note_text_supplier, generative_model, max_tokens), on_extracted_cb))
-

@@ -5,10 +5,11 @@ from typing import List, Dict, Any
 from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session, selectinload
 
-from backend.lib.db import Tag, Task
+from backend.lib import constants
+from backend.lib.db import Tag, Task, Note
 from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.sqs import handler_factory
-from backend.lib.util import merge_tags
+from backend.lib.util import add_tags
 from shared.variables import Env
 
 generative_model = os.getenv(Env.generative_model)
@@ -60,9 +61,9 @@ tagging_prompt = (
 
 
 def text_supplier(session: Session, note_id, _):
-    query = select(Task).where(and_([Task.note_id == note_id, not Task.tagged]))
+    query = select(Task).where(and_(Task.note_id == note_id,  Task.tagged == False))
 
-    untagged_tasks = session.execute(query).all()
+    untagged_tasks = session.scalars(query).unique().all()
 
     if not untagged_tasks:
         print(f"No tasks to tag{note_id} are already tagged. Skipping.")
@@ -77,7 +78,8 @@ def text_supplier(session: Session, note_id, _):
 
 
 def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
-    merge_tags(session, data, lambda: select(Task).where(
+    note = session.get(Note, note_id)
+    add_tags(note.user_id, session, data, lambda: select(Task).where(
         and_(
             Task.id.in_([item[constants.id] for item in data]),
             Task.tagged == False,

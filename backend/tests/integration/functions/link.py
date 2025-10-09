@@ -104,6 +104,9 @@ class Test(unittest.TestCase):
 
             assert len(get_links_by_url(link_one_url, session)) == 2
 
+            created = get_links_by_display_summary( link_one_url + unique_piece, session)[0]
+            assert not created.tagged
+
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
             malicious_event[constants.body] = {
                 constants.url: link_two_url + unique_piece,
@@ -129,6 +132,7 @@ class Test(unittest.TestCase):
             constants.url: link_one_url,
             constants.description: link_one_description,
             constants.summary: link_one_summary,
+            constants.tags: [tag_two_display_name, tag_three_display_name]
         }
 
         self.event[constants.http_method] = constants.post
@@ -150,6 +154,8 @@ class Test(unittest.TestCase):
             assert link.description == link_one_description
             assert link.url == link_one_url
             assert link.summary == normalize_identifier(link_one_summary)
+            assert len(link.tags) == 2
+            assert link.tagged
 
 
             user_id, external_id = get_user_ids_from_event(self.event, session)
@@ -211,6 +217,7 @@ class Test(unittest.TestCase):
             assert link.summary == normalize_identifier(link_two_summary + unique_piece)
             assert link.time == link.time  # time is not updatable
             assert len(link.tags) == 2
+            assert link.tagged
 
             new_tag_names = [tag.display_name for tag in link.tags]
             assert new_tag_name in new_tag_names

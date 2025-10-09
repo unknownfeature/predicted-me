@@ -6,6 +6,7 @@ import boto3
 from sqlalchemy.orm import Session
 from sqlalchemy import insert, select, bindparam, inspect, func, and_
 
+from backend.lib import constants
 from backend.lib.db import Metric, Data, Note, normalize_identifier, Origin
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import Params, process_record_factory

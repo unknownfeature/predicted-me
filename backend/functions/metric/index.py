@@ -64,6 +64,7 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
         return {constants.status: constants.error, constants.error: constants.not_found}, 400
     if tags_for_update:
         metric_for_update.tags = tags_for_update
+        metric_for_update.tagged = True
 
     if description:
         metric_for_update.description = description
@@ -79,6 +80,7 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
 post_handler = lambda context, session: Metric(user_id=context.user.id,
                                              name=normalize_identifier(context.body[constants.name]),
                                     display_name=context.body[constants.name],
+                                               tagged = len(context.body.get(constants.tags, []) ) > 0,
                                     tags=list(get_or_create_tags(context.user.id, session, set(context.body.get(constants.tags, []))).values()))
 
 handler = handler_factory({

@@ -267,7 +267,7 @@ class Text:
         name='pm_metrics_extraction_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'text/metrics'),
+        code_path=os.path.join(Common.functions_dir, 'text/metric'),
         role_name='pm_metrics_extraction_role',
         integration=QueueIntegration(queue_name='pm_metrics_extraction_queue',
                                      visibility_timeout=Duration.minutes(2))
@@ -277,7 +277,7 @@ class Text:
         name='pm_links_extraction_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'text/links'),
+        code_path=os.path.join(Common.functions_dir, 'text/link'),
         role_name='pm_links_extraction_role',
         integration=QueueIntegration(queue_name='pm_links_extraction_queue',
                                      visibility_timeout=Duration.minutes(2))
@@ -287,7 +287,7 @@ class Text:
         name='pm_tasks_extraction_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'text/tasks'),
+        code_path=os.path.join(Common.functions_dir, 'text/task'),
         role_name='pm_tasks_extraction_role',
         integration=QueueIntegration(queue_name='pm_tasks_extraction_queue',
                                      visibility_timeout=Duration.minutes(2))

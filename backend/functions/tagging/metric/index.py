@@ -5,10 +5,11 @@ from typing import List, Dict, Any
 from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session, selectinload
 
-from backend.lib.db import Metric, Data, Tag
+from backend.lib import constants
+from backend.lib.db import Metric, Data, Tag, Note
 from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.sqs import handler_factory
-from backend.lib.util import merge_tags
+from backend.lib.util import add_tags
 from shared.variables import Env
 
 generative_model = os.getenv(Env.generative_model)
@@ -57,27 +58,27 @@ tagging_prompt = (
 
 
 def text_supplier(session: Session, note_id, _):
-    query = select(Data).join(Metric.data_points).where(and_([Data.note_id == note_id, not Metric.tagged]))
+    query = select(Metric).join(Metric.data_points).where(and_(Data.note_id == note_id,  Metric.tagged == False))
 
-    untagged_data = session.execute(query).all()
+    untagged_metrics = session.scalars(query).unique().all()
 
-    if not untagged_data:
+    if not untagged_metrics:
         print(f"No metrics to tag{note_id} are already tagged. Skipping.")
         return
 
     # todo could be duplicates? not sure
     return (
         f"\n{json.dumps([{
-            constants.id: d.metric_id,
-            constants.name: d.metric.name,
-            constants.units: d.units} for d in untagged_data
+            constants.id: d.id,
+            constants.name: d.display_name} for d in untagged_metrics
         ])}"
     )
 
 
 def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
-    merge_tags(session, data, lambda: select(Metric)
-               .join(Metric.data_points).where(and_(
+    note = session.get(Note, note_id)
+    add_tags(note.user_id, session, data, lambda: select(Metric)
+             .join(Metric.data_points).where(and_(
         Metric.id.in_([item[constants.id] for item in data]),
         Data.note_id == note_id,
         Metric.tagged == False
