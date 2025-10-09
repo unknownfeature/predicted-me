@@ -1,18 +1,14 @@
 import traceback
 
-import boto3
-
 from backend.lib import constants
 from backend.lib.db import setup_engine, Base
-
-secrets_client = boto3.client(constants.secretsmanager)
 
 
 def handler(event, _):
 
-    request_type = event[constants.RequestType]
+    request_type = event[constants.request_type]
 
-    if request_type == constants.Create:
+    if request_type == constants.create_request_type:
         print("Create event received. Initializing schema.")
         return on_create(event)
 
@@ -21,7 +17,6 @@ def handler(event, _):
 
 
 def on_create(event):
-
 
     try:
 
@@ -35,4 +30,4 @@ def on_create(event):
 
     except Exception as e:
         traceback.print_exc()
-        return {constants.Status: constants.FAILED, constants.Reason: str(e)}
+        return {constants.status: constants.error, constants.error: str(e)}

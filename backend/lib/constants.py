@@ -106,3 +106,6 @@ s3_uri = 's3Uri'
 
 utf_8 = 'utf-8'
 inference_result = 'inference_result'
+request_type = 'RequestType'
+create_request_type = 'Create'
+secretsmanager = 'secretsmanager'
