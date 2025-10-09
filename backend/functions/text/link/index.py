@@ -3,7 +3,7 @@ import os
 from typing import Any, Dict, List
 
 import boto3
-from sqlalchemy import insert, inspect, select, and_
+from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session
 
 from backend.lib import constants
@@ -56,7 +56,8 @@ prompt = (
     "**Text to Analyze**:\n"
 )
 
-
+# todo in some places I commit in CB and in some in the calling code
+# here we need to make sure changes are in DB before sending the message so we need to commit here
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
     note = session.query(Note).filter(Note.id == note_id).first()
     if not note:
@@ -74,8 +75,9 @@ def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict
                      description=l[constants.description]) for l in data if l[constants.url] not in existing]
     if new_ones:
         session.add_all(new_ones)
+        session.commit()
 
-    send_to_sns(note_id)
+        send_to_sns(note_id)
 
 
 def send_to_sns(note_id):

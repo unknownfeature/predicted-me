@@ -7,7 +7,8 @@ from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session
 
 from backend.lib import constants
-from backend.lib.db import Task, Note, normalize_identifier, Origin
+from backend.lib.constants import priority, occurrence
+from backend.lib.db import Task, Note, normalize_identifier, Origin, Occurrence
 from backend.lib.func.sqs import handler_factory
 from backend.lib.func.tagging import process_record_factory, Params
 from backend.lib.func.text import note_text_supplier
@@ -60,24 +61,23 @@ prompt = ("You are an expert at identifying actionable tasks from text. Analyze 
           "**Text to Analyze**:\n")
 
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
-    note = session.query(Note).filter(Note.id == note_id).first()
-    if not note:
-        print(f"Note {note_id} not found")
-        return
-    existing = [l.summary for l in session.scalars(
-        select(Task).where(and_(Task.url.in_([d[constants.url] for d in data]), Task.user_id == note.user_id))).unique()]
+    target_note = session.scalar(select(Note).where(Note.id == note_id))
+    tasks_map = get_or_create_tasks(session, {
+        normalize_identifier(item[constants.summary]): {constants.summary: item[constants.summary],
+                                                        constants.description: item[constants.description]} for item in
+        data}, target_note.user_id)
+    occurrence_to_add = [
+        Occurrence(priority=d.get(constants.priority),
+             task=tasks_map[normalize_identifier(d.get(constants.summary))],
+             note=target_note, origin=Origin(origin))
+     for d in data if constants.summary in d]
 
-    new_ones = [Task(origin=Origin(origin),
-                     url=l[constants.url],
-                     user=note.user,
-                     note=note,
-                     summary=normalize_identifier(l[constants.summary]),
-                     display_summary=l[constants.summary],
-                     description=l[constants.description]) for l in data if l[constants.url] not in existing]
-    if new_ones:
-        session.add_all(new_ones)
 
-    send_to_sns(note_id)
+    if  occurrence_to_add:
+        session.add_all(occurrence_to_add)
+        session.commit()
+        send_to_sns(target_note.id)
+
 
 
 def send_to_sns(note_id):

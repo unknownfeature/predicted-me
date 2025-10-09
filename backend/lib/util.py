@@ -43,32 +43,37 @@ def get_or_create_task(session: Session, display_summary: str, description: str,
         return new_one
     return existing
 
-def get_or_create_tasks(session: Session, summary_to_display_summary: Dict[str, str], user_id: int) -> Dict[str, Task]:
-    existing =  {m.summary: m for m in
-            session.scalars(select(Task).where(and_([Task.user_id == user_id, Task.summary.in_(summary_to_display_summary.keys())]))).all()}
-    non_existing = set(summary_to_display_summary.keys()).intersection(existing.keys())
-    if non_existing:
-        results = {}
-        for summary in non_existing:
-            new_metrics = Task(summary=summary, user_id=user_id, display_summary=summary_to_display_summary[summary])
-            session.add(new_metrics)
-            results[summary] = new_metrics
-        session.flush()
+
+def get_or_create_tasks(session: Session, names_to_display_names: Dict[str, Dict[str, str]], user_id: int) -> Dict[str, Task]:
+    existing = {m.summary: m for m in
+                session.scalars(select(Task).where(
+                    and_(Task.user_id == user_id, Task.summary.in_(names_to_display_names.keys())))).unique()}
+    non_existing = set(names_to_display_names.keys()).difference(existing.keys())
+
+    results = {
+        name: Task(summary=name, user_id=user_id, display_summary=names_to_display_names[name][constants.summary],
+                   description=names_to_display_names[name][constants.description]) for name in
+               non_existing}
+
+    if results:
+        session.add_all(results.values())
         return results | existing
+
     return existing
 
-def get_or_create_metrics(session: Session, names_to_display_names: Dict[str, str], user_id: int) -> Dict[str, Metric]:
+def get_or_create_metrics(session: Session, summary_to_display_summary: Dict[str, str], user_id: int) -> Dict[str, Metric]:
     existing =  {m.name: m for m in
-            session.scalars(select(Metric).where(and_([Metric.user_id == user_id, Metric.name.in_(names_to_display_names.keys())]))).all()}
-    non_existing = set(names_to_display_names.keys()).intersection(existing.keys())
-    if non_existing:
-        results = {}
-        for name in non_existing:
-            new_metrics = Metric(name=name, user_id=user_id, display_name=names_to_display_names[name])
-            session.add(new_metrics)
-            results[name] = new_metrics
-        session.flush()
+                 session.scalars(select(Metric).where(and_(Metric.user_id == user_id, Metric.name.in_(summary_to_display_summary.keys())))).unique()}
+    non_existing = set(summary_to_display_summary.keys()).difference(existing.keys())
+
+
+    results = {name: Metric(name=name, user_id=user_id, display_name=summary_to_display_summary[name]) for name in
+               non_existing}
+
+    if results:
+        session.add_all(results.values())
         return results | existing
+
     return existing
 
 def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[int, str]:

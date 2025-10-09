@@ -42,6 +42,9 @@ def process_record_factory(params: Params, on_extracted_cb: Callable[
         if not extracted_metrics:
             print(f"No numeric metrics extracted by Bedrock for Note ID {note_id}.")
             return
+
         on_extracted_cb(session, note_id, origin, extracted_metrics)
+
+        session.commit()
 
     return process_record

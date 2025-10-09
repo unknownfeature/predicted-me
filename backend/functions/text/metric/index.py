@@ -60,23 +60,25 @@ prompt = ("You are an expert metric extraction bot. Analyze the text below and e
 
 
 def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
-    # todo review this, look suspicious
-    note_query = select(Note).where(Note.id == note_id)
-    target_note = session.scalar(note_query)
+    target_note = session.scalar(select(Note).where(Note.id == note_id))
     metrics_map = get_or_create_metrics(session, {normalize_identifier(item[constants.name]) : item[constants.name] for item in data}, target_note.user_id)
-    metrics_to_add = [
+    data_to_add = [
         Data(value=d.get(constants.value), units=d.get(constants.units),
              metric=metrics_map[normalize_identifier(d.get(constants.name))],
              note=target_note, origin=Origin(origin))
-     for d in data if constants.name in data]
+     for d in data if constants.name in d]
 
-    session.add_all(metrics_to_add)
-    session.commit()
+    if  data_to_add:
+        session.add_all(data_to_add)
+        session.commit()
 
+        send_to_sns(target_note.id)
+
+def send_to_sns(note_id):
     sns_client.publish(
         TopicArn=tagging_topic_arn,
         Note=json.dumps({
-            constants.note_id: target_note.id,
+            constants.note_id: note_id,
         }),
         Subject='Extracted metrics ready for tagging'
     )
