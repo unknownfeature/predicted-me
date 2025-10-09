@@ -22,9 +22,9 @@ content_type_resolver = {
 }
 
 s3_method_resolver = {
-    constants.put: 'put_object',
-    constants.get: 'get_object',
-    constants.delete: 'delete_object',
+    constants.put.lower(): 'put_object',
+    constants.get.lower(): 'get_object',
+    constants.delete.lower(): 'delete_object',
 }
 
 
@@ -37,13 +37,18 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
                 constants.body: json.dumps('Method Not Allowed')
             }
 
-        query_params = event.get(constants.query_params) or {}
+        query_params = event.get(constants.query_params)
+
         extension = query_params.get(constants.extension)
-        content_type = content_type_resolver.get(extension)
-        method = query_params.get(constants.method).lower() #may it fail if it's not there, that's what it should do
-        s3_method = s3_method_resolver[method]
+
+        content_type = content_type_resolver[extension]
+
+        method = query_params[constants.method] #may it fail if it's not there, that's what it should do
+
+        s3_method = s3_method_resolver[method.lower()]
+
         bucket = images_bucket if extension != constants.mp4 else audio_bucket
-        key = f'{ uuid.uuid4().hex}.{extension}'
+        key = f'{generate_key()}.{extension}'
 
         presigned_url = generate_presigned_url(bucket, content_type, key, s3_method)
 
@@ -62,6 +67,10 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         }
 
 
+def generate_key():
+    return uuid.uuid4().hex
+
+
 def generate_presigned_url(bucket: str, content_type: str, key: str, s3_method: str) -> str:
     presigned_url = s3_client.generate_presigned_url(
         s3_method,
@@ -70,6 +79,6 @@ def generate_presigned_url(bucket: str, content_type: str, key: str, s3_method: 
             constants.key: key,
             constants.content_type: content_type,
         },
-        ExpiresIn=300
+        ExpiresIn=300 # move this to env variables todo
     )
     return presigned_url
