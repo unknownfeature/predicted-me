@@ -14,7 +14,7 @@ from backend.lib.db import User, Origin, Tag, Metric, normalize_identifier, Task
 text_getters = {
     Origin.text.value: lambda x: x.text,
     Origin.audio_text.value: lambda x: x.audio_text,
-    Origin.img_text.value: lambda x: x.img_text,
+    Origin.img_text.value: lambda x: x.image_text,
     Origin.img_desc.value: lambda x: x.image_description,
 
 }

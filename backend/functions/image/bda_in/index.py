@@ -1,12 +1,13 @@
 import os
 import json
+import traceback
 
 import boto3
-
+from backend.lib import constants
 from shared.variables import Common, Env
 
 bda_client = boto3.client(
-    service_name='bedrock-data-automation',
+    service_name=constants.bda,
     region_name=os.getenv(Env.aws_region, Common.default_region)
 )
 
@@ -16,32 +17,35 @@ blueprint_name = os.getenv(Env.bda_blueprint_name)
 bda_model_name = os.getenv(Env.bda_model_name)
 
 
-def handler(event, context):
+def handler(event, _):
     try:
-        record = event[constants.Records][0]
+        record = event[constants.records][0]
         input_bucket = record[constants.s3][constants.bucket][constants.name]
         input_key = record[constants.s3][constants.object][constants.key]
 
-        input_s3_uri = f"s3://{input_bucket}/{input_key}"
-        output_s3_uri = f"s3://{output_bucket}/{input_key}/"
+        input_s3_uri = f's3://{input_bucket}/{input_key}'
+        output_s3_uri = f's3://{output_bucket}/{input_key}/'
 
-        response = bda_client.start_data_automation_job(
-            jobName=f"image-analysis-{context.aws_request_id}",
-            executionRoleArn=job_execution_role,
-            inputDataConfig={
-                constants.s3Uri: input_s3_uri
-            },
-            outputDataConfig={
-                constants.s3Uri: output_s3_uri
-            },
-            blueprintName=blueprint_name,
-            modelIdentifier=bda_model_name
-        )
+        start_bda_job(input_key, input_s3_uri, output_s3_uri)
 
-        print(f"BDA Job started successfully. Job ID: {response[constants.jobId]}")
 
-        return {constants.statusCode: 200, constants.body: json.dumps({constants.jobId: response[constants.jobId]})}
+        return {constants.status: constants.success}
 
     except Exception as e:
-        print(f"Error during BDA job orchestration: {e}")
-        return {constants.statusCode: 500, constants.body: f'Error starting BDA job: {e}'}
+        traceback.print_exc()
+        return  {constants.status: constants.error, constants.error: str(e)}
+
+
+def start_bda_job(input_key: str, input_s3_uri: str, output_s3_uri: str):
+    bda_client.start_data_automation_job(
+        jobName=input_key,
+        executionRoleArn=job_execution_role,
+        inputDataConfig={
+            constants.s3_uri: input_s3_uri
+        },
+        outputDataConfig={
+            constants.s3_uri: output_s3_uri
+        },
+        blueprintName=blueprint_name,
+        modelIdentifier=bda_model_name
+    )

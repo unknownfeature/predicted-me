@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 import boto3
 
+from backend.lib import constants
 from shared.variables import Env, Common
 
 s3_client = boto3.client(constants.s3)
@@ -21,22 +22,22 @@ content_type_resolver = {
 }
 
 s3_method_resolver = {
-    constants.put: constants.put_object,
-    constants.get: constants.get_object,
-    constants.delete: constants.delete_object,
+    constants.put: 'put_object',
+    constants.get: 'get_object',
+    constants.delete: 'delete_object',
 }
 
 
 def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     try:
-        if event[constants.httpMethod] != constants.GET:
+        if event[constants.http_method] != constants.get:
             return {
-                constants.statusCode: 405,
+                constants.status_code: 405,
                 constants.headers: Common.cors_headers,
                 constants.body: json.dumps('Method Not Allowed')
             }
 
-        query_params = event.get(constants.queryStringParameters) or {}
+        query_params = event.get(constants.query_params) or {}
         extension = query_params.get(constants.extension)
         content_type = content_type_resolver.get(extension)
         method = query_params.get(constants.method).lower() #may it fail if it's not there, that's what it should do
@@ -44,18 +45,10 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         bucket = images_bucket if extension != constants.mp4 else audio_bucket
         key = f'{ uuid.uuid4().hex}.{extension}'
 
-        presigned_url = s3_client.generate_presigned_url(
-            s3_method,
-            Params={
-                constants.Bucket: bucket,
-                constants.Key: key,
-                constants.ContentType: content_type,
-            },
-            ExpiresIn=300
-        )
+        presigned_url = generate_presigned_url(bucket, content_type, key, s3_method)
 
         return {
-            constants.statusCode: 200,
+            constants.status_code: 200,
             constants.headers: Common.cors_headers,
             constants.body: json.dumps({constants.url: presigned_url, constants.key: key})
         }
@@ -63,7 +56,20 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     except Exception as e:
         traceback.print_exc()
         return {
-            constants.statusCode: 500,
+            constants.status_code: 500,
             constants.headers: Common.cors_headers,
             constants.body: json.dumps(f'Error generating presigned URL. {str(e)}')
         }
+
+
+def generate_presigned_url(bucket: str, content_type: str, key: str, s3_method: str) -> str:
+    presigned_url = s3_client.generate_presigned_url(
+        s3_method,
+        Params={
+            constants.bucket: bucket,
+            constants.key: key,
+            constants.content_type: content_type,
+        },
+        ExpiresIn=300
+    )
+    return presigned_url

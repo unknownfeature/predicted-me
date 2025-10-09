@@ -1,15 +1,14 @@
 import json
-import logging
 import os
+import traceback
 from typing import Dict, Any
 from urllib.parse import unquote_plus
 
 import boto3
+from sqlalchemy.orm import Session
 
+from backend.lib import constants
 from shared.variables import Env
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
 s3_client = boto3.client(constants.s3)
 sns_client = boto3.client(constants.sns)
@@ -20,9 +19,9 @@ from sqlalchemy import select
 output_bucket_name = os.getenv(Env.transcribe_bucket_out)
 text_topic_arn = os.getenv(Env.text_processing_topic_arn)
 
-def get_note_id_from_transcribe_job(job_name: str, session: Any) -> int | None:
-        note_query = select(Note).where(Note.image_key == job_name)
-        target_note = session.execute(note_query).first()
+def get_note_id_from_transcribe_job(job_name: str, session: Session) -> int | None:
+        note_query = select(Note).where(Note.audio_key == job_name)
+        target_note = session.scalar(note_query)
         return target_note.id
 
 
@@ -30,13 +29,12 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     session = begin_session()
 
     try:
-        record = event[constants.Records][0]
+        record = event[constants.records][0]
         output_key = unquote_plus(record[constants.s3][constants.object][constants.key])
 
-        s3_response = s3_client.get_object(Bucket=output_bucket_name, Key=output_key)
-        transcript_json = json.loads(s3_response[constants.Body].read())
+        transcript_json = read_job_result_json(output_key)
 
-        job_name = transcript_json[constants.jobName]
+        job_name = transcript_json[constants.job_name]
         transcript_text = transcript_json[constants.results][constants.transcripts][0][constants.transcript]
 
         note_id = get_note_id_from_transcribe_job(job_name, session)
@@ -53,27 +51,32 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
         session.add(target_note)
 
         session.commit()
-        logger.info(f"Successfully transcribed and updated Note ID {note_id}.")
 
-        sns_payload = {
-            constants.note_id: note_id,
-            constants.origin: Origin.audio_text.value,
-        }
+        send_to_sns(note_id)
 
-        sns_client.publish(
-            TopicArn=text_topic_arn,
-            Note=json.dumps(sns_payload),
-            Subject=f"Audio Transcript Ready for Metrics Extraction: {note_id}"
-        )
 
-        logger.info(f"Published SNS notification for metrics extraction.")
-
-        return {constants.statusCode: 200, constants.note_id: note_id}
+        return {constants.status: constants.success, constants.note_id: note_id}
 
     except Exception as e:
         session.rollback()
-        logger.error(f"FATAL ERROR processing transcript: {e}")
-        raise
+        traceback.print_exc()
+        return {constants.status: constants.error, constants.error: str(e)}
 
     finally:
         session.close()
+
+
+def read_job_result_json(key: str) -> Dict[str, Any]:
+    return json.loads(s3_client.get_object(Bucket=output_bucket_name, Key=key)[constants.s3_body].read())
+
+
+def send_to_sns(note_id: int):
+    sns_payload = {
+        constants.note_id: note_id,
+        constants.origin: Origin.audio_text.value,
+    }
+    sns_client.publish(
+        TopicArn=text_topic_arn,
+        Note=json.dumps(sns_payload),
+        Subject=f"Audio Transcript Ready for Metrics Extraction: {note_id}"
+    )

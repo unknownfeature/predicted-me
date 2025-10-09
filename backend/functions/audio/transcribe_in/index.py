@@ -1,14 +1,12 @@
-import logging
 import os
+import traceback
 from typing import Dict, Any
 from urllib.parse import unquote_plus
 
 import boto3
 
+from backend.lib import constants
 from shared.variables import Env
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
 s3_client = boto3.client(constants.s3)
 transcribe_client = boto3.client(constants.transcribe)
@@ -17,27 +15,28 @@ input_bucket_name = os.environ.get(Env.transcribe_bucket_in)
 output_bucket_name = os.environ.get(Env.transcribe_bucket_out)
 
 
-
 def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
-
     try:
-        record = event[constants.Records][0]
-        input_key = unquote_plus(record[constants.s3][constants.object][constants.key])
+        record = event[constants.records][0]
+        input_key = unquote_plus(record[constants.s3][constants.object][constants.key], encoding=constants.utf_8)
 
-
-        file_uri = f"s3://{input_bucket_name}/{input_key}"
+        file_uri = f's3://{input_bucket_name}/{input_key}'
         media_format = input_key.split('.')[-1].upper()
 
-        transcribe_client.start_transcription_job(
-            TranscriptionJobName=input_key,
-            LanguageCode='en-US', # todo add ability to select language (in distant future)
-            Media={constants.MediaFileUri: file_uri, constants.MediaFormat: media_format},
-            OutputBucketName=output_bucket_name,
-            OutputKey= f'{input_key}.json'
-        )
+        start_transcription_job(file_uri, input_key, media_format)
 
-        return {constants.statusCode: 200, constants.job_name: input_key, constants.file_key: input_key}
+        return {constants.status: constants.success}
 
     except Exception as e:
-        logger.error(f"Error starting Transcribe job for {input_key}: {e}")
-        raise
+        traceback.print_exc()
+        return {constants.status: constants.error, constants.error: str(e)}
+
+
+def start_transcription_job(file_uri: str, input_key: str, media_format: str):
+    transcribe_client.start_transcription_job(
+        TranscriptionJobName=input_key,
+        LanguageCode='en-US',  # todo add ability to select language (in distant future)
+        Media={constants.media_file_uri: file_uri, constants.media_format: media_format},
+        OutputBucketName=output_bucket_name,
+        OutputKey=input_key
+    )

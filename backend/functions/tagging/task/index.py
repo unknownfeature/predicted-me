@@ -86,6 +86,7 @@ def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str,
             Task.note_id == note_id
         )
     ).options(selectinload(Task.tags)))
+    session.commit()
 
 
 handler = handler_factory(
