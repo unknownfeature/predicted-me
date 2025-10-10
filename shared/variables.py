@@ -124,7 +124,9 @@ class Env:
     opensearch_endpoint = 'OPENSEARCH_ENDPOINT'
     opensearch_port = 'OPENSEARCH_PORT'
     opensearch_index = 'OPENSEARCH_INDEX'
+    opensearch_index_refresh_interval = 'OPENSEARCH_INDEX_REFRESH_INTERVAL'
     embedding_model = 'EMBEDDING_MODEL_ID'
+    embedding_vector_dimension = 'EMBEDDING_VECTOR_DIMENSION'
 
 
 # --- Common Project Variables ---
@@ -256,8 +258,8 @@ class Text:
     domain_data_node_instance_type='t3.small.search'
     domain_ebs_volume_size = 10
     opensearch_index = 'pm_note_text_embedding_opensearch_index'
-    
-
+    opensearch_index_refresh_interval = '30s'
+    embedding_vector_dimension = 1536
 
     metrics_extraction = QueueFunction(
         name='pm_metrics_extraction_func',
@@ -298,6 +300,16 @@ class Text:
         integration=QueueIntegration(queue_name='pm_embedding_queue',
                                      visibility_timeout=Duration.minutes(5))
     )
+    embedding_index_creator_function = CustomResourceTriggeredFunction(
+        name='pm_text_embedding_index_creator_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'opensearch/index'),
+        role_name='embedding_index_creator_function_role',
+        trigger=CustomResourceTrigger(resource_name='embedding_index_creator_function_resource',
+                                      provider_name='embedding_index_creator_function_provider')
+    )
+
 
 
 class Tagging:

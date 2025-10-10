@@ -4,8 +4,7 @@ from decimal import Decimal
 from typing import Tuple
 
 from backend.functions.occurance.index import handler
-from backend.lib.db import Occurrence, Origin, \
-    OccurrenceSchedule
+from backend.lib.db import Origin
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 
@@ -348,12 +347,13 @@ class Test(unittest.TestCase):
             self._setup_occurrences_for_search(session)
             self.event[constants.http_method] = constants.get
 
-            self.event[constants.path_params][constants.id] = 1
+            self.event[constants.path_params][constants.id] = 4
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
             assert len(items) == 1
-            assert items[0][constants.id] == 1
+            assert items[0][constants.id] == 4
+            assert items[0][constants.task][constants.schedule][constants.period_seconds] == 300
 
             self.event[constants.query_params] = {}
             self.event[constants.path_params] = {}
@@ -836,7 +836,7 @@ class Test(unittest.TestCase):
 
         task_one = Task(summary=task_one_summary, display_summary=task_one_display_summary,
                         description=task_one_description, user=user,
-                        tags=[tag_one, tag_two])
+                        tags=[tag_one, tag_two], schedule=OccurrenceSchedule(priority=schedule_priority, period_seconds=300,  next_run=get_utc_timestamp()))
         task_two = Task(summary=task_two_summary, display_summary=task_two_display_summary, user=user,
                         description=task_two_description,
                         tags=[tag_two, tag_three], tagged=True,

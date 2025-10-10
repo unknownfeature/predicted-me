@@ -9,7 +9,7 @@ from backend.lib.func.http import handler_factory, patch_factory, delete_factory
 from backend.lib.util import HttpMethod, enrich_schedule_map_with_next_timestamp
 
 updatable_fields = {constants.minute, constants.hour, constants.day_of_month, constants.month, constants.day_of_week,
-                    constants.priority}
+                    constants.priority, constants.period_seconds}
 
 patch_handler = lambda session, update_fields, user_id, path_params: session.execute(
     update(OccurrenceSchedule).where(OccurrenceSchedule.task_id == Task.id).where(

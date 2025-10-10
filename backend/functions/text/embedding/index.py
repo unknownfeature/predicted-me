@@ -41,8 +41,7 @@ def on_response_from_model(_: Session, note_id: int, origin: str, data: List[flo
     opensearch_client.index(
         index=opensearch_index,
         body=document,
-        id=f'{note_id}_{origin}',
-        refresh=True
+        id=f'{note_id}_{origin}'
     )
 
 

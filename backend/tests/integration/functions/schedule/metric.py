@@ -43,6 +43,48 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
+    def test_data_schedule_post_succeeds_and_generates_correct_next_run_for_period(self):
+        self._setup_metric()
+        session = begin_session()
+
+        try:
+
+            self.event[constants.body] = {
+                constants.minute: all,
+                constants.hour: first,
+                constants.day_of_month: second,
+                constants.month: all,
+                constants.day_of_week: first,
+                constants.target_value: 4,
+                constants.units: 'ml',
+                constants.period_seconds: 30,
+            }
+            self.event[constants.http_method] = constants.post
+            self.event[constants.path_params][constants.id] = 1
+            curr_ts = get_utc_timestamp()
+            result = handler(self.event, None)
+
+            assert result[constants.status_code] == 201
+            id = json.loads(result[constants.body])[constants.id]
+            session = refresh_cache(session)
+
+            schedule = get_data_schedule_by_id(id, session)
+
+            assert schedule.metric_id == 1
+            assert schedule.target_value == 4
+            assert schedule.units == 'ml'
+            assert schedule.minute == all
+            assert schedule.hour == first
+            assert schedule.day_of_week == first
+            assert schedule.day_of_month == second
+            assert schedule.month == all
+            assert schedule.next_run >= curr_ts + 30
+            assert schedule.period_seconds == 30
+
+
+        finally:
+            session.close()
+
     def test_data_schedule_post_fails_for_duplicate_and_succeeds_for_a_new_one(self):
         self._setup_metric()
         session = begin_session()
@@ -165,6 +207,7 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == old_day_of_week
             assert schedule.day_of_month == old_day_of_month
             assert schedule.month == old_month
+            assert schedule.period_seconds is None
             old_next_run = schedule.next_run
             assert schedule.next_run > 0
 
@@ -175,7 +218,8 @@ class Test(unittest.TestCase):
                 constants.month: all,
                 constants.day_of_week: first,
                 constants.target_value: 4,
-                constants.units: 'ml'
+                constants.units: 'ml',
+                constants.period_seconds: 30
             }
             self.event[constants.path_params][constants.id] = 1
             self.event[constants.path_params][constants.metric_id] = 1
@@ -198,6 +242,8 @@ class Test(unittest.TestCase):
             assert schedule.day_of_month == second
             assert schedule.month == all
             assert schedule.next_run != old_next_run
+            assert schedule.period_seconds == 30
+
 
         finally:
             session.close()

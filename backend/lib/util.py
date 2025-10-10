@@ -150,14 +150,16 @@ def cron_expression_from_schedule(schedule: Any) -> str:
 
 def enrich_schedule_map_with_next_timestamp(data_from_the_client: Dict[str, str]) -> Dict[str, str]:
     #  if no keys it will fail and that's what it should do
-    next_run = get_next_run_timestamp(cron_expression_from_dict(data_from_the_client))
+    next_run = get_next_run_timestamp(cron_expression_from_dict(data_from_the_client), period_seconds=data_from_the_client.get(constants.period_seconds))
     data_from_the_client[constants.next_run] = next_run
     return data_from_the_client
 
 
-def get_next_run_timestamp(cron_expression: str, base_time: int) -> int:
+def get_next_run_timestamp(cron_expression: str, base_time: int = None, period_seconds: int =None) -> int:
     if not base_time:
         base_time = get_utc_timestamp()
+    if period_seconds is not None:
+        return base_time + period_seconds
 
     iterator = croniter(cron_expression, datetime.datetime.fromtimestamp(base_time, datetime.timezone.utc))
     next_run_datetime = iterator.get_next(datetime.datetime)

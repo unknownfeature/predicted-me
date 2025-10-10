@@ -98,6 +98,7 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
                 constants.day_of_week: occurrence.task.schedule.day_of_week,
                 constants.priority: occurrence.task.schedule.priority,
                 constants.next_run: occurrence.task.schedule.next_run,
+                constants.period_seconds: occurrence.task.schedule.period_seconds,
             }
         }} for occurrence in occurrences], 200
 

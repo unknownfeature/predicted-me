@@ -46,3 +46,11 @@ class Test(unittest.TestCase):
 
         expected_run = int(datetime(2025, 10, 2, 9, 30, 0, tzinfo=timezone.utc).timestamp())
         assert next_run == expected_run
+
+        cron_expression = '30 9 1-7 * 1'
+        base_time = int(datetime(2025, 10, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp())
+
+        next_run = get_next_run_timestamp(cron_expression, base_time, period_seconds=300)
+
+        expected_run = int(datetime(2025, 10, 1, 12, 5, 0, tzinfo=timezone.utc).timestamp())
+        assert next_run == expected_run

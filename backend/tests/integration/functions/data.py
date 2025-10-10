@@ -362,12 +362,13 @@ class Test(unittest.TestCase):
             self._setup_data_for_search(session)
             self.event[constants.http_method] = constants.get
 
-            self.event[constants.path_params][constants.id] = 1
+            self.event[constants.path_params][constants.id] = 4
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
             assert len(items) == 1
-            assert items[0][constants.id] == 1
+            assert items[0][constants.id] == 4
+            assert items[0][constants.metric][constants.schedule][constants.period_seconds] == 300
 
             self.event[constants.query_params] = {}
             self.event[constants.path_params] = {}
@@ -731,7 +732,8 @@ class Test(unittest.TestCase):
 
         metric_one = Metric(name=metric_one_name, display_name=metric_one_display_name, user=user,
                             tagged=True,
-                            tags=[tag_one, tag_two])
+                            tags=[tag_one, tag_two],  schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
+                                                  period_seconds=300,  next_run=get_utc_timestamp()))
         metric_two = Metric(name=metric_two_name, display_name=metric_two_display_name, user=user,
                             tags=[tag_two, tag_three],
                             tagged=True,

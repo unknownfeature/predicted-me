@@ -252,16 +252,22 @@ class DataSchedule(Base):
     __tablename__ = 'data_schedule'
     __table_args__ = (
         UniqueConstraint('metric_id', name='uq_metric_schedule'),
+        CheckConstraint(
+            '(minute is not null and hour is not null and day_of_month is not null and month is not null and day_of_week is not null) or (period_seconds is not null)',
+            name='data_cron_or_period_required_check'
+        ),
     )
+
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     metric_id: Mapped[int] = mapped_column(ForeignKey('metric.id'), unique=True)
 
-    minute: Mapped[str] = mapped_column(String(100), nullable=False)
-    hour: Mapped[str] = mapped_column(String(100), nullable=False)
-    day_of_month: Mapped[str] = mapped_column(String(100), nullable=False)
-    month: Mapped[str] = mapped_column(String(100), nullable=False)
-    day_of_week: Mapped[str] = mapped_column(String(100), nullable=False)
+    minute: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    hour: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    day_of_month: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    month: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    day_of_week: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    period_seconds: Mapped[int] = mapped_column(BigInteger, nullable=True)
 
     target_value: Mapped[float | None] = mapped_column(Numeric, nullable=False)
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -372,20 +378,26 @@ class OccurrenceSchedule(Base):
     task_id: Mapped[int] = mapped_column(ForeignKey('task.id'), unique=True)
     task: Mapped['Task'] = relationship(back_populates='schedule')
 
-    minute: Mapped[str] = mapped_column(String(100), nullable=False)
-    hour: Mapped[str] = mapped_column(String(100), nullable=False)
-    day_of_month: Mapped[str] = mapped_column(String(100), nullable=False)
-    month: Mapped[str] = mapped_column(String(100), nullable=False)
-    day_of_week: Mapped[str] = mapped_column(String(100), nullable=False)
+    minute: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    hour: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    day_of_month: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    month: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
+    day_of_week: Mapped[str] = mapped_column(String(100), nullable=True, default='*')
     next_run: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    period_seconds: Mapped[int] = mapped_column(BigInteger, nullable=True)
 
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     __table_args__ = (
         UniqueConstraint('task_id', name='uq_task_schedule'),
-        CheckConstraint(priority >= 1, name='schedule_priority_not_zero'),
-        CheckConstraint(priority <= 10, name='schedule_priority_less_than_ten')
+        CheckConstraint(priority >= 1, name='occurrence_schedule_priority_not_zero'),
+        CheckConstraint(priority <= 10, name='occurrence_schedule_priority_less_than_ten'),
+        CheckConstraint(
+            '(minute is not null and hour is not null and day_of_month is not null and month is not null and day_of_week is not null) or (period_seconds is not null)',
+            name='occurrence_cron_or_period_required_check'
+        ),
     )
+
 
     def __repr__(self) -> str:
         return (f'TaskSchedule(task_id={self.task_id!r}, priority={self.priority!r} )')

@@ -8,11 +8,11 @@ aws_iam as iam,
     aws_lambda as lmbd)
 from constructs import Construct
 
-from shared.variables import Env, Common, Text, QueueFunction
+from shared.variables import Env, Common, Text, QueueFunction, CustomResourceTriggeredFunction
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, sqs_integration_cb_factory, \
-    create_function_role_factory
+    create_function_role_factory, custom_resource_trigger_cb_factory
 from .tagging_stack import PmTaggingStack
 from .util import create_function, create_queue
 from .vpc_stack import PmVpcStack
@@ -69,19 +69,20 @@ class PmTextStack(Stack):
                                    encryption_at_rest=opensearch.EncryptionAtRestOptions(enabled=True),
                                    enforce_https=True)
 
-        self.embedding_function = self._create_embedding_function( self.embedding_domain, self.embedding_queue, vpc_stack, Text.embedding)
+        self.embedding_function = self._create_embedding_function(self.embedding_queue, vpc_stack, Text.embedding)
+        self.embedding_index_creation_function = self._create_initializer_function(vpc_stack, Text.embedding_index_creator_function)
 
 
-    def _create_embedding_function(self,  domain: opensearch.Domain,  queue: sqs.Queue, vpc_stack: PmVpcStack,
+    def _create_embedding_function(self, queue: sqs.Queue, vpc_stack: PmVpcStack,
                                            function_params: QueueFunction) -> lmbd.Function:
             def on_role(role: iam.Role):
                 role.add_to_policy(
                     bedrock_invoke_policy_statement)
-                domain.grant_write(role)
+                self.embedding_domain.grant_write(role)
+
             params = FunctionFactoryParams(function_params=function_params,
-                                           build_args={Common.func_dir_arg: function_params.code_path,
-                                                       Common.install_mysql_arg: true}, environment={
-                    Env.opensearch_endpoint: domain.domain_endpoint,
+                                           build_args={Common.func_dir_arg: function_params.code_path}, environment={
+                    Env.opensearch_endpoint: self.embedding_domain.domain_endpoint,
                     Env.opensearch_port: Common.opensearch_port,
                     Env.opensearch_index: Text.opensearch_index,
                     Env.embedding_model: Text.embedding_model,
@@ -108,6 +109,26 @@ class PmTextStack(Stack):
                                            vpc=vpc_stack.vpc)
 
             return create_function(self, params)
+
+    def _create_initializer_function(self, vpc_stack: PmVpcStack,
+                                     function_params: CustomResourceTriggeredFunction) -> lmbd.Function:
+        env = {
+            Env.opensearch_endpoint: self.embedding_domain.domain_endpoint,
+            Env.opensearch_port: Common.opensearch_port,
+            Env.opensearch_index: Text.opensearch_index,
+            Env.opensearch_index_refresh_interval: Text.opensearch_index_refresh_interval,
+            Env.embedding_vector_dimension: str(Text.embedding_vector_dimension)
+        }
+        return create_function(self, FunctionFactoryParams(
+            function_params=function_params,
+            build_args={
+                Common.func_dir_arg: function_params.code_path,
+            },
+            environment=env,
+            role_supplier=create_function_role_factory(lambda role:  self.embedding_domain.grant_write(role)),
+            and_then=custom_resource_trigger_cb_factory(self, env, function_params ),
+            vpc=vpc_stack.vpc,
+        ))
 
 
 

@@ -15,7 +15,7 @@ def handler(_, __):
         due_schedules = session.scalars(due_schedules_stmt).all()
 
         for schedule in due_schedules:
-            next_run = get_next_run_timestamp(cron_expression_from_schedule(schedule))
+            next_run = get_next_run_timestamp(cron_expression_from_schedule(schedule), period_seconds=schedule.period_seconds)
 
             update_stmt = (
                 update(DataSchedule)
