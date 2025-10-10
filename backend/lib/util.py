@@ -1,15 +1,16 @@
+import datetime
 import json
 import traceback
 import uuid
 from enum import Enum
 from typing import Dict, Any, List, Set, Callable, Tuple
-
+from croniter import croniter
 import boto3
 from sqlalchemy import select, and_, Executable
 from sqlalchemy.orm import Session
 
 from backend.lib import constants
-from backend.lib.db import User, Origin, Tag, Metric, normalize_identifier, Task
+from backend.lib.db import User, Origin, Tag, Metric, normalize_identifier, Task, get_utc_timestamp
 
 text_getters = {
     Origin.text.value: lambda x: x.text,
@@ -114,6 +115,25 @@ def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) 
         traceback.print_exc()
         raise e
 
+def cron_expression_from_dict(data: Dict[str, str]) -> str:
+   return f'{data[constants.minute]} {data[constants.hour]} {data[constants.day_of_month]} {data[constants.month]} {data[constants.day_of_week]}'
+
+def cron_expression_from_schedule(schedule: Any) -> str:
+   return f'{schedule.minute} {schedule.hour} {schedule.day_of_month} {schedule.month} {schedule.day_of_week}'
+
+def enrich_schedule_map_with_next_timestamp(data_from_the_client: Dict[str, str]) -> Dict[str, str]:
+    #  if no keys it will fail and that's what it should do
+    next_run = get_next_run_timestamp(cron_expression_from_dict(data_from_the_client))
+    data_from_the_client[constants.next_run] = next_run
+    return data_from_the_client
+
+def get_next_run_timestamp(cron_expression: str, base_time: int) -> int:
+    if not base_time:
+        base_time = get_utc_timestamp()
+
+    iterator = croniter(cron_expression, datetime.datetime.fromtimestamp(base_time, datetime.timezone.utc))
+    next_run_datetime = iterator.get_next(datetime.datetime)
+    return int(next_run_datetime.timestamp())
 
 def get_or_create_tags(user_id: int, session: Session, tag_display_names: Set[str]) -> Dict[str, Tag]:
     if not tag_display_names:

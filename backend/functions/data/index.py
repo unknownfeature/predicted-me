@@ -94,6 +94,7 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
                 constants.day_of_week: dp.metric.schedule.day_of_week,
                 constants.target_value: float(dp.metric.schedule.target_value),
                 constants.units: dp.metric.schedule.units,
+                constants.next_run: dp.metric.schedule.next_run,
             }
         }} for dp in data_points], 200
 

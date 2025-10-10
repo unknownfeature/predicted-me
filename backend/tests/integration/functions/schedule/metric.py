@@ -3,7 +3,7 @@ import unittest
 
 from backend.functions.schedule.metric.index import handler
 from backend.lib import constants
-from backend.lib.db import Metric, normalize_identifier, begin_session, User, DataSchedule
+from backend.lib.db import Metric, normalize_identifier, begin_session, User, DataSchedule, get_utc_timestamp
 from backend.tests.integration.base import baseTearDown, baseSetUp, Trigger, legit_user_id, refresh_cache, \
     prepare_http_event, get_user_by_id, malicious_user_id, get_data_schedule_by_id
 from backend.tests.integration.functions.data import metric_one_display_name, metric_two_display_name
@@ -51,7 +51,7 @@ class Test(unittest.TestCase):
 
             session.add(DataSchedule(target_value=3, units='ml',
                                      minute='1', hour='2', day_of_month='3',
-                                     month='4', day_of_week='5', metric_id=1))
+                                     month='4', day_of_week='5', metric_id=1, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -96,6 +96,7 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == first
             assert schedule.day_of_month == second
             assert schedule.month == all
+            assert schedule.next_run > 0
 
 
         finally:
@@ -109,7 +110,7 @@ class Test(unittest.TestCase):
 
             session.add(DataSchedule(target_value=3, units='ml',
                                      minute='1', hour='2', day_of_month='3',
-                                     month='4', day_of_week='5', metric_id=1))
+                                     month='4', day_of_week='5', metric_id=1,  next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
@@ -149,7 +150,7 @@ class Test(unittest.TestCase):
 
             session.add(DataSchedule(target_value=old_target_value,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id))
+                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id,  next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -164,6 +165,8 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == old_day_of_week
             assert schedule.day_of_month == old_day_of_month
             assert schedule.month == old_month
+            old_next_run = schedule.next_run
+            assert schedule.next_run > 0
 
             self.event[constants.body] = {
                 constants.minute: all,
@@ -194,6 +197,7 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == first
             assert schedule.day_of_month == second
             assert schedule.month == all
+            assert schedule.next_run != old_next_run
 
         finally:
             session.close()
@@ -214,7 +218,7 @@ class Test(unittest.TestCase):
 
             session.add(DataSchedule(target_value=old_target_value,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id))
+                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -283,7 +287,7 @@ class Test(unittest.TestCase):
 
             session.add(DataSchedule(target_value=old_target_value,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id))
+                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -325,7 +329,7 @@ class Test(unittest.TestCase):
 
             session.add(DataSchedule(target_value=old_target_value,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id))
+                                     month=old_month, day_of_week=old_day_of_week, metric_id=old_metric_id, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 

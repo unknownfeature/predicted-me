@@ -572,6 +572,7 @@ class Test(unittest.TestCase):
             assert items[0][constants.metric][constants.schedule][constants.day_of_month] == '3'
             assert items[0][constants.metric][constants.schedule][constants.month] == '4'
             assert items[0][constants.metric][constants.schedule][constants.day_of_week] == '5'
+            assert items[0][constants.metric][constants.schedule][constants.next_run] > 0
 
             assert len(items[1][constants.metric][constants.tags]) == 2
             assert items[1][constants.metric][constants.tags][0] == tag_one_display_name
@@ -737,7 +738,7 @@ class Test(unittest.TestCase):
                             tagged=True,
                             schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
                                                   minute='1', hour='2', day_of_month='3',
-                                                  month='4', day_of_week='5'))
+                                                  month='4', day_of_week='5', next_run=get_utc_timestamp()))
 
         metric_one.data_points.extend(
             [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, origin=Origin.user),

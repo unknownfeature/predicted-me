@@ -60,9 +60,7 @@ class PmDbStack(Stack):
 
         self.initializer_function = self._create_initializer_function(vpc_stack, Db.initializer_function)
 
-        self.data_cleanup_lambda = self._create_scheduled_function_with_db(vpc_stack, Db.data_cleanup_function)
 
-        self.occurrence_cleanup_lambda = self._create_scheduled_function_with_db(vpc_stack, Db.occurrence_cleanup_function)
 
     def _create_scheduled_function_with_db(self, vpc_stack: PmVpcStack,
                                            function_params: ScheduledFunction) -> lmbd.Function:

@@ -3,7 +3,7 @@ import unittest
 
 from backend.functions.schedule.task.index import handler
 from backend.lib import constants
-from backend.lib.db import Task, normalize_identifier, begin_session, User, OccurrenceSchedule
+from backend.lib.db import Task, normalize_identifier, begin_session, User, OccurrenceSchedule, get_utc_timestamp
 from backend.tests.integration.base import baseTearDown, baseSetUp, Trigger, legit_user_id, refresh_cache, \
     prepare_http_event, get_user_by_id, malicious_user_id, get_occurrence_schedule_by_id
 
@@ -51,7 +51,7 @@ class Test(unittest.TestCase):
 
             session.add(OccurrenceSchedule(priority=3,
                                      minute='1', hour='2', day_of_month='3',
-                                     month='4', day_of_week='5', task_id=1))
+                                     month='4', day_of_week='5', task_id=1, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -94,6 +94,7 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == first
             assert schedule.day_of_month == second
             assert schedule.month == all
+            assert schedule.next_run > 0
 
 
         finally:
@@ -107,7 +108,7 @@ class Test(unittest.TestCase):
 
             session.add(OccurrenceSchedule(priority=3,
                                      minute='1', hour='2', day_of_month='3',
-                                     month='4', day_of_week='5', task_id=1))
+                                     month='4', day_of_week='5', task_id=1, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
@@ -147,7 +148,7 @@ class Test(unittest.TestCase):
 
             session.add(OccurrenceSchedule(priority=old_priority,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id))
+                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -188,6 +189,7 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == first
             assert schedule.day_of_month == second
             assert schedule.month == all
+            assert schedule.next_run > 0
 
         finally:
             session.close()
@@ -208,7 +210,7 @@ class Test(unittest.TestCase):
 
             session.add(OccurrenceSchedule(priority=old_priority,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id))
+                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -222,6 +224,8 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == old_day_of_week
             assert schedule.day_of_month == old_day_of_month
             assert schedule.month == old_month
+            old_next_run = schedule.next_run
+            assert schedule.next_run > 0
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
             malicious_event[constants.body] = {
@@ -251,6 +255,7 @@ class Test(unittest.TestCase):
             assert schedule.day_of_week == old_day_of_week
             assert schedule.day_of_month == old_day_of_month
             assert schedule.month == old_month
+            assert schedule.next_run == old_next_run
 
 
         finally:
@@ -273,7 +278,7 @@ class Test(unittest.TestCase):
 
             session.add(OccurrenceSchedule(priority=old_priority,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id))
+                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 
@@ -315,7 +320,7 @@ class Test(unittest.TestCase):
 
             session.add(OccurrenceSchedule(priority=old_priority,
                                      minute=old_minute, hour=old_hour, day_of_month=old_day_of_month,
-                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id))
+                                     month=old_month, day_of_week=old_day_of_week, task_id=old_task_id, next_run=get_utc_timestamp()))
             session.commit()
             session = refresh_cache(session)
 

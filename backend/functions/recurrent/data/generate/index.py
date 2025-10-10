@@ -1,0 +1,37 @@
+from sqlalchemy import select, update
+
+from backend.lib.db import begin_session, get_utc_timestamp, DataSchedule, Data, Origin
+from backend.lib.util import get_next_run_timestamp, cron_expression_from_schedule
+
+
+#  todo this should be rewritten because of race condition plus because run can take long
+def handler(_, __):
+    session = begin_session()
+    try:
+
+        now_ts = get_utc_timestamp()
+
+        due_schedules_stmt = select(DataSchedule).where(DataSchedule.next_run <= now_ts)
+        due_schedules = session.scalars(due_schedules_stmt).all()
+
+        for schedule in due_schedules:
+            next_run = get_next_run_timestamp(cron_expression_from_schedule(schedule))
+
+            update_stmt = (
+                update(DataSchedule)
+                .where(DataSchedule.id == schedule.id)
+                .values(
+                    next_run=int(next_run),
+
+                )
+            )
+            session.execute(update_stmt)
+            data_to_insert = Data(value=schedule.target_value, units=schedule.units, metric=schedule.metric, origin=Origin.scheduled.value)
+            session.add(data_to_insert)
+
+        session.commit()
+
+
+
+    finally:
+        session.close()

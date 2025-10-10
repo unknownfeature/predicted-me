@@ -175,24 +175,6 @@ class Db:
     )
 
 
-    data_cleanup_function = ScheduledFunction(
-        name='pm_db_data_cleanup_func',
-        timeout=Duration.minutes(1),
-        memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'recurrent/data/purge/index'),
-        role_name='pm_db_data_cleanup_func_role', 
-        schedule_params=Schedule(rule_name='pm_db_data_cleanup_rule', schedule=events.Schedule.cron(minute='0', hour='0')),
-    )
-    
-    occurrence_cleanup_function = ScheduledFunction(
-        name='pm_db_occurrence_cleanup_func',
-        timeout=Duration.minutes(1),
-        memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/purge/index'),
-        role_name='pm_db_occurrence_cleanup_func_role',
-        schedule_params=Schedule(rule_name='pm_db_occurrence_cleanup_rule', schedule=events.Schedule.cron(minute='0', hour='0')),
-    )
-
 
 class Bastion:
     stack_name = 'PmBastionStack'
@@ -331,6 +313,46 @@ class Tagging:
     )
 
 
+class Recurrent:
+    stack_name = 'PmRecurrentStack'
+    data_cleanup_function = ScheduledFunction(
+        name='pm_db_data_cleanup_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'recurrent/data/purge/index'),
+        role_name='pm_db_data_cleanup_func_role',
+        schedule_params=Schedule(rule_name='pm_db_data_cleanup_rule',
+                                 schedule=events.Schedule.cron(minute='0', hour='0')),
+    )
+
+    occurrence_cleanup_function = ScheduledFunction(
+        name='pm_db_occurrence_cleanup_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/purge/index'),
+        role_name='pm_db_occurrence_cleanup_func_role',
+        schedule_params=Schedule(rule_name='pm_db_occurrence_cleanup_rule',
+                                 schedule=events.Schedule.cron(minute='0', hour='0')),
+    )
+
+    data_generation_function = ScheduledFunction(
+        name='pm_db_data_generation_func',
+        timeout=Duration.minutes(5),
+        memory_size=4096,
+        code_path=os.path.join(Common.functions_dir, 'recurrent/data/generate/index'),
+        role_name='pm_db_data_generation_func_role',
+        schedule_params=Schedule(rule_name='pm_db_data_generation_rule',
+                                 schedule=events.Schedule.cron(minute='*')))
+
+    occurrence_generation_function = ScheduledFunction(
+        name='pm_db_occurrence_generation_func',
+        timeout=Duration.minutes(5),
+        memory_size=4096,
+        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/generate/index'),
+        role_name='pm_db_occurrence_generation_func_role',
+        schedule_params=Schedule(rule_name='pm_db_occurrence_generation_rule',
+                                 schedule=events.Schedule.cron(minute='*')))
+
 class Api:
     stack_name = 'PmApiStack'
     name = 'pm_api'
@@ -373,7 +395,7 @@ class Api:
             name='pm_data_api_function_integration'
         ),
             HttpIntegration(
-                url_path='metric/{metric_id}/data/{id}',
+                url_path='/metric/{metric_id}/data/{id}',
                 methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                          api_gtw.HttpMethod.OPTIONS],
                 name='pm_data_api_function_integration'
@@ -507,3 +529,4 @@ class Api:
             name='pm_tag_api_function_integration'
         )]
     )
+

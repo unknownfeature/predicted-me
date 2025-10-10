@@ -2,6 +2,7 @@ import os
 
 import aws_cdk as cdk
 
+from infra.pm.recurrent_stack import PmRecurrentStack
 from pm.audio_stack import PmAudioStack
 from pm.tagging_stack import PmTaggingStack
 from pm.text_stack import PmTextStack
@@ -13,7 +14,6 @@ from pm.db_stack import PmDbStack
 from pm.vpc_stack import PmVpcStack
 from shared.variables import Env
 
-# todo refactor pm
 # export PYTHONPATH=$PYTHONPATH:./infra=/modules:./shared:./backend
 #  cdk synth --app  "python infra/app.py"
 
@@ -28,6 +28,7 @@ tagging_stack = PmTaggingStack(app, db_stack, vpc_stack, env=env)
 text_processing_stack = PmTextStack(app, vpc_stack, db_stack, tagging_stack, env=env)
 image_processing_stack = PmImageStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
 audio_stack = PmAudioStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
+recurrent_stack = PmRecurrentStack(app, db_stack, vpc_stack, env=env)
 api_stack = PmApiStack(app, cognito_stack, image_processing_stack, audio_stack, text_processing_stack, db_stack, vpc_stack, env=env)
 
 app.synth()

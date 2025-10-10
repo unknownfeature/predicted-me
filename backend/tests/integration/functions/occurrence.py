@@ -668,6 +668,7 @@ class Test(unittest.TestCase):
             assert items[0][constants.task][constants.schedule][constants.day_of_month] == '3'
             assert items[0][constants.task][constants.schedule][constants.month] == '4'
             assert items[0][constants.task][constants.schedule][constants.day_of_week] == '5'
+            assert items[0][constants.task][constants.schedule][constants.next_run] > 0
 
             assert len(items[0][constants.task][constants.tags]) == 2
             
@@ -840,7 +841,7 @@ class Test(unittest.TestCase):
                         description=task_two_description,
                         tags=[tag_two, tag_three], tagged=True,
                         schedule=OccurrenceSchedule(priority=schedule_priority, minute='1', hour='2', day_of_month='3',
-                                                    month='4', day_of_week='5'))
+                                                    month='4', day_of_week='5', next_run=get_utc_timestamp()))
 
         task_one.occurrences.extend(
             [Occurrence(priority=occurrence_priority_one, completed=occurrence_one_completed, time=three_days_ago + 60,

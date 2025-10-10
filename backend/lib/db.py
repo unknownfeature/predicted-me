@@ -39,6 +39,7 @@ class Origin(str, Enum):
     img_desc = 'img_desc'
     img_text = 'img_text'
     user = 'user'
+    scheduled = 'scheduled'
 
 
 def get_utc_timestamp() -> int:
@@ -266,6 +267,7 @@ class DataSchedule(Base):
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     metric: Mapped['Metric'] = relationship(back_populates='schedule')
+    next_run: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     def __repr__(self) -> str:
         return (f'DataSchedule(metric_id={self.metric_id!r},  target={self.target_value!r})') #todo add repr
@@ -375,9 +377,10 @@ class OccurrenceSchedule(Base):
     day_of_month: Mapped[str] = mapped_column(String(100), nullable=False)
     month: Mapped[str] = mapped_column(String(100), nullable=False)
     day_of_week: Mapped[str] = mapped_column(String(100), nullable=False)
-
+    next_run: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
     __table_args__ = (
         UniqueConstraint('task_id', name='uq_task_schedule'),
         CheckConstraint(priority >= 1, name='schedule_priority_not_zero'),
