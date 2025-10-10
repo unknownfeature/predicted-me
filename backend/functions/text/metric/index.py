@@ -1,16 +1,15 @@
 import json
 import os
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any
 
 import boto3
+from sqlalchemy import select, inspect
 from sqlalchemy.orm import Session
-from sqlalchemy import insert, select, bindparam, inspect, func, and_
 
 from backend.lib import constants
 from backend.lib.db import Metric, Data, Note, normalize_identifier, Origin
+from backend.lib.func.sqs import Params, process_record_factory, note_text_supplier, Model
 from backend.lib.func.sqs import handler_factory
-from backend.lib.func.tagging import Params, process_record_factory
-from backend.lib.func.text import note_text_supplier
 from backend.lib.util import get_or_create_metrics
 from shared.variables import Env
 
@@ -59,7 +58,7 @@ prompt = ("You are an expert metric extraction bot. Analyze the text below and e
 
 
 
-def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_response_from_model(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
     target_note = session.scalar(select(Note).where(Note.id == note_id))
     metrics_map = get_or_create_metrics(session, {normalize_identifier(item[constants.name]) : item[constants.name] for item in data}, target_note.user_id)
     data_to_add = [
@@ -84,4 +83,4 @@ def send_to_sns(note_id):
     )
 
 handler = handler_factory(
-    process_record_factory(Params(prompt, note_text_supplier, generative_model, max_tokens), on_extracted_cb))
+    process_record_factory(Params(prompt, note_text_supplier, Model(generative_model), max_tokens), on_response_from_model))

@@ -2,7 +2,7 @@ import unittest
 import uuid
 
 from backend.lib.db import begin_session, Note, User, Origin
-from backend.lib.func.text import note_text_supplier
+from backend.lib.func.sqs import note_text_supplier
 from backend.tests.integration.base import baseSetUp, baseTearDown, refresh_cache, legit_user_id
 
 

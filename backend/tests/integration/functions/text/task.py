@@ -9,7 +9,7 @@ os.environ[Env.generative_model] = 'lalalala'
 
 import unittest
 
-from backend.functions.text.task.index import  on_extracted_cb
+from backend.functions.text.task.index import  on_response_from_model
 from backend.lib.db import Origin, Occurrence
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
@@ -37,7 +37,7 @@ class Test(unittest.TestCase):
         self.event = baseSetUp(Trigger.http)
 
     @patch('backend.functions.text.task.index.send_to_sns')
-    def test_on_extracted_cb_succeeds(self, send_to_sns_mock):
+    def test_on_response_from_model_succeeds(self, send_to_sns_mock):
         self._setup_tasks()
         session = begin_session()
         input = {
@@ -54,7 +54,7 @@ class Test(unittest.TestCase):
            assert len(session.query(Task).all()) ==1
 
            session = refresh_cache(session)
-           on_extracted_cb(session, 1, Origin.img_text, model_output, )
+           on_response_from_model(session, 1, Origin.img_text, model_output, )
 
            session = refresh_cache(session)
            assert len(session.query(Occurrence).all()) == 5

@@ -4,8 +4,7 @@ from decimal import Decimal
 from typing import Tuple
 
 from backend.functions.data.index import handler
-from backend.lib.db import Tag, Data, Origin, \
-    Note, DataSchedule
+from backend.lib.db import Data, Origin
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 

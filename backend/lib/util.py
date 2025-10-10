@@ -3,9 +3,10 @@ import json
 import traceback
 import uuid
 from enum import Enum
-from typing import Dict, Any, List, Set, Callable, Tuple
-from croniter import croniter
+from typing import Dict, Any, List, Set, Callable, Tuple, Optional
+
 import boto3
+from croniter import croniter
 from sqlalchemy import select, and_, Executable
 from sqlalchemy.orm import Session
 
@@ -45,7 +46,8 @@ def get_or_create_task(session: Session, display_summary: str, description: str,
     return existing
 
 
-def get_or_create_tasks(session: Session, names_to_display_names: Dict[str, Dict[str, str]], user_id: int) -> Dict[str, Task]:
+def get_or_create_tasks(session: Session, names_to_display_names: Dict[str, Dict[str, str]], user_id: int) -> Dict[
+    str, Task]:
     existing = {m.summary: m for m in
                 session.scalars(select(Task).where(
                     and_(Task.user_id == user_id, Task.summary.in_(names_to_display_names.keys())))).unique()}
@@ -54,7 +56,7 @@ def get_or_create_tasks(session: Session, names_to_display_names: Dict[str, Dict
     results = {
         name: Task(summary=name, user_id=user_id, display_summary=names_to_display_names[name][constants.summary],
                    description=names_to_display_names[name][constants.description]) for name in
-               non_existing}
+        non_existing}
 
     if results:
         session.add_all(results.values())
@@ -62,11 +64,13 @@ def get_or_create_tasks(session: Session, names_to_display_names: Dict[str, Dict
 
     return existing
 
-def get_or_create_metrics(session: Session, summary_to_display_summary: Dict[str, str], user_id: int) -> Dict[str, Metric]:
-    existing =  {m.name: m for m in
-                 session.scalars(select(Metric).where(and_(Metric.user_id == user_id, Metric.name.in_(summary_to_display_summary.keys())))).unique()}
-    non_existing = set(summary_to_display_summary.keys()).difference(existing.keys())
 
+def get_or_create_metrics(session: Session, summary_to_display_summary: Dict[str, str], user_id: int) -> Dict[
+    str, Metric]:
+    existing = {m.name: m for m in
+                session.scalars(select(Metric).where(
+                    and_(Metric.user_id == user_id, Metric.name.in_(summary_to_display_summary.keys())))).unique()}
+    non_existing = set(summary_to_display_summary.keys()).difference(existing.keys())
 
     results = {name: Metric(name=name, user_id=user_id, display_name=summary_to_display_summary[name]) for name in
                non_existing}
@@ -77,6 +81,7 @@ def get_or_create_metrics(session: Session, summary_to_display_summary: Dict[str
 
     return existing
 
+
 def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[int, str]:
     external_user = event['requestContext']['authorizer']['jwt']['claims']['username']
     user_query = select(User.id).where(User.external_id == external_user)
@@ -85,26 +90,26 @@ def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[in
     return user.id if user else None, external_user
 
 
-def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) -> List[Dict[str, Any]]:
+def call_bedrock_generative(model: str, prompt: str, text_content: str, max_tokens: int = 1024) -> List[Dict[str, Any]]:
     try:
-        bedrock_runtime = boto3.client('bedrock-runtime')
+        bedrock_runtime = boto3.client(constants.bedrock_runtime)
 
         id = uuid.uuid4().hex
         response = bedrock_runtime.invoke_model(
             modelId=model,
-            contentType='application/json',
-            accept='application/json',
+            accept=constants.application_json,
+            contentType=constants.application_json,
             body=json.dumps({
                 'anthropic_version': 'bedrock-2023-05-31',
                 'max_tokens': max_tokens,
-                'notes': [{'role': 'user', 'content': [{'type': 'text', 'text': prompt + (
+                'notes': [{'role': 'user', 'content': [{'type': 'text', 'text': prompt if prompt else '' + (
                     f'TEXT FOR ANALYSIS:    ---START_USER_INPUT {id} ---  {text_content} ---END_USER_INPUT  {id} ---'
                 ) if text_content else ''}]}],
             })
         )
 
-        response_body = json.loads(response['body'].read())
-        metrics_json_str = response_body['content'][0]['text'].strip()
+        response_body = json.loads(response[constants.body].read())
+        metrics_json_str = response_body[constants.content_type][0][constants.text].strip()
 
         if metrics_json_str.startswith('```'):
             metrics_json_str = metrics_json_str.split('\n', 1)[-1].strip('`')
@@ -115,17 +120,40 @@ def call_bedrock(model: str, prompt: str, text_content: str, max_tokens = 1024) 
         traceback.print_exc()
         raise e
 
+
+def call_bedrock_embedding(model: str, text_content: str) -> Optional[List[float]]:
+    try:
+        bedrock_runtime = boto3.client(constants.bedrock_runtime)
+
+        body = json.dumps({constants.input_text: text_content})
+        response = bedrock_runtime.invoke_model(
+            body=body,
+            modelId=model,
+            accept=constants.application_json,
+            contentType=constants.application_json
+        )
+        response_body = json.loads(response.get(constants.body).read())
+        return response_body.get(constants.embedding)
+
+    except Exception as e:
+        traceback.print_exc()
+        raise e
+
+
 def cron_expression_from_dict(data: Dict[str, str]) -> str:
-   return f'{data[constants.minute]} {data[constants.hour]} {data[constants.day_of_month]} {data[constants.month]} {data[constants.day_of_week]}'
+    return f'{data[constants.minute]} {data[constants.hour]} {data[constants.day_of_month]} {data[constants.month]} {data[constants.day_of_week]}'
+
 
 def cron_expression_from_schedule(schedule: Any) -> str:
-   return f'{schedule.minute} {schedule.hour} {schedule.day_of_month} {schedule.month} {schedule.day_of_week}'
+    return f'{schedule.minute} {schedule.hour} {schedule.day_of_month} {schedule.month} {schedule.day_of_week}'
+
 
 def enrich_schedule_map_with_next_timestamp(data_from_the_client: Dict[str, str]) -> Dict[str, str]:
     #  if no keys it will fail and that's what it should do
     next_run = get_next_run_timestamp(cron_expression_from_dict(data_from_the_client))
     data_from_the_client[constants.next_run] = next_run
     return data_from_the_client
+
 
 def get_next_run_timestamp(cron_expression: str, base_time: int) -> int:
     if not base_time:
@@ -135,6 +163,7 @@ def get_next_run_timestamp(cron_expression: str, base_time: int) -> int:
     next_run_datetime = iterator.get_next(datetime.datetime)
     return int(next_run_datetime.timestamp())
 
+
 def get_or_create_tags(user_id: int, session: Session, tag_display_names: Set[str]) -> Dict[str, Tag]:
     if not tag_display_names:
         return {}
@@ -143,8 +172,8 @@ def get_or_create_tags(user_id: int, session: Session, tag_display_names: Set[st
     stmt = select(Tag).where(and_(Tag.name.in_(names_map.keys()), Tag.user_id == user_id))
     existing_tags = session.scalars(stmt).all()
     existing_tags_dict = {tag.name: tag for tag in existing_tags}
-    new_tags = {t: Tag(user_id = user_id, name = t, display_name=names_map[t]) for t in names_map if t not in existing_tags_dict}
-
+    new_tags = {t: Tag(user_id=user_id, name=t, display_name=names_map[t]) for t in names_map if
+                t not in existing_tags_dict}
 
     if new_tags:
         session.add_all(new_tags.values())
@@ -152,9 +181,9 @@ def get_or_create_tags(user_id: int, session: Session, tag_display_names: Set[st
 
     return existing_tags_dict | new_tags
 
+
 # todo refactor this
 def add_tags(user_id: int, session: Session, data: List[Dict[str, Any]], stmt_supplier: Callable[[], Executable]):
-
     if not data:
         return
 
@@ -171,4 +200,4 @@ def add_tags(user_id: int, session: Session, data: List[Dict[str, Any]], stmt_su
 
 def get_tags_map_for_update(user_id: int, data: List[Dict[str, str]], session):
     all_tag_names = {tag for item in data for tag in item.get(constants.tags, [])}
-    return  get_or_create_tags(user_id, session, all_tag_names)
+    return get_or_create_tags(user_id, session, all_tag_names)

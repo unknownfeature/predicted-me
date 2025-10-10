@@ -3,15 +3,13 @@ import os
 from typing import List, Any, Dict
 
 import boto3
-from sqlalchemy import inspect, select, and_
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
 from backend.lib import constants
-from backend.lib.constants import priority, occurrence
 from backend.lib.db import Task, Note, normalize_identifier, Origin, Occurrence
-from backend.lib.func.sqs import handler_factory
-from backend.lib.func.tagging import process_record_factory, Params
-from backend.lib.func.text import note_text_supplier
+from backend.lib.func.sqs import handler_factory, Model
+from backend.lib.func.sqs import process_record_factory, Params, note_text_supplier
 from backend.lib.util import get_or_create_tasks
 from shared.variables import Env
 
@@ -60,7 +58,7 @@ prompt = ("You are an expert at identifying actionable tasks from text. Analyze 
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 
-def on_extracted_cb(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_response_from_model(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
     target_note = session.scalar(select(Note).where(Note.id == note_id))
     tasks_map = get_or_create_tasks(session, {
         normalize_identifier(item[constants.summary]): {constants.summary: item[constants.summary],
@@ -91,4 +89,4 @@ def send_to_sns(note_id):
 
 
 handler = handler_factory(
-    process_record_factory(Params(prompt, note_text_supplier, generative_model, max_tokens), on_extracted_cb))
+    process_record_factory(Params(prompt, note_text_supplier, Model(generative_model), max_tokens), on_response_from_model))

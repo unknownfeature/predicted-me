@@ -121,6 +121,10 @@ class Env:
     regional_domain_name = 'REGIONAL_DOMAIN_NAME'
     regional_hosted_zone_id = 'REGIONAL_HOSTED_ZONE_ID'
     max_tokens = 'MAX_TOKENS'
+    opensearch_endpoint = 'OPENSEARCH_ENDPOINT'
+    opensearch_port = 'OPENSEARCH_PORT'
+    opensearch_index = 'OPENSEARCH_INDEX'
+    embedding_model = 'EMBEDDING_MODEL_ID'
 
 
 # --- Common Project Variables ---
@@ -141,7 +145,9 @@ class Common:
     shared_path = os.path.join(backend_dir, shared_dir)
     docker_path = docker_file_dir
     default_region = 'us-east-1'
-    generative_model = "anthropic.claude-3-sonnet-20240229-v1:0"
+    generative_model = 'anthropic.claude-3-sonnet-20240229-v1:0'
+    embedding_model = 'amazon.titan-embed-text-v1'
+    opensearch_port = '443'
     cors_headers = {
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Origin': '*',
@@ -220,7 +226,7 @@ class Image:
     bda_input_bucket_name = 'pm_images_input_bucket'
     bda_output_bucket_name = 'pm_bda_image_output_bucket'
     bda_role_name = 'pm_bda_role'
-    bda_blueprint_name = "pm_image_processing_blueprint"
+    bda_blueprint_name = 'pm_image_processing_blueprint'
     bda_model_name = Common.generative_model
 
     bda_in = Function(
@@ -242,8 +248,16 @@ class Image:
 class Text:
     stack_name = 'PmTextStack'
     topic_name = 'pm_text_processing_topic'
-    model = Common.generative_model
+    generative_model = Common.generative_model
+    embedding_model = Common.embedding_model
     max_tokens = '1024'
+    domain = 'pm_text_embedding_domain'
+    domain_data_nodes = 1
+    domain_data_node_instance_type='t3.small.search'
+    domain_ebs_volume_size = 10
+    opensearch_index = 'pm_note_text_embedding_opensearch_index'
+    
+
 
     metrics_extraction = QueueFunction(
         name='pm_metrics_extraction_func',
@@ -273,6 +287,16 @@ class Text:
         role_name='pm_tasks_extraction_role',
         integration=QueueIntegration(queue_name='pm_tasks_extraction_queue',
                                      visibility_timeout=Duration.minutes(2))
+    )
+
+    embedding = QueueFunction(
+        name='pm_embedding_func',
+        timeout=Duration.minutes(3),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'text/embedding'),
+        role_name='pm_embedding_role',
+        integration=QueueIntegration(queue_name='pm_embedding_queue',
+                                     visibility_timeout=Duration.minutes(5))
     )
 
 

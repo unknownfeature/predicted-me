@@ -7,8 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from backend.lib import constants
 from backend.lib.db import Metric, Data, Tag, Note
-from backend.lib.func.tagging import process_record_factory, Params
-from backend.lib.func.sqs import handler_factory
+from backend.lib.func.sqs import process_record_factory, Params, handler_factory, Model
 from backend.lib.util import add_tags
 from shared.variables import Env
 
@@ -75,7 +74,7 @@ def text_supplier(session: Session, note_id, _):
     )
 
 
-def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
+def on_response_from_model(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
     note = session.get(Note, note_id)
     add_tags(note.user_id, session, data, lambda: select(Metric)
              .join(Metric.data_points).where(and_(
@@ -88,4 +87,4 @@ def on_extracted_cb(session: Session, note_id: int, _: str, data: List[Dict[str,
 
 
 handler = handler_factory(
-    process_record_factory(Params(tagging_prompt, text_supplier, generative_model, max_tokens), on_extracted_cb))
+    process_record_factory(Params(tagging_prompt, text_supplier, Model(generative_model), max_tokens), on_response_from_model))

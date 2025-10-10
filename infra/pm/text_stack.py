@@ -1,14 +1,18 @@
 from aws_cdk import (
     Stack,
     aws_sns as sns,
+aws_opensearchservice as opensearch,
     aws_sqs as sqs,
+    aws_ec2 as ec2,
+aws_iam as iam,
     aws_lambda as lmbd)
 from constructs import Construct
 
 from shared.variables import Env, Common, Text, QueueFunction
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
-from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, sqs_integration_cb_factory
+from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, sqs_integration_cb_factory, \
+    create_function_role_factory
 from .tagging_stack import PmTaggingStack
 from .util import create_function, create_queue
 from .vpc_stack import PmVpcStack
@@ -37,7 +41,9 @@ class PmTextStack(Stack):
                                                    visibility_timeout=Text.tasks_extraction.integration.visibility_timeout,
                                                    with_subscription_to=self.text_processing_topic, max_retires=Text.tasks_extraction.integration.max_retries)
 
-       
+        self.embedding_queue = create_queue(self, Text.embedding.integration.name,
+                                                   visibility_timeout=Text.embedding.integration.visibility_timeout,
+                                                   with_subscription_to=self.text_processing_topic, max_retires=Text.embedding.integration.max_retries)
 
         self.metrics_extraction_function = self._create_sqs_triggered_function(db_stack, self.metrics_extraction_queue,
                                                                             vpc_stack, Text.metrics_extraction)
@@ -49,7 +55,41 @@ class PmTextStack(Stack):
 
         self.tasks_extraction_function = self._create_sqs_triggered_function(db_stack, self.tasks_extraction_queue,
                                                                             vpc_stack, Text.tasks_extraction)
-     
+
+        self.embedding_domain = opensearch.Domain(self, Text.domain,
+                                   version=opensearch.EngineVersion.OPENSEARCH_2_9,
+                                   vpc=vpc_stack.vpc,
+                                   vpc_subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED)],
+                                   capacity=opensearch.CapacityConfig(
+                                       data_nodes=Text.domain_data_nodes,
+                                       data_node_instance_type=Text.domain_data_node_instance_type
+                                   ),
+                                   ebs=opensearch.EbsOptions(volume_size=Text.domain_ebs_volume_size,),
+                                   node_to_node_encryption=True,
+                                   encryption_at_rest=opensearch.EncryptionAtRestOptions(enabled=True),
+                                   enforce_https=True)
+
+        self.embedding_function = self._create_embedding_function( self.embedding_domain, self.embedding_queue, vpc_stack, Text.embedding)
+
+
+    def _create_embedding_function(self,  domain: opensearch.Domain,  queue: sqs.Queue, vpc_stack: PmVpcStack,
+                                           function_params: QueueFunction) -> lmbd.Function:
+            def on_role(role: iam.Role):
+                role.add_to_policy(
+                    bedrock_invoke_policy_statement)
+                domain.grant_write(role)
+            params = FunctionFactoryParams(function_params=function_params,
+                                           build_args={Common.func_dir_arg: function_params.code_path,
+                                                       Common.install_mysql_arg: true}, environment={
+                    Env.opensearch_endpoint: domain.domain_endpoint,
+                    Env.opensearch_port: Common.opensearch_port,
+                    Env.opensearch_index: Text.opensearch_index,
+                    Env.embedding_model: Text.embedding_model,
+                }, role_supplier=create_function_role_factory(on_role),
+                                           and_then=sqs_integration_cb_factory([queue]),
+                                           vpc=vpc_stack.vpc)
+
+            return create_function(self, params)
 
     def _create_sqs_triggered_function(self, db_stack: PmDbStack, queue: sqs.Queue, vpc_stack: PmVpcStack,
                                            function_params: QueueFunction) -> lmbd.Function:
@@ -61,7 +101,7 @@ class PmTextStack(Stack):
                     Env.db_name: db_stack.db_instance.instance_identifier,
                     Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
                     Env.max_tokens: Text.max_tokens,
-                    Env.generative_model: Text.model,
+                    Env.generative_model: Text.generative_model,
                 }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, lambda role: role.add_to_policy(
                     bedrock_invoke_policy_statement)),
                                            and_then=sqs_integration_cb_factory([queue]),

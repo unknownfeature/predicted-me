@@ -8,7 +8,7 @@ os.environ[Env.generative_model] = 'lalalala'
 import json
 import unittest
 
-from backend.functions.tagging.metric.index import text_supplier, on_extracted_cb
+from backend.functions.tagging.metric.index import text_supplier, on_response_from_model
 from backend.lib.db import Origin, Data
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
@@ -53,7 +53,7 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_on_extracted_cb_succeeds(self):
+    def test_on_response_from_model_succeeds(self):
         self._setup_metrics()
         session = begin_session()
         input = {
@@ -72,7 +72,7 @@ class Test(unittest.TestCase):
                 assert len(get_metric_by_id(id, session).tags) == 0
 
             session = refresh_cache(session)
-            on_extracted_cb(session, 1, None, model_output, )
+            on_response_from_model(session, 1, None, model_output, )
             session.commit()  # this will be called by the handler
 
             session = refresh_cache(session)
