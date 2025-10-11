@@ -23,7 +23,7 @@ env = cdk.Environment(account=os.getenv(Env.aws_account), region=os.getenv(Env.a
 
 vpc_stack = PmVpcStack(app, env=env)
 db_stack = PmDbStack(app, vpc_stack, env=env)
-bastion_stack = PmBastionStack(app, vpc_stack, env=env)
+bastion_stack = PmBastionStack(app, db_stack, vpc_stack, env=env)
 cognito_stack = PmCognitoStack(app, env=env)
 tagging_stack = PmTaggingStack(app, db_stack, vpc_stack, env=env)
 text_processing_stack = PmTextStack(app, vpc_stack, db_stack, tagging_stack, env=env)

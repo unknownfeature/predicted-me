@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Sequence, Callable, Iterable
 
 import aws_cdk as cdk
@@ -17,7 +18,8 @@ from aws_cdk import (
     custom_resources as cr,
     aws_iam as iam)
 
-from shared.variables import Function, ApiFunction, ScheduledFunction, CustomResourceTriggeredFunction
+from shared.variables import Env
+from .input import Function, ApiFunction, ScheduledFunction, CustomResourceTriggeredFunction
 
 
 class S3EventParams:
@@ -167,4 +169,9 @@ def create_function_role_factory(on_role: Callable[[iam.Role], None]) -> Callabl
     [Stack, Function], iam.Role]:
     return lambda stack, params: create_lambda_role(stack, params.role_name, on_role)
 
+def allow_connection_function_factory(db_proxy: rds.DatabaseProxy, and_then: Callable[[lmbd.Function], None] = None) -> Callable[[lmbd.Function], None]:
+    def composed(func: lmbd.Function):
+        func.connections.allow_to(db_proxy,  port_range=ec2.Port.tcp(int(os.getenv(Env.db_port))))
+        and_then(func)
+    return composed
 

@@ -5,10 +5,12 @@ from aws_cdk import (
     aws_lambda as lmbd)
 from constructs import Construct
 
-from shared.variables import Env, Common, Tagging, QueueFunction
+from shared.variables import Env
+from .input import Common, Tagging, QueueFunction
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
-from .function_factories import sqs_integration_cb_factory, create_role_with_db_access_factory, FunctionFactoryParams
+from .function_factories import sqs_integration_cb_factory, create_role_with_db_access_factory, FunctionFactoryParams, \
+    allow_connection_function_factory
 from .util import create_queue, create_function
 from .vpc_stack import PmVpcStack
 
@@ -56,7 +58,7 @@ class PmTaggingStack(Stack):
 
             }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, lambda role: role.add_to_policy(
                 bedrock_invoke_policy_statement)),
-                                       and_then=sqs_integration_cb_factory([queue]),
+                                       and_then=allow_connection_function_factory(db_stack.db_proxy, sqs_integration_cb_factory([queue])),
                                        vpc=vpc_stack.vpc)
 
         return create_function(self, params)

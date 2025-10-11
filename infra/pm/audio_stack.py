@@ -6,11 +6,12 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from shared.variables import Env, Common, Audio
+from shared.variables import Env
+from .input import Common, Audio
 from .constants import true
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, s3_integration_cb_factory, \
-    S3EventParams, create_role_with_db_access_factory, create_function_role_factory
+    S3EventParams, create_role_with_db_access_factory, create_function_role_factory, allow_connection_function_factory
 from .text_stack import PmTextStack
 from .util import create_bucket, create_function
 from .vpc_stack import PmVpcStack
@@ -23,14 +24,13 @@ class PmAudioStack(Stack):
         super().__init__(scope, Audio.stack_name, **kwargs)
 
         # bucket for transcribe input
-        self.transcribe_input_bucket = create_bucket(self, Audio.transcribe_input_bucket_name,)
+        self.transcribe_input_bucket = create_bucket(self, Audio.transcribe_input_bucket_name, )
 
         # and for transcribe output
-        self.transcribe_output_bucket = create_bucket(self, Audio.transcribe_output_bucket_name,)
+        self.transcribe_output_bucket = create_bucket(self, Audio.transcribe_output_bucket_name, )
 
         self.transcribe_in_function = self._transcribe_in()
         self.transcribe_out_function = self._transcribe_out(db_stack, text_stack, vpc_stack)
-
 
     def _transcribe_in(self) -> lmbd.Function:
         def on_role(role):
@@ -49,19 +49,18 @@ class PmAudioStack(Stack):
             self.transcribe_output_bucket.grant_write(role)
 
         params = FunctionFactoryParams(function_params=Audio.transcribe_in,
-                                       build_args={ Common.func_dir_arg: Audio.transcribe_in.code_path,},
+                                       build_args={Common.func_dir_arg: Audio.transcribe_in.code_path, },
                                        environment={
-            Env.transcribe_bucket_in: self.transcribe_input_bucket.bucket_name,
-            Env.transcribe_bucket_out: self.transcribe_output_bucket.bucket_name,
+                                           Env.transcribe_bucket_in: self.transcribe_input_bucket.bucket_name,
+                                           Env.transcribe_bucket_out: self.transcribe_output_bucket.bucket_name,
 
-        }, role_supplier=create_function_role_factory(on_role),
+                                       }, role_supplier=create_function_role_factory(on_role),
                                        and_then=s3_integration_cb_factory([S3EventParams(self.transcribe_input_bucket,
                                                                                          s3.EventType.OBJECT_CREATED)]))
 
         return create_function(self, params)
 
     def _transcribe_out(self, db_stack: PmDbStack, text_stack: PmTextStack, vpc_stack: PmVpcStack) -> lmbd.Function:
-
         def on_role(role):
             self.transcribe_output_bucket.grant_read(role)
             text_stack.text_processing_topic.grant_publish(role)
@@ -76,7 +75,11 @@ class PmAudioStack(Stack):
             Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
             Env.text_processing_topic_arn: text_stack.text_processing_topic.topic_arn,
         }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, on_role),
-           and_then=s3_integration_cb_factory([S3EventParams(self.transcribe_output_bucket, s3.EventType.OBJECT_CREATED)]),
-                                       vpc = vpc_stack.vpc)
+                                       and_then=allow_connection_function_factory(db_stack.db_proxy,
+                                                                                  s3_integration_cb_factory([
+                                                                                                                S3EventParams(
+                                                                                                                    self.transcribe_output_bucket,
+                                                                                                                    s3.EventType.OBJECT_CREATED)])),
+                                       vpc=vpc_stack.vpc)
 
         return create_function(self, params)

@@ -6,11 +6,12 @@ from aws_cdk import (
     aws_bedrock as bedrock)
 from constructs import Construct
 
-from shared.variables import Env, Common, Image
+from shared.variables import Env
+from .input import Common, Image
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, s3_integration_cb_factory, \
-    S3EventParams, create_lambda_role, create_role_with_db_access_factory
+    S3EventParams, create_lambda_role, create_role_with_db_access_factory, allow_connection_function_factory
 from .text_stack import PmTextStack
 from .util import create_bucket, create_function
 from .vpc_stack import PmVpcStack
@@ -99,7 +100,7 @@ class PmImageStack(Stack):
             Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
             Env.text_processing_topic_arn: text_stack.text_processing_topic.topic_arn,
         }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, on_role),
-            and_then=s3_integration_cb_factory([S3EventParams(self.bda_output_bucket, s3.EventType.OBJECT_CREATED)]),
+            and_then=allow_connection_function_factory( db_stack.db_proxy, s3_integration_cb_factory([S3EventParams(self.bda_output_bucket, s3.EventType.OBJECT_CREATED)])),
             vpc=vpc_stack.vpc)
 
         return create_function(self, params)

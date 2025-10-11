@@ -17,15 +17,12 @@ def handler(event, _):
     request_type = event[constants.request_type]
 
     if request_type == constants.create_request_type:
-        return on_create(event)
+        return on_create()
 
-    return {constants.status: constants.success}
-
-
-def on_create(event):
-    props = event[constants.resource_properties]
+    return {constants.resource_status: constants.resource_success}
 
 
+def on_create():
     try:
         secret_response = secrets_client.get_secret_value(SecretId=password_secret_arn)
         password = secret_response[constants.secret_string]
@@ -40,8 +37,8 @@ def on_create(event):
             ],
             MessageAction=constants.message_action_suppress,
         )
-        return {constants.status: constants.success}
+        return {constants.resource_status: constants.resource_success}
 
     except Exception as e:
         traceback.print_exc()
-        return {constants.status: constants.error, constants.error: str(e)}
+        return {constants.resource_status: constants.resource_failed, constants.resource_reason: str(e)}

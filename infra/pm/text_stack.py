@@ -8,11 +8,12 @@ aws_iam as iam,
     aws_lambda as lmbd)
 from constructs import Construct
 
-from shared.variables import Env, Common, Text, QueueFunction, CustomResourceTriggeredFunction
+from shared.variables import Env
+from .input import Common, Text, QueueFunction, CustomResourceTriggeredFunction
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, sqs_integration_cb_factory, \
-    create_function_role_factory, custom_resource_trigger_cb_factory
+    create_function_role_factory, custom_resource_trigger_cb_factory, allow_connection_function_factory
 from .tagging_stack import PmTaggingStack
 from .util import create_function, create_queue
 from .vpc_stack import PmVpcStack
@@ -105,7 +106,7 @@ class PmTextStack(Stack):
                     Env.generative_model: Text.generative_model,
                 }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, lambda role: role.add_to_policy(
                     bedrock_invoke_policy_statement)),
-                                           and_then=sqs_integration_cb_factory([queue]),
+                                           and_then=allow_connection_function_factory(db_stack.db_proxy, sqs_integration_cb_factory([queue])),
                                            vpc=vpc_stack.vpc)
 
             return create_function(self, params)

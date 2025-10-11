@@ -9,11 +9,11 @@ def handler(event, _):
     request_type = event[constants.request_type]
 
     if request_type == constants.create_request_type:
-        print("Create event received. Initializing schema.")
+        print('Create event received. Initializing schema.')
         return on_create(event)
 
 
-    return {constants.status: constants.success}
+    return  {constants.resource_status: constants.resource_success}
 
 
 def on_create(event):
@@ -22,12 +22,12 @@ def on_create(event):
 
         engine = setup_engine()
 
-        print("Connecting to the database and creating schema...")
+        print('Connecting to the database and creating schema...')
         Base.metadata.create_all(engine)
-        print("Schema creation successful.")
+        print('Schema creation successful.')
 
-        return {constants.status: constants.success}
+        return  {constants.resource_status: constants.resource_success}
 
     except Exception as e:
         traceback.print_exc()
-        return {constants.status: constants.error, constants.error: str(e)}
+        return  {constants.resource_status: constants.resource_failed, constants.resource_reason: str(e)}

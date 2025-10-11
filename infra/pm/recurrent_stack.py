@@ -3,10 +3,12 @@ from aws_cdk import (
     aws_lambda as lmbd)
 from constructs import Construct
 
-from shared.variables import Env, Recurrent, Common, ScheduledFunction
+from shared.variables import Env
+from .input import Recurrent, Common, ScheduledFunction
 from .constants import true
 from .db_stack import PmDbStack
-from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, schedule_cb_factory
+from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, schedule_cb_factory, \
+    allow_connection_function_factory
 from .util import create_function
 from .vpc_stack import PmVpcStack
 
@@ -42,7 +44,7 @@ class PmRecurrentStack(Stack):
                 Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
             },
             role_supplier=create_role_with_db_access_factory(db_stack.db_proxy),
-            and_then=schedule_cb_factory(self, function_params),
+            and_then=allow_connection_function_factory(db_stack.db_proxy, schedule_cb_factory(self, function_params)),
             vpc=vpc_stack.vpc,
         ))
 

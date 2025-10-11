@@ -8,11 +8,13 @@ from aws_cdk import (
     aws_apigatewayv2_authorizers as auth)
 
 from constructs import Construct
-from shared.variables import Env, Api, Common, ApiFunction
+from shared.variables import Env
+from .input import Api, Common, ApiFunction
 from .audio_stack import PmAudioStack
 from .cognito_stack import PmCognitoStack
 from .db_stack import PmDbStack
-from .function_factories import http_api_integration_cb_factory, create_function_role_factory, FunctionFactoryParams, create_role_with_db_access_factory
+from .function_factories import http_api_integration_cb_factory, create_function_role_factory, FunctionFactoryParams, \
+    create_role_with_db_access_factory, allow_connection_function_factory
 from .image_stack import PmImageStack
 from .constants import true
 from .util import create_function
@@ -23,7 +25,8 @@ from .vpc_stack import PmVpcStack
 class PmApiStack(Stack):
 
     def __init__(self, scope: Construct, cognito_stack: PmCognitoStack, image_stack: PmImageStack,
-                 audio_stack: PmAudioStack, text_stack: PmTextStack,  db_stack: PmDbStack, vpc_stack: PmVpcStack, **kwargs):
+                 audio_stack: PmAudioStack, text_stack: PmTextStack, db_stack: PmDbStack, vpc_stack: PmVpcStack,
+                 **kwargs):
         super().__init__(scope, Api.stack_name, **kwargs)
 
         self.http_api = api_gtw.HttpApi(self, Api.name, default_domain_mapping=api_gtw.DomainMappingOptions(
@@ -31,7 +34,8 @@ class PmApiStack(Stack):
                                                                        regional_domain_name=os.getenv(
                                                                            Env.regional_domain_name),
                                                                        regional_hosted_zone_id=os.getenv(
-                                                                           Env.regional_hosted_zone_id)), mapping_key=os.getenv(Env.domain_name_mapping_key)
+                                                                           Env.regional_hosted_zone_id)),
+            mapping_key=os.getenv(Env.domain_name_mapping_key)
         ))
 
         jwt_issuer = f'https://cognito-idp.{kwargs.get("env").region}.amazonaws.com/{cognito_stack.user_pool.user_pool_id}'
@@ -46,29 +50,39 @@ class PmApiStack(Stack):
 
         self.note_api_function = create_function(self,
                                                  self._create_api_function_with_db_params(db_stack, vpc_stack, Api.note,
-                                                                                          {Env.text_processing_topic_arn: text_stack.text_processing_topic.topic_arn}))
+                                                                                          {
+                                                                                              Env.text_processing_topic_arn: text_stack.text_processing_topic.topic_arn}))
 
-        self.data_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack, Api.data))
+        self.data_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack,
+                                                                                                Api.data))
 
-        self.occurrence_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack,
+        self.occurrence_api_function = create_function(self,
+                                                       self._create_api_function_with_db_params(db_stack, vpc_stack,
                                                                                                 Api.occurrence))
 
-        self.link_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack, Api.link))
+        self.link_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack,
+                                                                                                Api.link))
 
         self.data_schedule_api_function = create_function(self,
-                                                          self._create_api_function_with_db_params(db_stack, vpc_stack, Api.metric_schedule))
+                                                          self._create_api_function_with_db_params(db_stack, vpc_stack,
+                                                                                                   Api.metric_schedule))
 
         self.occurrence_schedule_api_function = create_function(self,
-                                                                self._create_api_function_with_db_params(db_stack, vpc_stack, Api.task_schedule))
+                                                                self._create_api_function_with_db_params(db_stack,
+                                                                                                         vpc_stack,
+                                                                                                         Api.task_schedule))
 
         self.task_api_function = create_function(self,
-                                                 self._create_api_function_with_db_params(db_stack, vpc_stack,Api.task))
+                                                 self._create_api_function_with_db_params(db_stack, vpc_stack,
+                                                                                          Api.task))
 
         self.user_api_function = create_function(self,
-                                                 self._create_api_function_with_db_params(db_stack, vpc_stack, Api.user))
+                                                 self._create_api_function_with_db_params(db_stack, vpc_stack,
+                                                                                          Api.user))
 
         self.metric_api_function = create_function(self,
-                                                   self._create_api_function_with_db_params(db_stack, vpc_stack, Api.metric))
+                                                   self._create_api_function_with_db_params(db_stack, vpc_stack,
+                                                                                            Api.metric))
 
         self.tag_api_function = create_function(self,
                                                 self._create_api_function_with_db_params(db_stack, vpc_stack, Api.tag))
@@ -94,7 +108,8 @@ class PmApiStack(Stack):
         return create_function(self, params)
 
     def _create_api_function_with_db_params(self, db_stack: PmDbStack, vpc_stack: PmVpcStack,
-                                            function_params: ApiFunction, env_override: Dict[str, str] = None) -> FunctionFactoryParams:
+                                            function_params: ApiFunction,
+                                            env_override: Dict[str, str] = None) -> FunctionFactoryParams:
         return FunctionFactoryParams(
             function_params=function_params,
             build_args={
@@ -102,12 +117,13 @@ class PmApiStack(Stack):
                 Common.install_mysql_arg: true,
             },
             environment={
-                Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
-                Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-                Env.db_name: db_stack.db_instance.instance_identifier,
-                Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
-            } | env_override if env_override is not None else {},
+                            Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
+                            Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                            Env.db_name: db_stack.db_instance.instance_identifier,
+                            Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
+                        } | env_override if env_override is not None else {},
             role_supplier=create_role_with_db_access_factory(db_stack.db_proxy),
-            and_then=http_api_integration_cb_factory(self.http_api, function_params),
+            and_then=allow_connection_function_factory(db_stack.db_proxy,
+                                                       http_api_integration_cb_factory(self.http_api, function_params)),
             vpc=vpc_stack.vpc,
         )

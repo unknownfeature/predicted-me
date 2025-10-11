@@ -1,7 +1,7 @@
 import unittest
 
 from backend.functions.schema.index import handler
-from backend.lib.db import Origin
+from backend.lib.db import Origin, Occurrence
 from backend.tests.integration.base import *
 from backend.tests.integration.functions.occurrence import task_one_summary, task_one_display_summary
 

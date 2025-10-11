@@ -1,4 +1,5 @@
 import boto3
+from  backend.lib import constants
 
 
 def login(email, password, user_pool_id, client_id):
@@ -8,7 +9,7 @@ def login(email, password, user_pool_id, client_id):
         ClientId=client_id,
         Username=email,
         Password=password,
-        UserAttributes=[{'Name': 'email', 'Value': email}]
+        UserAttributes=[{constants.cognito_name: constants.cognito_email, constants.cognito_value: email}]
     )
 
     cognito_client.admin_confirm_sign_up(

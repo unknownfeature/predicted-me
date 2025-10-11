@@ -15,6 +15,7 @@ audio_bucket = os.getenv(Env.transcribe_bucket_in)
 
 content_type_resolver = {
     constants.mp4: 'audio/mp4',
+    constants.m4a: 'audio/mp4',
     constants.heic: 'image/heic',
     constants.jpg: 'image/jpeg',
     constants.png: 'image/png',

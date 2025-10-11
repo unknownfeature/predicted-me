@@ -1,14 +1,13 @@
 import json
-import math
 import traceback
 from typing import Callable, Dict, Any, List, Set, Tuple
 
-from backend.lib.db import begin_session, get_utc_timestamp
+from sqlalchemy.orm import Session
+
 from backend.lib import constants
+from backend.lib.db import begin_session, get_utc_timestamp
 from backend.lib.util import get_user_ids_from_event
 from shared.variables import Common
-
-from sqlalchemy.orm import Session
 
 seconds_in_day = 24 * 60 * 60
 

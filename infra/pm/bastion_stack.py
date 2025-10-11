@@ -2,16 +2,23 @@ import os
 
 from aws_cdk import (
     Stack,
+    aws_iam as iam,
     aws_ec2 as ec2)
 from constructs import Construct
+
+from .input import Bastion
+from .db_stack import PmDbStack
 from .vpc_stack import PmVpcStack
-from shared.variables import Env, Bastion
 
 
 class PmBastionStack(Stack):
 
-    def __init__(self, scope: Construct,  vpc_stack: PmVpcStack, **kwargs) -> None:
+    def __init__(self, scope: Construct,  db_stack: PmDbStack,  vpc_stack: PmVpcStack,  **kwargs) -> None:
         super().__init__(scope, Bastion.stack_name, **kwargs)
+
+        bastion_role = iam.Role(self, Bastion.role,
+                                assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'))
+        db_stack.db_proxy.grant_connect(bastion_role)
 
         sec_group = ec2.SecurityGroup(self, vpc=vpc_stack.vpc, id=Bastion.sec_group)
         sec_group.add_ingress_rule(ec2.Peer.ipv4(Bastion.sec_group_ingress_allow_cidr), ec2.Port.tcp(Bastion.sec_group_ingress_allow_port))
@@ -24,5 +31,8 @@ class PmBastionStack(Stack):
                          subnet_type=ec2.SubnetType.PUBLIC
                      ),
                      security_group=sec_group,
-                     key_name=os.getenv(Bastion.instance_key_name)
-                     )
+                     key_name=os.getenv(Bastion.instance_key_name),
+                                     role=bastion_role)
+        # db_stack.db_proxy.connections.allow_default_port_from(self.instance)
+
+

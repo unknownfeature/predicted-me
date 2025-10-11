@@ -26,7 +26,7 @@ def handler(event, _):
 
         return on_create()
 
-    return {constants.status: constants.success}
+    return  {constants.resource_status: constants.resource_success}
 
 
 def on_create():
@@ -64,8 +64,8 @@ def on_create():
         else:
             print(f'Index {opensearch_index} already exists. No action taken.')
 
-        return {constants.status: constants.success}
+        return {constants.resource_status: constants.resource_success}
 
     except Exception as e:
         traceback.print_exc()
-        return {constants.status: constants.error, constants.error: str(e)}
+        return  {constants.resource_status: constants.resource_failed, constants.resource_reason: str(e)}

@@ -1,4 +1,3 @@
-import os
 from typing import Dict
 
 from aws_cdk import (
@@ -11,19 +10,15 @@ from aws_cdk import (
     aws_sns_subscriptions as subs,
     Duration)
 
-from backend.lib.func import sqs
 from infra.pm.function_factories import FunctionFactoryParams
-from shared.variables import Common, Env
+from .input import Common
 
 
 def docker_code_asset(build_args: Dict[str, str]) -> lmbd.DockerImageCode:
     return lmbd.DockerImageCode.from_image_asset(
         directory=Common.docker_path,
         file=Common.docker_file,
-        build_args={Common.lib_dir_arg: Common.lib_dir,
-                    Common.backend_dir_arg: Common.backend_dir,
-                    Common.shared_path_arg: Common.shared_path,
-                    } | build_args
+        build_args=build_args
     )
 
 

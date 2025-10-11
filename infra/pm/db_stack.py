@@ -8,9 +8,11 @@ from aws_cdk import (
     aws_ec2 as ec2)
 from constructs import Construct
 
-from shared.variables import Env, Vpc, Db, Common, ScheduledFunction, CustomResourceTriggeredFunction
+from shared.variables import Env
+from .input import Vpc, Db, Common, ScheduledFunction, CustomResourceTriggeredFunction
 from .constants import true
-from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, schedule_cb_factory, custom_resource_trigger_cb_factory
+from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, schedule_cb_factory, \
+    custom_resource_trigger_cb_factory, allow_connection_function_factory
 from .util import create_function
 from .vpc_stack import PmVpcStack
 
@@ -39,7 +41,7 @@ class PmDbStack(Stack):
 
         self.db_instance = rds.DatabaseInstance(self, Db.instance_name,
                                                 engine=rds.DatabaseInstanceEngine.mysql(
-                                                    version=rds.MysqlEngineVersion.VER_8_0_35,
+                                                    version=rds.MysqlEngineVersion.VER_8_4_6,
                                                 ),
                                                 instance_type=ec2.InstanceType.of(ec2.InstanceClass.T3,
                                                                                   ec2.InstanceSize.XLARGE),
@@ -62,25 +64,6 @@ class PmDbStack(Stack):
 
 
 
-    def _create_scheduled_function_with_db(self, vpc_stack: PmVpcStack,
-                                           function_params: ScheduledFunction) -> lmbd.Function:
-        return create_function(self, FunctionFactoryParams(
-            function_params=function_params,
-            build_args={
-                Common.func_dir_arg: function_params.code_path,
-                Common.install_mysql_arg: true,
-            },
-            environment={
-                Env.db_secret_arn: self.db_secret.secret_full_arn,
-                Env.db_endpoint: self.db_instance.db_instance_endpoint_address,
-                Env.db_name: self.db_instance.instance_identifier,
-                Env.db_port: self.db_instance.db_instance_endpoint_port,
-            },
-            role_supplier=create_role_with_db_access_factory(self.db_proxy),
-            and_then=schedule_cb_factory(self, function_params),
-            vpc=vpc_stack.vpc,
-        ))
-
     def _create_initializer_function(self, vpc_stack: PmVpcStack,
                                      function_params: CustomResourceTriggeredFunction) -> lmbd.Function:
         env = {
@@ -97,6 +80,6 @@ class PmDbStack(Stack):
             },
             environment=env,
             role_supplier=create_role_with_db_access_factory(self.db_proxy),
-            and_then=custom_resource_trigger_cb_factory(self, {}, function_params ),
+            and_then=allow_connection_function_factory(self.db_proxy, custom_resource_trigger_cb_factory(self, {}, function_params )),
             vpc=vpc_stack.vpc,
         ))

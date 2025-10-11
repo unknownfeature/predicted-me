@@ -10,7 +10,8 @@ from constructs import Construct
 from infra.pm.function_factories import FunctionFactoryParams, create_function_role_factory, \
     custom_resource_trigger_cb_factory
 from infra.pm.util import create_function
-from shared.variables import Cognito, Env
+from shared.variables import Env
+from .input import Cognito
 
 
 class PmCognitoStack(Stack):
