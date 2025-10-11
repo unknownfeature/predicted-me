@@ -31,7 +31,7 @@ class PmApiStack(Stack):
                                                                        regional_domain_name=os.getenv(
                                                                            Env.regional_domain_name),
                                                                        regional_hosted_zone_id=os.getenv(
-                                                                           Env.regional_hosted_zone_id))
+                                                                           Env.regional_hosted_zone_id)), mapping_key=os.getenv(Env.domain_name_mapping_key)
         ))
 
         jwt_issuer = f'https://cognito-idp.{kwargs.get("env").region}.amazonaws.com/{cognito_stack.user_pool.user_pool_id}'

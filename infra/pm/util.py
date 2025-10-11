@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 
 from aws_cdk import (
@@ -12,7 +13,7 @@ from aws_cdk import (
 
 from backend.lib.func import sqs
 from infra.pm.function_factories import FunctionFactoryParams
-from shared.variables import Common
+from shared.variables import Common, Env
 
 
 def docker_code_asset(build_args: Dict[str, str]) -> lmbd.DockerImageCode:

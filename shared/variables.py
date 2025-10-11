@@ -2,7 +2,9 @@ import os
 from typing import List, Iterable
 from dotenv import load_dotenv
 from aws_cdk import Duration, aws_events as events, aws_apigatewayv2 as api_gtw
+
 load_dotenv()
+
 
 class Function:
     name: str
@@ -34,7 +36,7 @@ class QueueIntegration:
     name: str
     visibility_timeout: Duration
 
-    def __init__(self, queue_name: str, visibility_timeout: Duration, max_retries: int = 3,):
+    def __init__(self, queue_name: str, visibility_timeout: Duration, max_retries: int = 3, ):
         self.name = queue_name
         self.visibility_timeout = visibility_timeout
         self.max_retries = max_retries
@@ -127,12 +129,17 @@ class Env:
     opensearch_index_refresh_interval = 'OPENSEARCH_INDEX_REFRESH_INTERVAL'
     embedding_model = 'EMBEDDING_MODEL_ID'
     embedding_vector_dimension = 'EMBEDDING_VECTOR_DIMENSION'
+    admin_user = 'ADMIN_USER'
+    admin_secret_arn = 'ADMIN_SECRET_ARN'
+    cognito_pool_id = 'COGNITO_POOL_ID'
+    domain_name_mapping_key = 'DOMAIN_NAME_MAPPING_KEY'
 
 
 # --- Common Project Variables ---
 
 class Common:
-    backend_dir = 'backend'
+    root_dir = os.getenv(Env.root_dir)
+    backend_dir = os.path.join(root_dir, 'backend')
     functions_dir = 'functions'
     lib_dir = 'lib'
     shared_dir = 'shared'
@@ -144,8 +151,8 @@ class Common:
     backend_dir_arg = 'BACKEND_DIR'
     install_mysql_arg = 'INSTALL_MYSQL'
     lib_path = os.path.join(backend_dir, lib_dir)
-    shared_path = os.path.join(backend_dir, shared_dir)
-    docker_path = docker_file_dir
+    shared_path = shared_dir
+    docker_path = root_dir
     default_region = 'us-east-1'
     generative_model = 'anthropic.claude-3-sonnet-20240229-v1:0'
     embedding_model = 'amazon.titan-embed-text-v1'
@@ -176,12 +183,11 @@ class Db:
         name='pm_db_initializer_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'schema/index'),
+        code_path=os.path.join(Common.functions_dir, 'schema'),
         role_name='pm_db_initializer_func_role',
         trigger=CustomResourceTrigger(resource_name='pm_db_initialization_resource',
                                       provider_name='pm_db_initialization_provider')
     )
-
 
 
 class Bastion:
@@ -189,7 +195,7 @@ class Bastion:
     sec_group = 'pm_bastion_sec_group'
     sec_group_ingress_allow_cidr = '0.0.0.0/0'
     sec_group_ingress_allow_port = 22
-    ec2_ami = os.getenv(Env.bastion_ami)
+    ec2_ami = 'pm_bastion_ami'
     instance_name = 'pm_bastion_host'
     instance_key_name = os.getenv(Env.bastion_instance_key_name)
 
@@ -200,6 +206,20 @@ class Cognito:
     client = 'pm_client'
     ver_email_subj = 'Please, verify your email'
     ver_email_body = 'Thanks for signing up! Your verification code is {####}'
+
+    admin_user_creator_function = CustomResourceTriggeredFunction(
+        name='pm_cognito_admin_creator_func',
+        timeout=Duration.minutes(1),
+        memory_size=1024,
+        code_path=os.path.join(Common.functions_dir, 'cognito'),
+        role_name='pm_cognito_admin_creator_role',
+        trigger=CustomResourceTrigger(
+            resource_name='pm_cognito_admin_user_resource',
+            provider_name='pm_cognito_admin_user_provider'
+        )
+    )
+    admin_secret_name = 'pm_admin_initial_password'
+    admin_user_name = os.getenv(Env.admin_user)
 
 
 class Audio:
@@ -255,7 +275,7 @@ class Text:
     max_tokens = '1024'
     domain = 'pm_text_embedding_domain'
     domain_data_nodes = 1
-    domain_data_node_instance_type='t3.small.search'
+    domain_data_node_instance_type = 't3.small.search'
     domain_ebs_volume_size = 10
     opensearch_index = 'pm_note_text_embedding_opensearch_index'
     opensearch_index_refresh_interval = '30s'
@@ -304,12 +324,11 @@ class Text:
         name='pm_text_embedding_index_creator_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'opensearch/index'),
+        code_path=os.path.join(Common.functions_dir, 'opensearch'),
         role_name='embedding_index_creator_function_role',
-        trigger=CustomResourceTrigger(resource_name='embedding_index_creator_function_resource',
-                                      provider_name='embedding_index_creator_function_provider')
+        trigger=CustomResourceTrigger(resource_name='pm_embedding_index_creator_function_resource',
+                                      provider_name='pm_embedding_index_creator_function_provider')
     )
-
 
 
 class Tagging:
@@ -355,7 +374,7 @@ class Recurrent:
         name='pm_db_data_cleanup_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'recurrent/data/purge/index'),
+        code_path=os.path.join(Common.functions_dir, 'recurrent/data/purge'),
         role_name='pm_db_data_cleanup_func_role',
         schedule_params=Schedule(rule_name='pm_db_data_cleanup_rule',
                                  schedule=events.Schedule.cron(minute='0', hour='0')),
@@ -365,7 +384,7 @@ class Recurrent:
         name='pm_db_occurrence_cleanup_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/purge/index'),
+        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/purge'),
         role_name='pm_db_occurrence_cleanup_func_role',
         schedule_params=Schedule(rule_name='pm_db_occurrence_cleanup_rule',
                                  schedule=events.Schedule.cron(minute='0', hour='0')),
@@ -375,7 +394,7 @@ class Recurrent:
         name='pm_db_data_generation_func',
         timeout=Duration.minutes(5),
         memory_size=4096,
-        code_path=os.path.join(Common.functions_dir, 'recurrent/data/generate/index'),
+        code_path=os.path.join(Common.functions_dir, 'recurrent/data/generate'),
         role_name='pm_db_data_generation_func_role',
         schedule_params=Schedule(rule_name='pm_db_data_generation_rule',
                                  schedule=events.Schedule.cron(minute='*')))
@@ -384,10 +403,11 @@ class Recurrent:
         name='pm_db_occurrence_generation_func',
         timeout=Duration.minutes(5),
         memory_size=4096,
-        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/generate/index'),
+        code_path=os.path.join(Common.functions_dir, 'recurrent/occurrence/generate'),
         role_name='pm_db_occurrence_generation_func_role',
         schedule_params=Schedule(rule_name='pm_db_occurrence_generation_rule',
                                  schedule=events.Schedule.cron(minute='*')))
+
 
 class Api:
     stack_name = 'PmApiStack'
@@ -399,7 +419,7 @@ class Api:
         name='pm_presign_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'presign/index'),
+        code_path=os.path.join(Common.functions_dir, 'presign'),
         role_name='pm_presign_function_role', integrations=[HttpIntegration(
             url_path='/presign',
             methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
@@ -410,7 +430,7 @@ class Api:
         name='pm_note_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'note/index'),
+        code_path=os.path.join(Common.functions_dir, 'note'),
         role_name='pm_note_api_function_role',
         integrations=[HttpIntegration(
             url_path='/note/{id}',
@@ -423,7 +443,7 @@ class Api:
         name='pm_data_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'data/index'),
+        code_path=os.path.join(Common.functions_dir, 'data'),
         role_name='pm_data_api_function_role',
         integrations=[HttpIntegration(
             url_path='/metric/{id}/data',
@@ -443,7 +463,7 @@ class Api:
         name='pm_occurrence_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'occurrence/index'),
+        code_path=os.path.join(Common.functions_dir, 'occurrence'),
         role_name='pm_occurrence_api_function_role',
         integrations=[HttpIntegration(
             url_path='/task/{id}/occurrence',
@@ -463,7 +483,7 @@ class Api:
         name='pm_link_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'link/index'),
+        code_path=os.path.join(Common.functions_dir, 'link'),
         role_name='pm_link_api_function_role',
         integrations=[HttpIntegration(
             url_path='/link/{id}',
@@ -477,7 +497,7 @@ class Api:
         name='pm_metric_schedule_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'schedule/metric/index'),
+        code_path=os.path.join(Common.functions_dir, 'schedule/metric'),
         role_name='pm_metric_schedule_api_function_role',
         integrations=[HttpIntegration(
             url_path='/metric/{metric_id}/schedule/{id}',
@@ -496,7 +516,7 @@ class Api:
         name='pm_task_schedule_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'schedule/task/index'),
+        code_path=os.path.join(Common.functions_dir, 'schedule/task'),
         role_name='pm_task_schedule_api_function_role',
         integrations=[HttpIntegration(
             url_path='/task/{task_id}/schedule/{id}',
@@ -516,7 +536,7 @@ class Api:
         name='pm_task_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'task/index'),
+        code_path=os.path.join(Common.functions_dir, 'task'),
         role_name='pm_task_api_function_role',
         integrations=[HttpIntegration(
             url_path='/task/{id}',
@@ -530,7 +550,7 @@ class Api:
         name='pm_user_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'user/index'),
+        code_path=os.path.join(Common.functions_dir, 'user'),
         role_name='pm_user_api_function_role',
         integrations=[HttpIntegration(
             url_path='/user',
@@ -543,7 +563,7 @@ class Api:
         name='pm_metric_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'metric/index'),
+        code_path=os.path.join(Common.functions_dir, 'metric'),
         role_name='pm_metric_api_function_role',
         integrations=[HttpIntegration(
             url_path='/metric/{id}',
@@ -557,7 +577,7 @@ class Api:
         name='pm_tag_api_function',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'tag/index'),
+        code_path=os.path.join(Common.functions_dir, 'tag'),
         role_name='pm_tag_api_function_role',
         integrations=[HttpIntegration(
             url_path='/tag/{id}',
@@ -565,4 +585,3 @@ class Api:
             name='pm_tag_api_function_integration'
         )]
     )
-

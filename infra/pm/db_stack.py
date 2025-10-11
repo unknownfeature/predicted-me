@@ -97,6 +97,6 @@ class PmDbStack(Stack):
             },
             environment=env,
             role_supplier=create_role_with_db_access_factory(self.db_proxy),
-            and_then=custom_resource_trigger_cb_factory(self, env, function_params ),
+            and_then=custom_resource_trigger_cb_factory(self, {}, function_params ),
             vpc=vpc_stack.vpc,
         ))

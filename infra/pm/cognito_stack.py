@@ -1,10 +1,16 @@
+import os
+
 from aws_cdk import (
     Stack,
     RemovalPolicy,
+    aws_secretsmanager as secretsmanager,
     aws_cognito as cognito)
 from constructs import Construct
 
-from shared.variables import Cognito
+from infra.pm.function_factories import FunctionFactoryParams, create_function_role_factory, \
+    custom_resource_trigger_cb_factory
+from infra.pm.util import create_function
+from shared.variables import Cognito, Env
 
 
 class PmCognitoStack(Stack):
@@ -45,5 +51,31 @@ class PmCognitoStack(Stack):
                 user_password=True
             )
         )
+        self.admin_password_secret = secretsmanager.Secret(self, Cognito.admin_secret_name,
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                password_length=16,
+                exclude_characters='\'@/\\ '
+            )
+        )
+        def on_role(role):
+            self.admin_password_secret.grant_read(role)
+            self.user_pool.grant(role, 'cognito-idp:AdminCreateUser')
+
+        self.admin_creator_lambda = create_function(self, FunctionFactoryParams(
+            function_params=Cognito.admin_user_creator_function,
+            build_args={},
+            environment={
+                Env.cognito_pool_id:  self.user_pool.user_pool_id,
+                Env.admin_secret_arn: self.admin_password_secret.secret_arn,
+                Env.admin_user: os.getenv(Env.admin_user),
+
+            },
+            role_supplier=create_function_role_factory(on_role),
+            and_then=custom_resource_trigger_cb_factory(
+                self,
+                properties={},
+                custom_resource_triggered_function=Cognito.admin_user_creator_function
+            )
+        ))
 
 

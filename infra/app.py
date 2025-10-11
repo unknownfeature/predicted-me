@@ -16,6 +16,7 @@ from shared.variables import Env
 
 # export PYTHONPATH=$PYTHONPATH:./infra=/modules:./shared:./backend
 #  cdk synth --app  "python infra/app.py"
+#  cdk deploy --all  --app  "python infra/app.py"
 
 app = cdk.App()
 env = cdk.Environment(account=os.getenv(Env.aws_account), region=os.getenv(Env.aws_region))

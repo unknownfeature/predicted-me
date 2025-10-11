@@ -126,7 +126,7 @@ class PmTextStack(Stack):
             },
             environment=env,
             role_supplier=create_function_role_factory(lambda role:  self.embedding_domain.grant_write(role)),
-            and_then=custom_resource_trigger_cb_factory(self, env, function_params ),
+            and_then=custom_resource_trigger_cb_factory(self, {}, function_params ),
             vpc=vpc_stack.vpc,
         ))
 
