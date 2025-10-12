@@ -70,7 +70,7 @@ class PmDbStack(Stack):
         env = {
             db_secret_arn: self.db_secret.secret_full_arn,
             db_endpoint: self.db_instance.db_instance_endpoint_address,
-            db_name: self.db_instance.instance_identifier,
+            db_name: os.getenv(db_name),
             db_port: self.db_instance.db_instance_endpoint_port,
         }
         return create_function(self, FunctionFactoryParams(

@@ -1,3 +1,5 @@
+import os
+
 from aws_cdk import (
     Stack,
     aws_sns as sns,
@@ -51,7 +53,7 @@ class PmTaggingStack(Stack):
                                                    Common.install_mysql_arg: true}, environment={
                 db_secret_arn: db_stack.db_secret.secret_full_arn,
                 db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-                db_name: db_stack.db_instance.instance_identifier,
+                db_name: os.getenv(db_name),
                 db_port: db_stack.db_instance.db_instance_endpoint_port,
                 generative_model: Tagging.model,
                 max_tokens: Tagging.max_tokens,

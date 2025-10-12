@@ -1,3 +1,5 @@
+import os
+
 from aws_cdk import (
     Stack,
     aws_s3 as s3,
@@ -96,7 +98,7 @@ class PmImageStack(Stack):
             transcribe_bucket_out: self.bda_output_bucket.bucket_name,
             db_secret_arn: db_stack.db_secret.secret_full_arn,
             db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-            db_name: db_stack.db_instance.instance_identifier,
+            db_name: os.getenv(db_name),
             db_port: db_stack.db_instance.db_instance_endpoint_port,
             text_processing_topic_arn: text_stack.text_processing_topic.topic_arn,
         }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, on_role),

@@ -119,7 +119,7 @@ class PmApiStack(Stack):
             environment={
                             db_secret_arn: db_stack.db_secret.secret_full_arn,
                             db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-                            db_name: db_stack.db_instance.instance_identifier,
+                            db_name: os.getenv(db_name),
                             db_port: db_stack.db_instance.db_instance_endpoint_port,
                         } | env_override if env_override is not None else {},
             role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret),
