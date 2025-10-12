@@ -10,7 +10,7 @@ from constructs import Construct
 from infra.pm.function_factories import FunctionFactoryParams, create_function_role_factory, \
     custom_resource_trigger_cb_factory
 from infra.pm.util import create_function
-from shared.variables import Env
+from shared.variables import *
 from .input import Cognito
 
 
@@ -66,9 +66,9 @@ class PmCognitoStack(Stack):
             function_params=Cognito.admin_user_creator_function,
             build_args={},
             environment={
-                Env.cognito_pool_id:  self.user_pool.user_pool_id,
-                Env.admin_secret_arn: self.admin_password_secret.secret_arn,
-                Env.admin_user: os.getenv(Env.admin_user),
+                cognito_pool_id:  self.user_pool.user_pool_id,
+                admin_secret_arn: self.admin_password_secret.secret_arn,
+                admin_user: os.getenv(admin_user),
 
             },
             role_supplier=create_function_role_factory(on_role),

@@ -5,7 +5,7 @@ from aws_cdk import (
     aws_lambda as lmbd)
 from constructs import Construct
 
-from shared.variables import Env
+from shared.variables import *
 from .input import Common, Tagging, QueueFunction
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
@@ -49,14 +49,14 @@ class PmTaggingStack(Stack):
         params = FunctionFactoryParams(function_params=function_params,
                                        build_args={Common.func_dir_arg: function_params.code_path,
                                                    Common.install_mysql_arg: true}, environment={
-                Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
-                Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-                Env.db_name: db_stack.db_instance.instance_identifier,
-                Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
-                Env.generative_model: Tagging.model,
-                Env.max_tokens: Tagging.max_tokens,
+                db_secret_arn: db_stack.db_secret.secret_full_arn,
+                db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                db_name: db_stack.db_instance.instance_identifier,
+                db_port: db_stack.db_instance.db_instance_endpoint_port,
+                generative_model: Tagging.model,
+                max_tokens: Tagging.max_tokens,
 
-            }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, lambda role: role.add_to_policy(
+            }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, lambda role: role.add_to_policy(
                 bedrock_invoke_policy_statement)),
                                        and_then=allow_connection_function_factory(db_stack.db_proxy, sqs_integration_cb_factory([queue])),
                                        vpc=vpc_stack.vpc)

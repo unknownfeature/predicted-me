@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import User
 from backend.lib.func.http import RequestContext, handler_factory, post_factory
 from backend.lib.util import HttpMethod

@@ -8,7 +8,7 @@ from aws_cdk import (
     aws_ec2 as ec2)
 from constructs import Construct
 
-from shared.variables import Env
+from shared.variables import *
 from .input import Vpc, Db, Common, ScheduledFunction, CustomResourceTriggeredFunction
 from .constants import true
 from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, schedule_cb_factory, \
@@ -27,7 +27,8 @@ class PmDbStack(Stack):
         self.db_sec_group.add_ingress_rule(ec2.Peer.ipv4(Vpc.cidr), ec2.Port.tcp(Db.port))
 
         self.db_secret = rds.DatabaseSecret(self, Db.secret,
-                                            username=os.getenv(Env.db_user))
+                                            username=os.getenv(db_user),
+                                            dbname=os.getenv(db_name) )
 
         self.db_creds = rds.Credentials.from_secret(self.db_secret)
 
@@ -47,7 +48,7 @@ class PmDbStack(Stack):
                                                                                   ec2.InstanceSize.XLARGE),
                                                 vpc=vpc_stack.vpc,
                                                 security_groups=[self.db_sec_group],
-                                                database_name=os.getenv(Env.db_name),
+                                                database_name=os.getenv(db_name),
                                                 credentials=self.db_creds,
                                                 subnet_group=self.db_subnet_group,
 
@@ -67,10 +68,10 @@ class PmDbStack(Stack):
     def _create_initializer_function(self, vpc_stack: PmVpcStack,
                                      function_params: CustomResourceTriggeredFunction) -> lmbd.Function:
         env = {
-            Env.db_secret_arn: self.db_secret.secret_full_arn,
-            Env.db_endpoint: self.db_instance.db_instance_endpoint_address,
-            Env.db_name: self.db_instance.instance_identifier,
-            Env.db_port: self.db_instance.db_instance_endpoint_port,
+            db_secret_arn: self.db_secret.secret_full_arn,
+            db_endpoint: self.db_instance.db_instance_endpoint_address,
+            db_name: self.db_instance.instance_identifier,
+            db_port: self.db_instance.db_instance_endpoint_port,
         }
         return create_function(self, FunctionFactoryParams(
             function_params=function_params,
@@ -79,7 +80,7 @@ class PmDbStack(Stack):
                 Common.install_mysql_arg: true,
             },
             environment=env,
-            role_supplier=create_role_with_db_access_factory(self.db_proxy),
+            role_supplier=create_role_with_db_access_factory(self.db_proxy, self.db_secret),
             and_then=allow_connection_function_factory(self.db_proxy, custom_resource_trigger_cb_factory(self, {}, function_params )),
             vpc=vpc_stack.vpc,
         ))

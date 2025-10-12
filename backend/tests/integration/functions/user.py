@@ -1,8 +1,9 @@
 import json
 import unittest
 
-from backend.functions.user.index import handler
 from backend.tests.integration.base import *
+
+from backend.functions.user.index import handler
 
 
 class Test(unittest.TestCase):

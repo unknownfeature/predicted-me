@@ -1,9 +1,10 @@
 import json
 import unittest
 
+from backend.tests.integration.base import *
 from backend.functions.metric.index import handler
 from backend.lib.util import get_user_ids_from_event
-from backend.tests.integration.base import *
+
 
 metric_one_display_name = 'display name one'
 metric_two_display_name = 'display name two'

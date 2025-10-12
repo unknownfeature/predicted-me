@@ -7,13 +7,13 @@ from urllib.parse import unquote_plus
 import boto3
 from sqlalchemy import select
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Note, Origin, begin_session
-from shared.variables import Env
+from shared.variables import *
 
 s3_client = boto3.client(constants.s3)
 sns_client = boto3.client(constants.sns)
-sns_topic_arn = os.getenv(Env.text_processing_topic_arn)
+sns_topic_arn = os.getenv(text_processing_topic_arn)
 
 
 def read_data_from_output_file(bucket: str, key: str) -> List[Dict[str, Any]]:
@@ -28,7 +28,7 @@ def handler(event, _):
     try:
         record = event[constants.records][0]
         bucket_name = record[constants.s3][constants.bucket][constants.name]
-        object_key = unquote_plus(record[constants.s3][constants.object][constamts.s3_key])
+        object_key = unquote_plus(record[constants.s3][constants.object][constants.s3_key])
 
         image_descriptions = read_data_from_output_file(bucket_name, object_key)
 

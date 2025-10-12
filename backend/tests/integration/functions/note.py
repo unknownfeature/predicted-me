@@ -1,11 +1,12 @@
 import json
 import unittest
 from unittest.mock import patch
+from backend.tests.integration.base import *
 
 from backend.functions.note.index import handler
-from backend.lib.db import Origin, Data
+from backend.lib.db import  Data
 from backend.lib.util import get_user_ids_from_event
-from backend.tests.integration.base import *
+
 from backend.tests.integration.functions.data import metric_one_name, metric_one_display_name, metric_two_name, \
     metric_two_display_name, data_one_value, data_two_value, data_three_value, \
     data_one_units, data_two_units, data_three_units, data_four_value, data_five_value, data_four_units, \
@@ -41,7 +42,7 @@ class Test(unittest.TestCase):
         super().setUp()
         self.event = baseSetUp(Trigger.http)
 
-    def test_incomplete_post_returns_500(self):
+    def test_incomplete_post_returns_400(self):
 
         self.event[constants.body] = {
 
@@ -50,7 +51,7 @@ class Test(unittest.TestCase):
         self.event[constants.http_method] = constants.post
         result = handler(self.event, None)
 
-        assert result[constants.status_code] == 500
+        assert result[constants.status_code] == 400
 
         assert json.loads(result[constants.body])[constants.error] == constants.any_text_is_required
         session = begin_session()
@@ -65,7 +66,6 @@ class Test(unittest.TestCase):
 
         self.event[constants.body] = {
             constants.text: note_one_text,
-            constants.audio_key: note_two_audio_key,
             constants.image_key: note_four_image_key,
 
         }
@@ -95,6 +95,23 @@ class Test(unittest.TestCase):
 
         finally:
             session.close()
+
+
+    @patch('backend.functions.note.index.send_text_to_sns')
+    def test_note_post_with_bothauidio_and_text_fails(self, mock_send_text_to_sns):
+
+        self.event[constants.body] = {
+            constants.text: note_one_text,
+            constants.audio_key: note_two_audio_key,
+            constants.image_key: note_four_image_key,
+
+        }
+
+        self.event[constants.http_method] = constants.post
+
+        result = handler(self.event, None)
+        assert result[constants.status_code] == 400
+
 
     def test_note_get_by_id_succeeds(self):
 
@@ -540,16 +557,16 @@ class Test(unittest.TestCase):
                                 tagged=True)
 
             metric_one.data_points.extend(
-                [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, origin=Origin.audio_text,
+                [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, 
                       note=note_one, ),
-                 Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60, origin=Origin.text,
+                 Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60,
                       note=note_two, ),
                  Data(value=data_three_value, units=data_three_units,
-                      time=two_days_ago + 60, origin=Origin.text, note=note_three, ), ])
+                      time=two_days_ago + 60, note=note_three, ), ])
             metric_two.data_points.extend(
-                [Data(value=data_four_value, units=data_four_units, time=day_ago + 60, origin=Origin.img_desc,
+                [Data(value=data_four_value, units=data_four_units, time=day_ago + 60,
                       note=note_four, ),
-                 Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60, origin=Origin.img_text,
+                 Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60,
                       note=note_five, ), ])
 
             session.add_all([note_one, note_two, note_three, note_four, note_five, metric_one, metric_two])

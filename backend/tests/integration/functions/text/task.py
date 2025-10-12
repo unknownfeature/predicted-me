@@ -1,11 +1,11 @@
 import os
 from unittest.mock import patch
 
+from backend.tests.integration.base import *
+from shared.variables import *
 
-from shared.variables import Env
-
-os.environ[Env.max_tokens] = '1024'
-os.environ[Env.generative_model] = 'lalalala'
+os.environ[max_tokens] = '1024'
+os.environ[generative_model] = 'lalalala'
 
 import unittest
 
@@ -41,12 +41,13 @@ class Test(unittest.TestCase):
         self._setup_tasks()
         session = begin_session()
         input = {
-            task_one_summary: [{constants.description: 'one', constants.priority: 1}, {constants.description: 'two', constants.priority: 2}, {constants.description: 'three', constants.priority: 3}],
-            task_two_summary: [{constants.description: 'four', constants.priority: 4}, {constants.description: 'five', constants.priority: 5}],
+            task_one_summary: [{constants.description: 'one', constants.priority: 1}, {constants.description: 'one', constants.priority: 2}, {constants.description: 'one', constants.priority: 3}],
+            task_two_summary: [{constants.description: 'four', constants.priority: 4}, {constants.description:  'four', constants.priority: 5}],
 
         }
-        model_output = [{constants.name: k, constants.value: v[constants.value], constants.units: v[constants.units], }
+        model_output = [{constants.summary: k, constants.description: v[constants.description], constants.priority: v[constants.priority], }
                         for k, values in input.items() for v in values]
+
 
 
         try:
@@ -54,7 +55,7 @@ class Test(unittest.TestCase):
            assert len(session.query(Task).all()) ==1
 
            session = refresh_cache(session)
-           on_response_from_model(session, 1, Origin.img_text, model_output, )
+           on_response_from_model(session, 1,  model_output, )
 
            session = refresh_cache(session)
            assert len(session.query(Occurrence).all()) == 5
@@ -63,7 +64,7 @@ class Test(unittest.TestCase):
 
            for k, v in input.items():
                task = get_tasks_by_display_summary(k, session)[0]
-               sorted_data_from_db = sorted([f'{d.priority}_{d.description}' for d in task.occurrences])
+               sorted_data_from_db = sorted([f'{d.priority}_{d.task.description}' for d in task.occurrences])
 
                if k == task_one_summary:
                    assert sorted_data_from_db == sorted(

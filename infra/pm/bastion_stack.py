@@ -6,6 +6,7 @@ from aws_cdk import (
     aws_ec2 as ec2)
 from constructs import Construct
 
+from shared.variables import *
 from .input import Bastion
 from .db_stack import PmDbStack
 from .vpc_stack import PmVpcStack
@@ -33,6 +34,7 @@ class PmBastionStack(Stack):
                      security_group=sec_group,
                      key_name=os.getenv(Bastion.instance_key_name),
                                      role=bastion_role)
-        # db_stack.db_proxy.connections.allow_default_port_from(self.instance)
+        self.instance.connections.allow_to(db_stack.db_proxy, port_range=ec2.Port.tcp(int(os.getenv(db_port))))
+
 
 

@@ -10,7 +10,7 @@ from croniter import croniter
 from sqlalchemy import select, and_, Executable
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import User, Origin, Tag, Metric, normalize_identifier, Task, get_utc_timestamp
 
 text_getters = {
@@ -141,11 +141,11 @@ def call_bedrock_embedding(model: str, text_content: str) -> Optional[List[float
 
 
 def cron_expression_from_dict(data: Dict[str, str]) -> str:
-    return f'{data[constants.minute]} {data[constants.hour]} {data[constants.day_of_month]} {data[constants.month]} {data[constants.day_of_week]}'
+    return f'0 {data[constants.minute]} {data[constants.hour]} {data[constants.day_of_month]} {data[constants.month]} {data[constants.day_of_week]}'
 
 
 def cron_expression_from_schedule(schedule: Any) -> str:
-    return f'{schedule.minute} {schedule.hour} {schedule.day_of_month} {schedule.month} {schedule.day_of_week}'
+    return f'0 {schedule.minute} {schedule.hour} {schedule.day_of_month} {schedule.month} {schedule.day_of_week}'
 
 
 def enrich_schedule_map_with_next_timestamp(data_from_the_client: Dict[str, str]) -> Dict[str, str]:
@@ -158,7 +158,8 @@ def enrich_schedule_map_with_next_timestamp(data_from_the_client: Dict[str, str]
 def get_next_run_timestamp(cron_expression: str, base_time: int = None, period_seconds: int =None) -> int:
     if not base_time:
         base_time = get_utc_timestamp()
-    if period_seconds is not None:
+
+    if period_seconds is not None and period_seconds > 0:
         return base_time + period_seconds
 
     iterator = croniter(cron_expression, datetime.datetime.fromtimestamp(base_time, datetime.timezone.utc))

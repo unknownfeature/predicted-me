@@ -1,6 +1,6 @@
 import traceback
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import setup_engine, Base
 
 
@@ -9,20 +9,20 @@ def handler(event, _):
     request_type = event[constants.request_type]
 
     if request_type == constants.create_request_type:
-        print('Create event received. Initializing schema.')
-        return on_create(event)
+        print('Create event received. Initializing db.')
+        return on_create()
 
 
     return  {constants.resource_status: constants.resource_success}
 
 
-def on_create(event):
+def on_create():
 
     try:
 
-        engine = setup_engine()
+        engine = setup_engine(fix_auth=True)
 
-        print('Connecting to the database and creating schema...')
+        print('Connecting to the database and creating db...')
         Base.metadata.create_all(engine)
         print('Schema creation successful.')
 

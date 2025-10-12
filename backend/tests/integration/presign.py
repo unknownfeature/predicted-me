@@ -2,13 +2,13 @@ import unittest
 import uuid
 from unittest.mock import patch
 import os
-from shared.variables import Env
-os.environ[Env.bda_input_bucket_name] = 'image'
-os.environ[Env.transcribe_bucket_in] = 'audio'
+from shared.variables import *
+os.environ[bda_input_bucket_name] = 'image'
+os.environ[transcribe_bucket_in] = 'audio'
 from backend.tests.integration.base import baseSetUp, baseTearDown, Trigger
 
-from backend.lib import constants
-from backend.functions.presign.index import handler, get_extension
+from shared import constants
+from backend.functions.presign.index import handler
 
 # todo fix tests
 class Test(unittest.TestCase):
@@ -28,13 +28,13 @@ class Test(unittest.TestCase):
         event = self.event
         event[constants.http_method] = constants.get
         event[constants.query_params] = {
-            constants.extension: 'mp4',
+            constants.extension: 'm4a',
             constants.method: constants.put
         }
         res = handler(event, None)
         assert res[constants.status_code] == 200
         generate_key_mock.assert_called()
-        generate_presigned_url_mock.assert_called_once_with('audio',  'audio/mp4', key + '.mp4', 'put_object')
+        generate_presigned_url_mock.assert_called_once_with('audio',  'audio/mp4a-latm', key + '.m4a', 'put_object')
 
     @patch('backend.functions.presign.index.generate_presigned_url')
     @patch('backend.functions.presign.index.generate_key')
@@ -66,13 +66,13 @@ class Test(unittest.TestCase):
         event = self.event
         event[constants.http_method] = constants.get
         event[constants.query_params] = {
-            constants.extension: 'mp4',
+            constants.key: 'test.m4a',
             constants.method: constants.get
         }
         res = handler(event, None)
         assert res[constants.status_code] == 200
-        generate_key_mock.assert_called()
-        generate_presigned_url_mock.assert_called_once_with('audio', 'audio/mp4',  key + '.mp4', 'get_object')
+        generate_key_mock.assert_not_called()
+        generate_presigned_url_mock.assert_called_once_with('audio', 'audio/mp4a-latm', 'test.m4a', 'get_object')
 
     @patch('backend.functions.presign.index.generate_presigned_url')
     @patch('backend.functions.presign.index.generate_key')
@@ -85,13 +85,13 @@ class Test(unittest.TestCase):
         event = self.event
         event[constants.http_method] = constants.get
         event[constants.query_params] = {
-            constants.extension: 'jpg',
+            constants.key: 'test.jpg',
             constants.method: constants.get
         }
         res = handler(event, None)
         assert res[constants.status_code] == 200
-        generate_key_mock.assert_called()
-        generate_presigned_url_mock.assert_called_once_with('image', 'image/jpeg',  key + '.jpg', 'get_object')
+        generate_key_mock.assert_not_called()
+        generate_presigned_url_mock.assert_called_once_with('image', 'image/jpeg', 'test.jpg', 'get_object')
 
     @patch('backend.functions.presign.index.generate_presigned_url')
     def test_handler_returns_error_on_invalid_event(self, generate_presigned_url_mock):
@@ -113,9 +113,6 @@ class Test(unittest.TestCase):
         res = handler(event, None)
         assert res[constants.status_code] == 405
 
-    def test_extension_extracted(self,):
-
-        assert get_extension('hello.x') == 'x'
 
     def tearDown(self):
         baseTearDown()

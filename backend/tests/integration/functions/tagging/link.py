@@ -1,8 +1,9 @@
 import os
-from shared.variables import Env
+from backend.tests.integration.base import *
+from shared.variables import *
 
-os.environ[Env.max_tokens] = '1024'
-os.environ[Env.generative_model] = 'lalalala'
+os.environ[max_tokens] = '1024'
+os.environ[generative_model] = 'lalalala'
 
 import json
 import unittest
@@ -124,23 +125,23 @@ class Test(unittest.TestCase):
             session.add(note)
             session.flush()
             link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description,
-                            time=two_days_ago - 60, origin=Origin.audio_text,
+                            time=two_days_ago - 60, 
                             display_summary=link_one_summary, summary=normalize_identifier(link_one_summary),
                             tagged=tagged)
             link_two = Link(note=note, user=user, url=link_two_url, description=link_two_description,
-                            time=three_days_ago + 60, origin=Origin.user,
+                            time=three_days_ago + 60,
                             display_summary=link_two_summary, summary=normalize_identifier(link_two_summary),
                             tagged=tagged)
             link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description,
-                              time=day_ago - 60, origin=Origin.audio_text,
+                              time=day_ago - 60, 
                               display_summary=link_three_summary, summary=normalize_identifier(link_three_summary),
                               tagged=tagged)
             link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description,
-                             time=get_utc_timestamp() - 60, origin=Origin.audio_text,
+                             time=get_utc_timestamp() - 60, 
                              display_summary=link_four_summary, summary=normalize_identifier(link_four_summary),
                              tagged=tagged)
             link_five = Link(user=user, note=note, url=link_five_url, description=link_five_description,
-                             time=two_days_ago - 60, origin=Origin.user,
+                             time=two_days_ago - 60,
                              display_summary=link_five_summary, summary=normalize_identifier(link_five_summary),
                              tagged=tagged)
             session.add_all([note, link_one, link_two, link_three, link_four, link_five])

@@ -12,14 +12,14 @@ from pm.bastion_stack import PmBastionStack
 from pm.cognito_stack import PmCognitoStack
 from pm.db_stack import PmDbStack
 from pm.vpc_stack import PmVpcStack
-from shared.variables import Env
+from shared.variables import *
 
 # export PYTHONPATH=$PYTHONPATH:./infra=/modules:./shared:./backend
 #  cdk synth --app  "python infra/app.py"
 #  cdk deploy --all  --app  "python infra/app.py"
 
 app = cdk.App()
-env = cdk.Environment(account=os.getenv(Env.aws_account), region=os.getenv(Env.aws_region))
+env = cdk.Environment(account=os.getenv(aws_account), region=os.getenv(aws_region))
 
 vpc_stack = PmVpcStack(app, env=env)
 db_stack = PmDbStack(app, vpc_stack, env=env)

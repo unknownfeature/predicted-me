@@ -1,10 +1,10 @@
 import json
 import unittest
 
-from backend.functions.link.index import handler
-from backend.lib.db import Tag, Note, Origin
-from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
+from backend.functions.link.index import handler
+from backend.lib.util import get_user_ids_from_event
+
 
 link_one_url = 'http://one'
 link_two_url = 'http://two'
@@ -404,7 +404,6 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 3
             assert items[0][constants.note_id] == 1
-            assert items[0][constants.origin] == Origin.audio_text.value
 
             self.event[constants.query_params] = {
             }
@@ -704,19 +703,19 @@ class Test(unittest.TestCase):
             session.add(note)
             session.flush()
             link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description, tagged=True,
-                            tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.audio_text,
+                            tags=[tag_one, tag_two], time=two_days_ago - 60, 
                             display_summary=link_one_summary, summary=normalize_identifier(link_one_summary))
             link_two = Link(user=user, url=link_two_url, description=link_two_description, tagged=True,
-                            tags=[tag_one, tag_three], time=three_days_ago + 60, origin=Origin.user,
+                            tags=[tag_one, tag_three], time=three_days_ago + 60,
                             display_summary=link_two_summary, summary=normalize_identifier(link_two_summary))
             link_three = Link(note=note, user=user, url=link_three_url, description=link_three_description, tagged=True,
-                              tags=[tag_three, tag_two], time=day_ago - 60, origin=Origin.audio_text,
+                              tags=[tag_three, tag_two], time=day_ago - 60, 
                             display_summary=link_three_summary, summary=normalize_identifier(link_three_summary))
             link_four = Link(note=note, user=user, url=link_four_url, description=link_four_description, tagged=True,
-                             tags=[tag_two, tag_three], time=get_utc_timestamp() - 60, origin=Origin.audio_text,
+                             tags=[tag_two, tag_three], time=get_utc_timestamp() - 60, 
                             display_summary=link_four_summary, summary=normalize_identifier(link_four_summary))
             link_five = Link(user=user, url=link_five_url, description=link_five_description, tagged=True,
-                             tags=[tag_one, tag_two], time=two_days_ago - 60, origin=Origin.user,
+                             tags=[tag_one, tag_two], time=two_days_ago - 60,
                             display_summary=link_five_summary, summary=normalize_identifier(link_five_summary))
             session.add_all([note, link_one, link_two, link_three, link_four, link_five])
             session.commit()

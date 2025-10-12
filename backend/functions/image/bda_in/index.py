@@ -3,25 +3,25 @@ import json
 import traceback
 
 import boto3
-from backend.lib import constants
-from shared.variables import Env, default_region
+from shared import constants
+from shared.variables import  *
 
 bda_client = boto3.client(
     service_name=constants.bda,
-    region_name=os.getenv(Env.aws_region, default_region)
+    region_name=os.getenv(aws_region, constants.default_region)
 )
 
-output_bucket = os.getenv(Env.bda_output_bucket_name)
-job_execution_role = os.getenv(Env.bda_job_execution_role_arn)
-blueprint_name = os.getenv(Env.bda_blueprint_name)
-bda_model_name = os.getenv(Env.bda_model_name)
+output_bucket = os.getenv(bda_output_bucket_name)
+job_execution_role = os.getenv(bda_job_execution_role_arn)
+blueprint_name = os.getenv(bda_blueprint_name)
+bda_model_name = os.getenv(bda_model_name)
 
 
 def handler(event, _):
     try:
         record = event[constants.records][0]
         input_bucket = record[constants.s3][constants.bucket][constants.name]
-        input_key = record[constants.s3][constants.object][constamts.s3_key]
+        input_key = record[constants.s3][constants.object][constants.s3_key]
 
         input_s3_uri = f's3://{input_bucket}/{input_key}'
         output_s3_uri = f's3://{output_bucket}/{input_key}/'

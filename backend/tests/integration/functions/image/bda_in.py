@@ -2,14 +2,14 @@ import unittest
 import uuid
 from unittest.mock import patch
 import os
-from shared.variables import Env
+from shared.variables import *
 
-os.environ[Env.bda_output_bucket_name] = 'bda_bucket'
-os.environ[Env.bda_job_execution_role_arn] = 'role'
-os.environ[Env.bda_blueprint_name] = 'blueprint'
-os.environ[Env.bda_model_name] = 'model'
+os.environ[bda_output_bucket_name] = 'bda_bucket'
+os.environ[bda_job_execution_role_arn] = 'role'
+os.environ[bda_blueprint_name] = 'blueprint'
+os.environ[bda_model_name] = 'model'
 
-from backend.lib import constants
+from shared import constants
 from backend.functions.image.bda_in.index import handler
 
 
@@ -24,7 +24,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constamts.s3_key: key
+                        constants.s3_key: key
                     },
                     constants.bucket: {
                         constants.name: in_bucket

@@ -1,10 +1,9 @@
 import json
 import unittest
-
-from backend.functions.tag.index import handler
-from backend.lib.db import Tag
-from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
+from backend.functions.tag.index import handler
+from backend.lib.util import get_user_ids_from_event
+
 
 tag_one_display_name = 'display name one'
 tag_two_display_name = 'display name two'

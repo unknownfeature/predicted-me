@@ -5,20 +5,20 @@ from urllib.parse import unquote_plus
 
 import boto3
 
-from backend.lib import constants
-from shared.variables import Env
+from shared import constants
+from shared.variables import *
 
 s3_client = boto3.client(constants.s3)
 transcribe_client = boto3.client(constants.transcribe)
 
-input_bucket_name = os.environ.get(Env.transcribe_bucket_in)
-output_bucket_name = os.environ.get(Env.transcribe_bucket_out)
+input_bucket_name = os.environ.get(transcribe_bucket_in)
+output_bucket_name = os.environ.get(transcribe_bucket_out)
 
 
 def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     try:
         record = event[constants.records][0]
-        input_key = unquote_plus(record[constants.s3][constants.object][constamts.s3_key], encoding=constants.utf_8)
+        input_key = unquote_plus(record[constants.s3][constants.object][constants.s3_key], encoding=constants.utf_8)
 
         file_uri = f's3://{input_bucket_name}/{input_key}'
         media_format = input_key.split('.')[-1].upper()

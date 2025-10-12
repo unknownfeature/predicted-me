@@ -1,9 +1,9 @@
 import os
+from backend.tests.integration.base import *
+from shared.variables import *
 
-from shared.variables import Env
-
-os.environ[Env.max_tokens] = '1024'
-os.environ[Env.generative_model] = 'lalalala'
+os.environ[max_tokens] = '1024'
+os.environ[generative_model] = 'lalalala'
 
 import json
 import unittest

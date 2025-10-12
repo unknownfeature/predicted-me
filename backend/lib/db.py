@@ -8,14 +8,13 @@ from typing import List, Optional
 
 import boto3
 from sqlalchemy import (
+    text,
     BigInteger,
-    Integer,
     Boolean,
     String,
     Text,
     ForeignKey,
     Numeric,
-    Enum as SQLEnum,
     UniqueConstraint,
     Index,
     create_engine,
@@ -30,7 +29,7 @@ from sqlalchemy.orm import (
     validates
 )
 
-from shared.variables import Env
+from shared.variables import *
 
 
 class Origin(str, Enum):
@@ -234,10 +233,7 @@ class Data(Base):
 
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    origin: Mapped[Origin] = mapped_column(
-        SQLEnum(Origin),
-        nullable=False
-    )
+
     #  todo think how to do orphan delete where orphan is metric
     metric: Mapped['Metric'] = relationship()
 
@@ -245,7 +241,7 @@ class Data(Base):
 
     def __repr__(self) -> str:
         return (f'Data(id={self.id!r}, metric_id={self.metric_id!r}, '
-                f'value={self.value!r}, units={self.units!r}, origin={self.origin.value!r})')
+                f'value={self.value!r}, units={self.units!r})')
 
 
 class DataSchedule(Base):
@@ -305,11 +301,6 @@ class Link(Base):
 
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
 
-    origin: Mapped[Origin] = mapped_column(
-        SQLEnum(Origin),
-        nullable=False
-    )
-
     note: Mapped[Optional['Note']] = relationship(back_populates='links')
     user: Mapped['User'] = relationship()
     tags: Mapped[List['Tag']] = relationship(
@@ -322,7 +313,7 @@ class Link(Base):
 
     def __repr__(self) -> str:
         return (f'Link(id={self.id!r},  '
-                f'value={self.url!r}, description={self.description!r}, origin={self.origin.value!r})')
+                f'value={self.url!r}, description={self.description!r})')
 
 
 class Task(Base):
@@ -368,7 +359,7 @@ class Task(Base):
 
     def __repr__(self) -> str:
         return (f'Link(id={self.id!r},  '
-                f'value={self.description!r}, display_summary={self.display_summary!r}, origin={self.origin.value!r})')
+                f'value={self.description!r}, display_summary={self.display_summary!r})')
 
 
 class OccurrenceSchedule(Base):
@@ -413,11 +404,6 @@ class Occurrence(Base):
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
     priority: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
-    origin: Mapped[Origin] = mapped_column(
-        SQLEnum(Origin),
-        nullable=False
-    )
-
     task: Mapped['Task'] = relationship()
 
     note: Mapped['Note'] = relationship()
@@ -429,16 +415,16 @@ class Occurrence(Base):
 
     def __repr__(self) -> str:
         return (f'Occurrence(id={self.id!r}, task_id={self.task_id!r}, '
-                f'priority={self.priority!r}, completed={self.completed!r}, origin={self.origin.value!r})')
+                f'priority={self.priority!r}, completed={self.completed!r})')
 
 
-secret_arn = os.getenv(Env.db_secret_arn)
-db_endpoint = os.getenv(Env.db_endpoint)
-db_name = os.getenv(Env.db_name)
-db_test = os.getenv(Env.db_test)
-db_port = os.getenv(Env.db_port)
+secret_arn = os.getenv(db_secret_arn)
+db_endpoint = os.getenv(db_endpoint)
+db_name = os.getenv(db_name)
+db_test = os.getenv(db_test)
+db_port = os.getenv(db_port)
 
-secrets_client = boto3.client('secretsmanager', region_name=os.getenv(Env.aws_region))
+secrets_client = boto3.client('secretsmanager', region_name=os.getenv(aws_region))
 
 
 def begin_session(auto_flush=True):
@@ -447,7 +433,7 @@ def begin_session(auto_flush=True):
     return sessionmaker(bind=engine, autoflush=auto_flush)()
 
 
-def setup_engine():
+def setup_engine(fix_auth=False):
     if not db_test:
         secret_response = secrets_client.get_secret_value(SecretId=secret_arn)
         secret_dict = json.loads(secret_response['SecretString'])
@@ -455,10 +441,16 @@ def setup_engine():
         username = secret_dict['username']
         password = secret_dict['password']
     else:
-        username = os.getenv(Env.db_user)
-        password = os.getenv(Env.db_pass)
+        username = os.getenv(db_user)
+        password = os.getenv(db_pass)
     connection_string = (
         f'mysql+mysqlconnector://{username}:{password}@{db_endpoint}:{db_port}/{db_name}'
     )
     engine = create_engine(connection_string, pool_recycle=300, echo=db_test is not None)
+    if fix_auth and not db_test:
+        sql_command = text(f"ALTER USER '{username}'@'%' IDENTIFIED WITH mysql_native_password BY '{password}';")
+        with engine.connect() as connection:
+            connection.execute(sql_command)
+            connection.execute(text('FLUSH PRIVILEGES;'))
+            connection.commit()
     return engine

@@ -6,18 +6,18 @@ import boto3
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Task, Note, normalize_identifier, Origin, Occurrence
 from backend.lib.func.sqs import handler_factory, Model
 from backend.lib.func.sqs import process_record_factory, Params, note_text_supplier
 from backend.lib.util import get_or_create_tasks
-from shared.variables import Env
+from shared.variables import *
 
 sns_client = boto3.client(constants.sns)
-tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
+tagging_topic_arn = os.getenv(tagging_topic_arn)
 
-generative_model = os.getenv(Env.generative_model)
-max_tokens =  int(os.getenv(Env.max_tokens))
+generative_model = os.getenv(generative_model)
+max_tokens =  int(os.getenv(max_tokens))
 
 task_schema = {
     "type": "array",
@@ -39,14 +39,14 @@ task_schema = {
                 "maximum": 10
             }
         },
-        "required": ["description", "priority"]
+        "required": ["description", "priority", "summary"]
     }
 }
 
 prompt = ("You are an expert at identifying actionable tasks from text. Analyze the text below and extract all tasks. "
           "A task can be an item in a to-do list, a statement of intent (e.g., 'I need to...', 'remind me to...'), or an explicit command (e.g., 'add task:'). "
           "For each task, assign a priority from 1 (least important) to 10 (most important). If priority is not mentioned, use a default of 5. "
-          "Your output must be ONLY a JSON array that strictly adheres to the provided schema. "
+          "Your output must be ONLY a JSON array that strictly adheres to the provided db. "
           "If no tasks are found, output an empty array []. "
           "Ignore metrics and links.\n\n"
           f"**JSON Schema**:\n{json.dumps(task_schema, indent=3)}\n\n"
@@ -58,7 +58,7 @@ prompt = ("You are an expert at identifying actionable tasks from text. Analyze 
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 
-def on_response_from_model(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_response_from_model(session: Session, note_id: int, data: List[Dict[str, Any]]) -> None:
     target_note = session.scalar(select(Note).where(Note.id == note_id))
     tasks_map = get_or_create_tasks(session, {
         normalize_identifier(item[constants.summary]): {constants.summary: item[constants.summary],
@@ -67,7 +67,7 @@ def on_response_from_model(session: Session, note_id: int, origin: str, data: Li
     occurrence_to_add = [
         Occurrence(priority=d.get(constants.priority),
              task=tasks_map[normalize_identifier(d.get(constants.summary))],
-             note=target_note, origin=Origin(origin))
+             note=target_note)
      for d in data if constants.summary in d]
 
 

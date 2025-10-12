@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import delete
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import begin_session, Data, Occurrence
 
 

@@ -36,11 +36,7 @@ def stream_s3_to_presigned_url(
      else:
          raise Exception('Presigned URL failed ' + presigned_url_response.text)
 
-def delete_from_bucket(key: str, jwt: str):
-    presigned_url_response = requests.get(presign_path +  f'?key={key}&method=delete',  get_headers(jwt))
-    if not presigned_url_response.ok:
-        raise Exception('Presigned URL failed ' + presigned_url_response.text)
-    response = requests.delete(presigned_url_response.json()['url'])
-    if not response.ok:
-        raise Exception('Presigned URL deletion failed ' + presigned_url_response.text)
+def delete_from_bucket(bucket: str, key: str):
+    s3_client.delete_object(Bucket=bucket, Key=key)
+
 

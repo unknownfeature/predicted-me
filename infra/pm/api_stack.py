@@ -8,7 +8,7 @@ from aws_cdk import (
     aws_apigatewayv2_authorizers as auth)
 
 from constructs import Construct
-from shared.variables import Env
+from shared.variables import *
 from .input import Api, Common, ApiFunction
 from .audio_stack import PmAudioStack
 from .cognito_stack import PmCognitoStack
@@ -32,10 +32,10 @@ class PmApiStack(Stack):
         self.http_api = api_gtw.HttpApi(self, Api.name, default_domain_mapping=api_gtw.DomainMappingOptions(
             domain_name=api_gtw.DomainName.from_domain_name_attributes(self, Api.api_url, name=Api.api_url,
                                                                        regional_domain_name=os.getenv(
-                                                                           Env.regional_domain_name),
+                                                                           regional_domain_name),
                                                                        regional_hosted_zone_id=os.getenv(
-                                                                           Env.regional_hosted_zone_id)),
-            mapping_key=os.getenv(Env.domain_name_mapping_key)
+                                                                           regional_hosted_zone_id)),
+            mapping_key=os.getenv(domain_name_mapping_key)
         ))
 
         jwt_issuer = f'https://cognito-idp.{kwargs.get("env").region}.amazonaws.com/{cognito_stack.user_pool.user_pool_id}'
@@ -51,7 +51,7 @@ class PmApiStack(Stack):
         self.note_api_function = create_function(self,
                                                  self._create_api_function_with_db_params(db_stack, vpc_stack, Api.note,
                                                                                           {
-                                                                                              Env.text_processing_topic_arn: text_stack.text_processing_topic.topic_arn}))
+                                                                                              text_processing_topic_arn: text_stack.text_processing_topic.topic_arn}))
 
         self.data_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack,
                                                                                                 Api.data))
@@ -98,8 +98,8 @@ class PmApiStack(Stack):
             Common.func_dir_arg: Api.presign.code_path,
         }, environment={
 
-            Env.bda_input_bucket_name: image_stack.bda_input_bucket.bucket_name,
-            Env.transcribe_bucket_in: audio_stack.transcribe_input_bucket.bucket_name,
+            bda_input_bucket_name: image_stack.bda_input_bucket.bucket_name,
+            transcribe_bucket_in: audio_stack.transcribe_input_bucket.bucket_name,
 
         }, role_supplier=create_function_role_factory(on_role),
                                        and_then=http_api_integration_cb_factory(self.http_api, Api.presign),
@@ -117,12 +117,12 @@ class PmApiStack(Stack):
                 Common.install_mysql_arg: true,
             },
             environment={
-                            Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
-                            Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-                            Env.db_name: db_stack.db_instance.instance_identifier,
-                            Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
+                            db_secret_arn: db_stack.db_secret.secret_full_arn,
+                            db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                            db_name: db_stack.db_instance.instance_identifier,
+                            db_port: db_stack.db_instance.db_instance_endpoint_port,
                         } | env_override if env_override is not None else {},
-            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy),
+            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret),
             and_then=allow_connection_function_factory(db_stack.db_proxy,
                                                        http_api_integration_cb_factory(self.http_api, function_params)),
             vpc=vpc_stack.vpc,

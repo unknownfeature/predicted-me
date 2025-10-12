@@ -2,11 +2,11 @@ import json
 import unittest
 from decimal import Decimal
 from typing import Tuple
+from backend.tests.integration.base import *
 
 from backend.functions.data.index import handler
-from backend.lib.db import Data, Origin
+from backend.lib.db import Data
 from backend.lib.util import get_user_ids_from_event
-from backend.tests.integration.base import *
 
 # test data
 
@@ -419,7 +419,6 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 1
             assert items[0][constants.note_id] == 1
-            assert items[0][constants.origin] == Origin.user.value
 
             self.event[constants.query_params] = {
             }
@@ -703,7 +702,7 @@ class Test(unittest.TestCase):
                                 tags=[tag_one, tag_two])
 
             if value and units:
-                metric_one.data_points.append(Data(value=value, units=units, origin=Origin.user))
+                metric_one.data_points.append(Data(value=value, units=units))
             session.add(metric_one)
             session.commit()
 
@@ -742,14 +741,14 @@ class Test(unittest.TestCase):
                                                   month='4', day_of_week='5', next_run=get_utc_timestamp()))
 
         metric_one.data_points.extend(
-            [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, origin=Origin.user),
-             Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60, origin=Origin.user),
+            [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60),
+             Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60),
              Data(value=data_three_value, units=data_three_units,
-                  time=two_days_ago + 60, origin=Origin.user, note=note), ])
+                  time=two_days_ago + 60,  note=note), ])
         metric_two.data_points.extend(
-            [Data(value=data_four_value, units=data_four_units, time=day_ago + 60, origin=Origin.user),
-             Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60, origin=Origin.user),
-             Data(value=data_six_value, units=data_six_units, time=day_ago + 60, origin=Origin.user), ])
+            [Data(value=data_four_value, units=data_four_units, time=day_ago + 60),
+             Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60),
+             Data(value=data_six_value, units=data_six_units, time=day_ago + 60), ])
         session.add_all([note, metric_one, metric_two])
         session.commit()
 

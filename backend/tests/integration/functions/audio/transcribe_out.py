@@ -2,14 +2,14 @@ import unittest
 import uuid
 from unittest.mock import patch
 import os
+from backend.tests.integration.base import baseTearDown, legit_user_id, baseSetUp
 
 from backend.lib.db import begin_session, Note
-from backend.tests.integration.base import baseTearDown, legit_user_id, baseSetUp
-from shared.variables import Env
+from shared.variables import *
 
-os.environ[Env.transcribe_bucket_out] = 'bucket_out'
+os.environ[transcribe_bucket_out] = 'bucket_out'
 
-from backend.lib import constants
+from shared import constants
 from backend.functions.audio.transcribe_out.index import handler
 
 
@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constamts.s3_key: key
+                        constants.s3_key: key
                     }
                 }
             }]
@@ -104,7 +104,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constamts.s3_key: other_key
+                        constants.s3_key: other_key
                     }
                 }
             }]
@@ -143,7 +143,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constamts.s3_key: key
+                        constants.s3_key: key
                     }
                 }
             }]

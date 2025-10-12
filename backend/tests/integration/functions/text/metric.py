@@ -1,12 +1,12 @@
 import os
 from unittest.mock import patch
-
+from backend.tests.integration.base import *
 from backend.tests.integration.functions.data import metric_one_display_name, \
     metric_two_display_name
-from shared.variables import Env
+from shared.variables import *
 
-os.environ[Env.max_tokens] = '1024'
-os.environ[Env.generative_model] = 'lalalala'
+os.environ[max_tokens] = '1024'
+os.environ[generative_model] = 'lalalala'
 
 import unittest
 
@@ -41,7 +41,7 @@ class Test(unittest.TestCase):
            assert len(session.query(Metric).all()) ==1
 
            session = refresh_cache(session)
-           on_response_from_model(session, 1, Origin.img_text, model_output, )
+           on_response_from_model(session, 1,  model_output, )
 
            session = refresh_cache(session)
            assert len(session.query(Data).all()) == 5

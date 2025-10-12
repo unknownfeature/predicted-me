@@ -2,23 +2,22 @@ import json
 import os
 import traceback
 from enum import Enum
-from typing import Any, Dict, Callable, List
+from typing import Any, Dict, Callable, List, Optional
 
 import boto3
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from backend.lib import constants
-from backend.lib.constants import name_is_required
-from backend.lib.db import begin_session, Note
+from shared import constants
+from backend.lib.db import begin_session, Note, Origin
 from backend.lib.util import call_bedrock_generative, text_getters, call_bedrock_embedding
-from shared.variables import Env
+from shared.variables import *
 
-sns_client = boto3.client('sns', region_name=os.getenv(Env.aws_region))
-tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
+sns_client = boto3.client('sns', region_name=os.getenv(aws_region))
+tagging_topic_arn = os.getenv(tagging_topic_arn)
 
-text_extraction_model = os.getenv(Env.generative_model)
-max_tokens = os.getenv(Env.max_tokens)
+text_extraction_model = os.getenv(generative_model)
+max_tokens = os.getenv(max_tokens)
 
 
 #  this and the rest of it which uses this needs to be refactored todo
@@ -81,7 +80,7 @@ def process_record_factory(params: Params, on_response_from_model: Callable[
                 print(f'No numeric metrics extracted by Bedrock for Note ID {note_id}.')
                 return
 
-            on_response_from_model(session, note_id, origin, data)
+            on_response_from_model(session, note_id, data)
         except Exception:
             session.rollback()
             traceback.print_exc()
@@ -91,12 +90,34 @@ def process_record_factory(params: Params, on_response_from_model: Callable[
 
     return process_record
 
-
-def note_text_supplier(session: Session, note_id: int, origin: str):
+#  refactor and test todo
+def note_text_supplier(session: Session, note_id: int, origin: str) -> Optional[str]:
     note_query = select(Note).where(Note.id == note_id)
     target_note = session.scalar(note_query)
 
     if not target_note:
-        return
+        return None
 
-    return text_getters[origin](target_note)
+    if origin == Origin.text.value:
+        if target_note.image_key is None:
+            return target_note.text
+        if target_note.image_described:
+            return f'{target_note.text}. Image description: {target_note.image_description}. Image text: {target_note.image_text}'
+
+    elif origin == Origin.audio_text.value and target_note.audio_transcribed:
+        if target_note.image_key is None:
+            return target_note.audio_text
+
+        if target_note.image_described:
+            return f'{target_note.audio_text}. Image description: {target_note.image_description}. Image text: {target_note.image_text}'
+    elif target_note.image_described:
+        # origin can only be image here
+       if target_note.text:
+           return f'{target_note.text}. Image description: {target_note.image_description}. Image text: {target_note.image_text}'
+
+       if target_note.audio_key and target_note.audio_transcribed:
+               return f'{target_note.audio_text}. Image description: {target_note.image_description}. Image text: {target_note.image_text}'
+       elif not target_note.audio_key:
+           return f'Image description: {target_note.image_description}. Image text: {target_note.image_text}'
+
+

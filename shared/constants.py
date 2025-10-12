@@ -113,6 +113,7 @@ utf_8 = 'utf-8'
 inference_result = 'inference_result'
 request_type = 'RequestType'
 create_request_type = 'Create'
+update_request_type = 'Update'
 secretsmanager = 'secretsmanager'
 next_run = 'next_run'
 es = 'es'
@@ -146,3 +147,11 @@ resource_status = 'Status'
 resource_success = 'SUCCESS'
 resource_failed = 'FAILED'
 resource_reason = 'Reason'
+
+
+cors_headers = {
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH,DELETE'
+}
+default_region = 'us-east-1'

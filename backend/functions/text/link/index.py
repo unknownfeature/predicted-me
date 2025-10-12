@@ -6,18 +6,18 @@ import boto3
 from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Link, normalize_identifier, Note, Origin
 from backend.lib.func.sqs import handler_factory, Model
 from backend.lib.func.sqs import process_record_factory, note_text_supplier, Params
-from shared.variables import Env
+from shared.variables import *
 
-sns_client = boto3.client(constants.sns, region_name=os.getenv(Env.aws_region))
-tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
+sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
+tagging_topic_arn = os.getenv(tagging_topic_arn)
 
-generative_model = os.getenv(Env.generative_model)
-max_tokens = int(os.getenv(Env.max_tokens))
-
+generative_model = os.getenv(generative_model)
+max_tokens = int(os.getenv(max_tokens))
+# todo add logic to submit text for analysis with either audio text + image or with text + image
 link_schema = {
     "type": "array",
     "items": {
@@ -36,14 +36,14 @@ link_schema = {
                 "description": f"A concise description of the link's content based on the surrounding text. Max length: {inspect(Link).c.description.type.length} characters."
             },
         },
-        "required": ["url", "description"]
+        "required": ["url", "description", "summary"]
     }
 }
 
 prompt = (
     "You are an expert at extracting links from text. Analyze the text below and extract all web links (http/https). "
     "For each link, derive a concise description from its anchor text or surrounding context. "
-    "Your output must be ONLY a JSON array that strictly adheres to the provided schema. "
+    "Your output must be ONLY a JSON array that strictly adheres to the provided db. "
     "If no links are found, output an empty array [].\n\n"
     f"**JSON Schema**:\n{json.dumps(link_schema, indent=3)}\n\n"
     "--- EXAMPLES ---\n"
@@ -57,7 +57,7 @@ prompt = (
 
 # todo in some places I commit in CB and in some in the calling code
 # here we need to make sure changes are in DB before sending the message so we need to commit here
-def on_response_from_model(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_response_from_model(session: Session, note_id: int, data: List[Dict[str, Any]]) -> None:
     note = session.query(Note).filter(Note.id == note_id).first()
     if not note:
         print(f"Note {note_id} not found")
@@ -65,8 +65,7 @@ def on_response_from_model(session: Session, note_id: int, origin: str, data: Li
     existing = [l.url for l in session.scalars(
         select(Link).where(and_(Link.url.in_([d[constants.url] for d in data]), Link.user_id == note.user_id))).unique()]
 
-    new_ones = [Link(origin=Origin(origin),
-                     url=l[constants.url],
+    new_ones = [Link(url=l[constants.url],
                      user=note.user,
                      note=note,
                      summary=normalize_identifier(l[constants.summary]),

@@ -3,15 +3,15 @@ import traceback
 
 import boto3
 
-from backend.lib import constants
-from shared.variables import Env
+from shared import constants
+from shared.variables import *
 
 secrets_client = boto3.client(constants.secretsmanager)
 cognito_client = boto3.client(constants.cognito_idp)
 
-user_pool_id = os.getenv(Env.cognito_pool_id)
-username = os.getenv(Env.admin_user)
-password_secret_arn = os.getenv(Env.admin_secret_arn)
+user_pool_id = os.getenv(cognito_pool_id)
+username = os.getenv(admin_user)
+password_secret_arn = os.getenv(admin_secret_arn)
 
 def handler(event, _):
     request_type = event[constants.request_type]

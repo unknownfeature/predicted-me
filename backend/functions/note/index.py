@@ -8,14 +8,14 @@ from sqlalchemy import select, func, and_, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Note, Tag, Metric, Origin, Data
 from backend.lib.func.http import handler_factory, RequestContext, get_ts_start_and_end, get_offset_and_limit
 from backend.lib.util import  HttpMethod
-from shared.variables import Env
+from shared.variables import *
 
 sns_client = boto3.client(constants.sns)
-sns_topic_arn = os.getenv(Env.text_processing_topic_arn)
+sns_topic_arn = os.getenv(text_processing_topic_arn)
 
 
 def send_text_to_sns(note_id: int, origin=Origin.text.value):
@@ -39,8 +39,14 @@ def post(session: Session, context: RequestContext) -> Tuple[dict[str, Any], int
     image_key = body.get(constants.image_key)
     audio_key = body.get(constants.audio_key)
 
+    if text and audio_key:
+        return {
+            constants.status: constants.error,
+            constants.error: 'You must provide either text OR an audio_key, but not both.'
+        }, 400
+
     if not text and not image_key and not audio_key:
-        return {constants.status: constants.error, constants.error: constants.any_text_is_required}, 500
+        return {constants.status: constants.error, constants.error: constants.any_text_is_required}, 400
 
 
     new_note = Note(

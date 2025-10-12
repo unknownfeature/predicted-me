@@ -3,7 +3,7 @@ from aws_cdk import (
     aws_lambda as lmbd)
 from constructs import Construct
 
-from shared.variables import Env
+from shared.variables import *
 from .input import Recurrent, Common, ScheduledFunction
 from .constants import true
 from .db_stack import PmDbStack
@@ -38,12 +38,12 @@ class PmRecurrentStack(Stack):
                 Common.install_mysql_arg: true,
             },
             environment={
-                Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
-                Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-                Env.db_name: db_stack.db_instance.instance_identifier,
-                Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
+                db_secret_arn: db_stack.db_secret.secret_full_arn,
+                db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                db_name: db_stack.db_instance.instance_identifier,
+                db_port: db_stack.db_instance.db_instance_endpoint_port,
             },
-            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy),
+            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret),
             and_then=allow_connection_function_factory(db_stack.db_proxy, schedule_cb_factory(self, function_params)),
             vpc=vpc_stack.vpc,
         ))

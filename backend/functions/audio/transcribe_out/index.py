@@ -7,8 +7,8 @@ from urllib.parse import unquote_plus
 import boto3
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
-from shared.variables import Env
+from shared import constants
+from shared.variables import *
 
 s3_client = boto3.client(constants.s3)
 sns_client = boto3.client(constants.sns)
@@ -16,8 +16,8 @@ sns_client = boto3.client(constants.sns)
 from backend.lib.db import Note, Origin, begin_session
 from sqlalchemy import select
 
-output_bucket_name = os.getenv(Env.transcribe_bucket_out)
-text_topic_arn = os.getenv(Env.text_processing_topic_arn)
+output_bucket_name = os.getenv(transcribe_bucket_out)
+text_topic_arn = os.getenv(text_processing_topic_arn)
 
 def get_note_id_from_transcribe_job(job_name: str, session: Session) -> int | None:
         note_query = select(Note).where(Note.audio_key == job_name)
@@ -30,7 +30,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
     try:
         record = event[constants.records][0]
-        output_key = unquote_plus(record[constants.s3][constants.object][constamts.s3_key])
+        output_key = unquote_plus(record[constants.s3][constants.object][constants.s3_key])
 
         transcript_json = read_job_result_json(output_key)
 

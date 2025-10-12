@@ -5,14 +5,14 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy import select, inspect, and_
 from sqlalchemy.orm import Session, selectinload
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Tag, Link, User, Note
 from backend.lib.func.sqs import process_record_factory, Params, handler_factory, BedrockModelType, Model
 from backend.lib.util import add_tags
-from shared.variables import Env
+from shared.variables import *
 
-generative_model = os.getenv(Env.generative_model)
-max_tokens = int(os.getenv(Env.max_tokens))
+generative_model = os.getenv(generative_model)
+max_tokens = int(os.getenv(max_tokens))
 
 output_schema = {
     'type': 'array',
@@ -38,7 +38,7 @@ output_schema = {
 tagging_prompt = (
     'You are an expert taxonomy and categorization engine. Your job is to analyze a list of link descriptions and assign '
     '1 to 3 relevant categories to each one from the allowed taxonomy. '
-    'Your output must be ONLY a JSON array that strictly adheres to the provided schema.\n\n'
+    'Your output must be ONLY a JSON array that strictly adheres to the provided db.\n\n'
 
     f'**Output JSON Schema**:\n{json.dumps(output_schema, indent=3)}\n\n'
     '--- EXAMPLES ---\n'

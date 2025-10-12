@@ -1,9 +1,9 @@
 import os
+from backend.tests.integration.base import *
+from shared.variables import *
 
-from shared.variables import Env
-
-os.environ[Env.max_tokens] = '1024'
-os.environ[Env.generative_model] = 'lalalala'
+os.environ[max_tokens] = '1024'
+os.environ[generative_model] = 'lalalala'
 
 import json
 import unittest
@@ -104,11 +104,11 @@ class Test(unittest.TestCase):
             metric_two = Metric(tagged=tagged, user=user, display_name=metric_two_name,
                                 name=normalize_identifier(metric_two_name))
 
-            data_one = Data(value=1, note=note, time=two_days_ago - 60, origin=Origin.audio_text, metric=metric_one, )
-            data_two = Data(value=1, note=note, time=three_days_ago + 60, origin=Origin.user, metric=metric_one)
-            data_three = Data(value=1, note=note, time=day_ago - 60, origin=Origin.audio_text, metric=metric_one )
-            data_four = Data(value=1, note=note, time=get_utc_timestamp() - 60, origin=Origin.audio_text, metric=metric_two)
-            data_five = Data(value=1, note=note, time=two_days_ago - 60, origin=Origin.user, metric=metric_two)
+            data_one = Data(value=1, note=note, time=two_days_ago - 60,  metric=metric_one, )
+            data_two = Data(value=1, note=note, time=three_days_ago + 60, metric=metric_one)
+            data_three = Data(value=1, note=note, time=day_ago - 60,  metric=metric_one )
+            data_four = Data(value=1, note=note, time=get_utc_timestamp() - 60,  metric=metric_two)
+            data_five = Data(value=1, note=note, time=two_days_ago - 60, metric=metric_two)
             metric_one.data_points = [data_one, data_two, data_three]
             metric_two.data_points = [data_four, data_five]
             session.add_all([note, metric_one, metric_two])

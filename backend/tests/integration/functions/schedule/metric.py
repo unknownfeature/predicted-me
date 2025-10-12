@@ -1,11 +1,11 @@
 import json
 import unittest
-
-from backend.functions.schedule.metric.index import handler
-from backend.lib import constants
-from backend.lib.db import Metric, normalize_identifier, begin_session, User, DataSchedule, get_utc_timestamp
 from backend.tests.integration.base import baseTearDown, baseSetUp, Trigger, legit_user_id, refresh_cache, \
     prepare_http_event, get_user_by_id, malicious_user_id, get_data_schedule_by_id
+from backend.functions.schedule.metric.index import handler
+from shared import constants
+from backend.lib.db import Metric, normalize_identifier, begin_session, User, DataSchedule, get_utc_timestamp
+
 from backend.tests.integration.functions.data import metric_one_display_name, metric_two_display_name
 
 all = '*'

@@ -26,7 +26,7 @@ def handler(_, __):
                 )
             )
             session.execute(update_stmt)
-            data_to_insert = Occurrence(priority=schedule.priority,  task=schedule.task, origin=Origin.scheduled.value)
+            data_to_insert = Occurrence(priority=schedule.priority,  task=schedule.task)
             session.add(data_to_insert)
 
         session.commit()

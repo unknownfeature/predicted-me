@@ -6,7 +6,7 @@ from aws_cdk import (
     aws_bedrock as bedrock)
 from constructs import Construct
 
-from shared.variables import Env
+from shared.variables import *
 from .input import Common, Image
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
@@ -74,10 +74,10 @@ class PmImageStack(Stack):
         params = FunctionFactoryParams(function_params=Image.bda_in,
                                        build_args={Common.func_dir_arg: Image.bda_in.code_path, },
                                        environment={
-                                           Env.bda_output_bucket_name: self.bda_output_bucket.bucket_name,
-                                           Env.bda_job_execution_role_arn: role.role_arn,
-                                           Env.bda_blueprint_name: image_blueprint.blueprint_name,
-                                           Env.bda_model_name: Image.bda_model_name
+                                           bda_output_bucket_name: self.bda_output_bucket.bucket_name,
+                                           bda_job_execution_role_arn: role.role_arn,
+                                           bda_blueprint_name: image_blueprint.blueprint_name,
+                                           bda_model_name: Image.bda_model_name
 
                                        }, role_supplier= lambda _, __: role,
                                        and_then=s3_integration_cb_factory(
@@ -93,13 +93,13 @@ class PmImageStack(Stack):
         params = FunctionFactoryParams(function_params=Image.bda_out, build_args={
             Common.func_dir_arg: Image.bda_out.code_path, Common.install_mysql_arg: true
         }, environment={
-            Env.transcribe_bucket_out: self.bda_output_bucket.bucket_name,
-            Env.db_secret_arn: db_stack.db_secret.secret_full_arn,
-            Env.db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
-            Env.db_name: db_stack.db_instance.instance_identifier,
-            Env.db_port: db_stack.db_instance.db_instance_endpoint_port,
-            Env.text_processing_topic_arn: text_stack.text_processing_topic.topic_arn,
-        }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, on_role),
+            transcribe_bucket_out: self.bda_output_bucket.bucket_name,
+            db_secret_arn: db_stack.db_secret.secret_full_arn,
+            db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+            db_name: db_stack.db_instance.instance_identifier,
+            db_port: db_stack.db_instance.db_instance_endpoint_port,
+            text_processing_topic_arn: text_stack.text_processing_topic.topic_arn,
+        }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, on_role),
             and_then=allow_connection_function_factory( db_stack.db_proxy, s3_integration_cb_factory([S3EventParams(self.bda_output_bucket, s3.EventType.OBJECT_CREATED)])),
             vpc=vpc_stack.vpc)
 

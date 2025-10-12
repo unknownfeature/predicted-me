@@ -4,7 +4,7 @@ from sqlalchemy import select, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Note, Tag, Link, Origin, normalize_identifier
 from backend.lib.func.http import RequestContext, handler_factory, delete_factory, post_factory, get_offset_and_limit, \
     get_ts_start_and_end
@@ -62,7 +62,6 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
         constants.url: link.url,
         constants.summary: link.display_summary,
         constants.description: link.description,
-        constants.origin: link.origin.value,
         constants.tagged: link.tagged,
         constants.time: link.time,
         constants.tags: [tag.display_name for tag in link.tags],
@@ -117,7 +116,6 @@ post_handler = lambda context, session: Link(user_id=context.user.id, url=contex
                                              display_summary=context.body[constants.summary],
                                              summary=normalize_identifier(context.body[constants.summary]),
                                              description=context.body[constants.description],
-                                             origin=Origin.user.value,
                                              tagged=len(context.body.get(constants.tags, [])) > 0,
                                              tags=list(get_or_create_tags(context.user.id, session,
                                                                           set(context.body.get(constants.tags,

@@ -1,10 +1,10 @@
 import os
 from unittest.mock import patch
+from backend.tests.integration.base import *
+from shared.variables import *
 
-from shared.variables import Env
-
-os.environ[Env.max_tokens] = '1024'
-os.environ[Env.generative_model] = 'lalalala'
+os.environ[max_tokens] = '1024'
+os.environ[generative_model] = 'lalalala'
 
 import unittest
 
@@ -58,7 +58,7 @@ class Test(unittest.TestCase):
            assert len(session.query(Link).all()) ==1
 
            session = refresh_cache(session)
-           on_response_from_model(session, 1, Origin.img_text, model_output, )
+           on_response_from_model(session, 1, model_output, )
 
            session = refresh_cache(session)
            assert len(session.query(Link).all()) == 5
@@ -90,7 +90,7 @@ class Test(unittest.TestCase):
             session.add(note)
             session.flush()
             link_one = Link(note=note, user=user, url=link_one_url, description=link_one_description,
-                            time=two_days_ago - 60, origin=Origin.audio_text,
+                            time=two_days_ago - 60,
                             display_summary=link_one_summary, summary=normalize_identifier(link_one_summary))
 
             session.add_all([note, link_one])

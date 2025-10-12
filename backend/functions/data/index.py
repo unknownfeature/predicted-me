@@ -4,7 +4,7 @@ from sqlalchemy import select, update, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Data, Metric, Note, Tag, Origin
 from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory, get_offset_and_limit, \
     get_ts_start_and_end
@@ -21,7 +21,7 @@ def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int
         select(Metric).where(and_(*[Metric.user_id == context.user.id, Metric.id == id]))).first()
     if not metric:
         return {constants.status: constants.not_found}, 404
-    data = Data(**{f: body[f] for f in body if f in updatable_fileds} | {constants.origin: Origin.user.value},
+    data = Data(**{f: body[f] for f in body if f in updatable_fileds},
                 metric=metric)
     session.add(data)
     session.commit()
@@ -78,7 +78,6 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
         constants.note_id: dp.note_id,
         constants.value: float(dp.value),
         constants.units: dp.units,
-        constants.origin: dp.origin.value,
         constants.time: dp.time,
         constants.metric: {
             constants.id: dp.metric.id,

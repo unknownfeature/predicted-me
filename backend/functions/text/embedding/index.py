@@ -6,17 +6,17 @@ from boto3 import Session
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.func.sqs import handler_factory, process_record_factory, Params, note_text_supplier, Model
-from shared.variables import Env
+from shared.variables import *
 
-opensearch_endpoint = os.getenv(Env.opensearch_endpoint)
-opensearch_port = int(os.getenv(Env.opensearch_port))
-opensearch_index = os.getenv(Env.opensearch_index)
+opensearch_endpoint = os.getenv(opensearch_endpoint)
+opensearch_port = int(os.getenv(opensearch_port))
+opensearch_index = os.getenv(opensearch_index)
 
-embedding_model = os.getenv(Env.embedding_model)
+embedding_model = os.getenv(embedding_model)
 
-region = os.getenv(Env.aws_region)
+region = os.getenv(aws_region)
 bedrock_client = boto3.client(constants.bedrock_runtime)
 
 service = constants.es
@@ -32,16 +32,15 @@ opensearch_client = OpenSearch(
 )
 
 
-def on_response_from_model(_: Session, note_id: int, origin: str, data: List[float]):
+def on_response_from_model(_: Session, note_id: int, __: str, data: List[float]):
     document = {
-        constants.origin: origin,
         constants.vector_field: data,
         constants.note_id: note_id
     }
     opensearch_client.index(
         index=opensearch_index,
         body=document,
-        id=f'{note_id}_{origin}'
+        id=note_id
     )
 
 

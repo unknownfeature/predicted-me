@@ -5,15 +5,15 @@ import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
-from backend.lib import constants
-from shared.variables import Env
+from shared import constants
+from shared.variables import *
 
-opensearch_endpoint = os.getenv(Env.opensearch_endpoint)
-opensearch_port = int(os.getenv(Env.opensearch_port))
-opensearch_index = os.getenv(Env.opensearch_index)
-opensearch_index_refresh_interval = os.getenv(Env.opensearch_index_refresh_interval)
-vector_dimension = int(os.getenv(Env.embedding_vector_dimension))
-region = os.getenv(Env.aws_region)
+opensearch_endpoint = os.getenv(opensearch_endpoint)
+opensearch_port = int(os.getenv(opensearch_port))
+opensearch_index = os.getenv(opensearch_index)
+opensearch_index_refresh_interval = os.getenv(opensearch_index_refresh_interval)
+vector_dimension = int(os.getenv(embedding_vector_dimension))
+region = os.getenv(aws_region)
 credentials = boto3.Session().get_credentials()
 
 aws_auth = AWS4Auth(credentials.access_key, credentials.secret_key, region, constants.es, session_token=credentials.token)
@@ -51,7 +51,6 @@ def on_create():
                     constants.dimension: int(vector_dimension)
                 },
                 constants.note_id: {constants.type: constants.integer},
-                constants.origin: {constants.type: constants.keyword},
             }
         }
     }

@@ -3,7 +3,7 @@ from typing import List, Iterable
 from aws_cdk import Duration, aws_events as events, aws_apigatewayv2 as api_gtw
 from dotenv import load_dotenv
 
-from shared.variables import Env
+from shared.variables import *
 
 load_dotenv()
 
@@ -101,7 +101,7 @@ class CustomResourceTriggeredFunction(Function):
 # --- Common Project Variables ---
 
 class Common:
-    root_dir = os.getenv(Env.root_dir)
+    root_dir = os.getenv(root_dir)
     backend_dir = 'backend'
     functions_dir = 'functions'
     lib_dir = 'lib'
@@ -157,9 +157,9 @@ class Bastion:
     sec_group = 'pm_bastion_sec_group'
     sec_group_ingress_allow_cidr = '0.0.0.0/0'
     sec_group_ingress_allow_port = 22
-    ec2_ami = os.getenv(Env.bastion_ami)
+    ec2_ami = os.getenv(bastion_ami)
     instance_name = 'pm_bastion_host'
-    instance_key_name = os.getenv(Env.bastion_instance_key_name)
+    instance_key_name = os.getenv(bastion_instance_key_name)
 
 
 class Cognito:
@@ -181,7 +181,7 @@ class Cognito:
         )
     )
     admin_secret_name = 'pm_admin_initial_password'
-    admin_user_name = os.getenv(Env.admin_user)
+    admin_user_name = os.getenv(admin_user)
 
 
 class Audio:

@@ -3,7 +3,7 @@ from typing import Tuple, Dict, Any
 from sqlalchemy import update, and_, delete as sql_delete, select
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import OccurrenceSchedule, Task
 from backend.lib.func.http import handler_factory, patch_factory, delete_factory, RequestContext
 from backend.lib.util import HttpMethod, enrich_schedule_map_with_next_timestamp

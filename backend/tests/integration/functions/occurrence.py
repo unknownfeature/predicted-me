@@ -2,11 +2,11 @@ import json
 import unittest
 from decimal import Decimal
 from typing import Tuple
-
-from backend.functions.occurance.index import handler
-from backend.lib.db import Origin
-from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
+from backend.functions.occurance.index import handler
+from backend.lib.db import Occurrence
+from backend.lib.util import get_user_ids_from_event
+
 
 # test occurrence
 
@@ -401,7 +401,6 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 1
             assert items[0][constants.note_id] == 1
-            assert items[0][constants.origin] == Origin.user.value
 
             self.event[constants.query_params] = {
             }
@@ -808,7 +807,7 @@ class Test(unittest.TestCase):
                             tags=[tag_one, tag_two])
 
             if priority and completed:
-                task_one.occurrences.append(Occurrence(priority=priority, completed=completed, origin=Origin.user))
+                task_one.occurrences.append(Occurrence(priority=priority, completed=completed))
             session.add(task_one)
             session.commit()
 
@@ -845,18 +844,18 @@ class Test(unittest.TestCase):
 
         task_one.occurrences.extend(
             [Occurrence(priority=occurrence_priority_one, completed=occurrence_one_completed, time=three_days_ago + 60,
-                        origin=Origin.user),
+                        ),
              Occurrence(priority=occurrence_priority_two, completed=occurrence_two_completed, time=three_days_ago - 60,
-                        origin=Origin.user),
+                        ),
              Occurrence(priority=occurrence_priority_three, completed=occurrence_three_completed,
-                        time=two_days_ago + 60, origin=Origin.user, note=note), ])
+                        time=two_days_ago + 60, note=note), ])
         task_two.occurrences.extend(
             [Occurrence(priority=occurrence_priority_four, completed=occurrence_four_completed, time=day_ago + 60,
-                        origin=Origin.user),
+                        ),
              Occurrence(priority=occurrence_priority_five, completed=occurrence_five_completed,
-                        time=three_days_ago - 60, origin=Origin.user),
+                        time=three_days_ago - 60),
              Occurrence(priority=occurrence_priority_six, completed=occurrence_six_completed, time=day_ago + 60,
-                        origin=Origin.user), ])
+                        ), ])
         session.add_all([note, task_one, task_two])
         session.commit()
 

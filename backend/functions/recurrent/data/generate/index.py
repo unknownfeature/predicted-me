@@ -15,7 +15,7 @@ def handler(_, __):
         due_schedules = session.scalars(due_schedules_stmt).all()
 
         for schedule in due_schedules:
-            next_run = get_next_run_timestamp(cron_expression_from_schedule(schedule), period_seconds=schedule.period_seconds)
+            next_run = get_next_run_timestamp(cron_expression_from_schedule(schedule),  period_seconds=schedule.period_seconds)
 
             update_stmt = (
                 update(DataSchedule)
@@ -26,7 +26,7 @@ def handler(_, __):
                 )
             )
             session.execute(update_stmt)
-            data_to_insert = Data(value=schedule.target_value, units=schedule.units, metric=schedule.metric, origin=Origin.scheduled.value)
+            data_to_insert = Data(value=schedule.target_value, units=schedule.units, metric=schedule.metric)
             session.add(data_to_insert)
 
         session.commit()

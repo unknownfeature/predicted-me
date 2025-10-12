@@ -2,11 +2,11 @@ import unittest
 import uuid
 from unittest.mock import patch
 import os
-from shared.variables import Env
-os.environ[Env.transcribe_bucket_in] = 'bucket_in'
-os.environ[Env.transcribe_bucket_out] = 'bucket_out'
+from shared.variables import *
+os.environ[transcribe_bucket_in] = 'bucket_in'
+os.environ[transcribe_bucket_out] = 'bucket_out'
 
-from backend.lib import constants
+from shared import constants
 from backend.functions.audio.transcribe_in.index import handler
 
 
@@ -19,7 +19,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constamts.s3_key: key
+                        constants.s3_key: key
                     }
                 }
             }]

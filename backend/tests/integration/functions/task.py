@@ -1,10 +1,9 @@
 import json
 import unittest
+from backend.tests.integration.base import *
 
 from backend.functions.task.index import handler
-from backend.lib.db import Tag, Origin
 from backend.lib.util import get_user_ids_from_event
-from backend.tests.integration.base import *
 
 task_one_display_summary = 'display summary one'
 task_two_display_summary = 'display summary two'

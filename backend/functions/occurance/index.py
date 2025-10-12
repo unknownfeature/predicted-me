@@ -4,7 +4,7 @@ from sqlalchemy import select, update, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Note, Tag, Task, Origin, Occurrence
 from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory, get_offset_and_limit, \
     get_ts_start_and_end
@@ -21,8 +21,7 @@ def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int
     if not task:
         return {constants.status: constants.not_found}, 404
 
-    occurrence = Occurrence(**{f: body[f] for f in body if f in updatable_fields} | {
-        constants.origin: Origin.user.value},
+    occurrence = Occurrence(**{f: body[f] for f in body if f in updatable_fields},
                             task=task)
     session.add(occurrence)
     session.commit()
@@ -80,7 +79,6 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
         constants.id: occurrence.id,
         constants.note_id: occurrence.note_id,
         constants.priority: occurrence.priority,
-        constants.origin: occurrence.origin.value,
         constants.completed: occurrence.completed,
         constants.time: occurrence.time,
         constants.task: {

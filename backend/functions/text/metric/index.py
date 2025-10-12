@@ -6,18 +6,18 @@ import boto3
 from sqlalchemy import select, inspect
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
+from shared import constants
 from backend.lib.db import Metric, Data, Note, normalize_identifier, Origin
 from backend.lib.func.sqs import Params, process_record_factory, note_text_supplier, Model
 from backend.lib.func.sqs import handler_factory
 from backend.lib.util import get_or_create_metrics
-from shared.variables import Env
+from shared.variables import *
 
 sns_client = boto3.client(constants.sns)
-tagging_topic_arn = os.getenv(Env.tagging_topic_arn)
+tagging_topic_arn = os.getenv(tagging_topic_arn)
 
-generative_model = os.getenv(Env.generative_model)
-max_tokens =  int(os.getenv(Env.max_tokens))
+generative_model = os.getenv(generative_model)
+max_tokens =  int(os.getenv(max_tokens))
 
 
 metrics_schema = {
@@ -44,7 +44,7 @@ metrics_schema = {
 
 prompt = ("You are an expert metric extraction bot. Analyze the text below and extract all quantifiable "
           "numeric metrics, including their value and unit. Normalize the metric name into a snake_case format. "
-          "Your output must be ONLY a JSON array that strictly adheres to the provided schema. "
+          "Your output must be ONLY a JSON array that strictly adheres to the provided db. "
           "If no metrics are found, output an empty array []. "
           "Ignore non-numeric qualitative adjectives, links, and tasks.\n\n"
           f"**JSON Schema**:\n{json.dumps(metrics_schema, indent=3)}\n\n"
@@ -58,13 +58,13 @@ prompt = ("You are an expert metric extraction bot. Analyze the text below and e
 
 
 
-def on_response_from_model(session: Session, note_id: int, origin: str, data: List[Dict[str, Any]]) -> None:
+def on_response_from_model(session: Session, note_id: int, data: List[Dict[str, Any]]) -> None:
     target_note = session.scalar(select(Note).where(Note.id == note_id))
     metrics_map = get_or_create_metrics(session, {normalize_identifier(item[constants.name]) : item[constants.name] for item in data}, target_note.user_id)
     data_to_add = [
         Data(value=d.get(constants.value), units=d.get(constants.units),
              metric=metrics_map[normalize_identifier(d.get(constants.name))],
-             note=target_note, origin=Origin(origin))
+             note=target_note)
      for d in data if constants.name in d]
 
     if  data_to_add:

@@ -1,8 +1,8 @@
 import unittest
-
+from backend.tests.integration.base import *
 from backend.functions.recurrent.data.purge.index import handler
 from backend.lib.db import Origin, Data
-from backend.tests.integration.base import *
+
 from backend.tests.integration.functions.data import metric_one_name, metric_one_display_name
 
 
@@ -19,9 +19,9 @@ class Test(unittest.TestCase):
             more_than_three_months_ago = time_now - seconds_in_day * 31 * 3 - 1
             two_days_ago = time_now - seconds_in_day * 3 - 1
             metric = Metric(name=metric_one_name, display_name=metric_one_display_name, user_id=legit_user_id)
-            data_one = Data(value=1, units='l', metric=metric, time=two_days_ago, origin=Origin.audio_text.value)
+            data_one = Data(value=1, units='l', metric=metric, time=two_days_ago)
             data_two = Data(value=2, units='ll', metric=metric, time=more_than_three_months_ago,
-                            origin=Origin.img_text.value)
+                            )
             metric.data_points = [data_one, data_two]
             session.add(metric)
             session.commit()

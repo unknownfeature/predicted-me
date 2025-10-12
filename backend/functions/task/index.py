@@ -4,8 +4,7 @@ from sqlalchemy import select, and_, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session
 
-from backend.lib import constants
-from backend.lib.constants import id_is_required
+from shared import constants
 from backend.lib.db import normalize_identifier, Task, Tag
 from backend.lib.func.http import RequestContext, handler_factory, post_factory, get_offset_and_limit
 from backend.lib.util import HttpMethod, get_or_create_tags
@@ -57,7 +56,7 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
     display_summary = body.get(constants.summary)
 
     if not id:
-        return {constants.error: id_is_required}, 400
+        return {constants.error: constants.id_is_required}, 400
 
     task_for_update = session.scalar(select(Task).where(and_(Task.id == id, Task.user_id == context.user.id)))
     tags_for_update = list(get_or_create_tags(context.user.id, session, set(body.get(constants.tags, []))).values())
