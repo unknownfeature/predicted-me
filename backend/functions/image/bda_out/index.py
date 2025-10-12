@@ -28,7 +28,7 @@ def handler(event, _):
     try:
         record = event[constants.records][0]
         bucket_name = record[constants.s3][constants.bucket][constants.name]
-        object_key = unquote_plus(record[constants.s3][constants.object][constants.key])
+        object_key = unquote_plus(record[constants.s3][constants.object][constamts.s3_key])
 
         image_descriptions = read_data_from_output_file(bucket_name, object_key)
 

@@ -18,7 +18,7 @@ output_bucket_name = os.environ.get(Env.transcribe_bucket_out)
 def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
     try:
         record = event[constants.records][0]
-        input_key = unquote_plus(record[constants.s3][constants.object][constants.key], encoding=constants.utf_8)
+        input_key = unquote_plus(record[constants.s3][constants.object][constamts.s3_key], encoding=constants.utf_8)
 
         file_uri = f's3://{input_bucket_name}/{input_key}'
         media_format = input_key.split('.')[-1].upper()

@@ -8,9 +8,9 @@ os.environ[Env.transcribe_bucket_in] = 'audio'
 from backend.tests.integration.base import baseSetUp, baseTearDown, Trigger
 
 from backend.lib import constants
-from backend.functions.presign.index import handler
+from backend.functions.presign.index import handler, get_extension
 
-
+# todo fix tests
 class Test(unittest.TestCase):
 
     def setUp(self):
@@ -113,6 +113,9 @@ class Test(unittest.TestCase):
         res = handler(event, None)
         assert res[constants.status_code] == 405
 
+    def test_extension_extracted(self,):
+
+        assert get_extension('hello.x') == 'x'
 
     def tearDown(self):
         baseTearDown()

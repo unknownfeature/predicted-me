@@ -43,7 +43,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constants.key: key
+                        constamts.s3_key: key
                     },
                     constants.bucket: {
                         constants.name: whatever
@@ -109,7 +109,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constants.key: other_key
+                        constamts.s3_key: other_key
                     },
                     constants.bucket: {
                         constants.name: whatever
@@ -150,7 +150,7 @@ class Test(unittest.TestCase):
             constants.records: [{
                 constants.s3: {
                     constants.object: {
-                        constants.key: key
+                        constamts.s3_key: key
                     },
                     constants.bucket: {
                         constants.name: whatever

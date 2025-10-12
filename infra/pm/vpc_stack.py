@@ -21,3 +21,6 @@ class PmVpcStack(Stack):
             ], enable_dns_support=True,
             enable_dns_hostnames=True,
         )
+        self.vpc.add_interface_endpoint(Vpc.secrets_manager_endpoint,
+                                        service=ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER
+                                        )

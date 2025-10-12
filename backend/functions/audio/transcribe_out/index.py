@@ -30,7 +30,7 @@ def handler(event: Dict[str, Any], _: Any) -> Dict[str, Any]:
 
     try:
         record = event[constants.records][0]
-        output_key = unquote_plus(record[constants.s3][constants.object][constants.key])
+        output_key = unquote_plus(record[constants.s3][constants.object][constamts.s3_key])
 
         transcript_json = read_job_result_json(output_key)
 

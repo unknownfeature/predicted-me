@@ -83,3 +83,5 @@ class PmDbStack(Stack):
             and_then=allow_connection_function_factory(self.db_proxy, custom_resource_trigger_cb_factory(self, {}, function_params )),
             vpc=vpc_stack.vpc,
         ))
+
+

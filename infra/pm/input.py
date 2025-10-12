@@ -116,21 +116,18 @@ class Common:
     lib_path = os.path.join(backend_dir, lib_dir)
     shared_path = shared_dir
     docker_path = root_dir
-    default_region = 'us-east-1'
+
     generative_model = 'anthropic.claude-3-sonnet-20240229-v1:0'
     embedding_model = 'amazon.titan-embed-text-v1'
     opensearch_port = '443'
-    cors_headers = {
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH,DELETE'
-    }
+
 
 
 class Vpc:
     stack_name = 'PmVpcStack'
     cidr = '10.0.0.0/24'
     net_prefix = 'pm_vpc'
+    secrets_manager_endpoint = 'pm_secretsmanager_endpoint'
 
 
 class Db:

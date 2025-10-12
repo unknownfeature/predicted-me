@@ -1,3 +1,10 @@
+cors_headers = {
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH,DELETE'
+}
+default_region = 'us-east-1'
+
 class Env:
     db_secret_arn = 'DB_SECRET_ARN'
     db_endpoint = 'DB_ENDPOINT'

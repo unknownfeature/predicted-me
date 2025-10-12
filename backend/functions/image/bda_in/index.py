@@ -4,11 +4,11 @@ import traceback
 
 import boto3
 from backend.lib import constants
-from shared.variables import Common, Env
+from shared.variables import Env, default_region
 
 bda_client = boto3.client(
     service_name=constants.bda,
-    region_name=os.getenv(Env.aws_region, Common.default_region)
+    region_name=os.getenv(Env.aws_region, default_region)
 )
 
 output_bucket = os.getenv(Env.bda_output_bucket_name)
@@ -21,7 +21,7 @@ def handler(event, _):
     try:
         record = event[constants.records][0]
         input_bucket = record[constants.s3][constants.bucket][constants.name]
-        input_key = record[constants.s3][constants.object][constants.key]
+        input_key = record[constants.s3][constants.object][constamts.s3_key]
 
         input_s3_uri = f's3://{input_bucket}/{input_key}'
         output_s3_uri = f's3://{output_bucket}/{input_key}/'

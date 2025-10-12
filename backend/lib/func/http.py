@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from backend.lib import constants
 from backend.lib.db import begin_session, get_utc_timestamp
 from backend.lib.util import get_user_ids_from_event
-from shared.variables import Common
+from shared.variables import cors_headers
 
 seconds_in_day = 24 * 60 * 60
 
@@ -85,7 +85,7 @@ def handler_factory(per_method_handlers: Dict[
 
             if http_method not in per_method_handlers:
                 return {'statusCode': 405, 'body': json.dumps({'error': 'Method not allowed'}),
-                        'headers': Common.cors_headers, }
+                        'headers': cors_headers, }
 
             #  move user id to context todo
             result, status_code = per_method_handlers[http_method](session,
@@ -94,7 +94,7 @@ def handler_factory(per_method_handlers: Dict[
 
             return {
                 'statusCode': status_code,
-                'headers': {'Content-Type': 'application/json'} | Common.cors_headers,
+                'headers': {'Content-Type': 'application/json'} | cors_headers,
                 'body': json.dumps(result)
             }
 
@@ -104,7 +104,7 @@ def handler_factory(per_method_handlers: Dict[
 
             traceback.print_exc()
             return {'statusCode': 500, 'body': json.dumps({'error': constants.internal_server_error}),
-                    'headers': Common.cors_headers, }
+                    'headers': cors_headers, }
 
         finally:
             session.close()
