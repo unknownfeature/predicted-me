@@ -13,6 +13,8 @@ def get(session: Session, context: RequestContext) -> Tuple[Dict[str, str], int]
     query = select(User).where(User.id == context.user.id)
 
     user = session.scalars(query).first()
+    if not user:
+        return {constants.status: constants.error, constants.error: constants.not_found}, 404
 
     #  todo this is for the future
     return {constants.name: user.name, constants.id: context.user.id}, 200

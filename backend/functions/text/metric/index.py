@@ -28,7 +28,7 @@ metrics_schema = {
         "properties": {
             "name": {
                 "type": "string",
-                "description": f"Normalized name of the metric (e.g., constants.distance_run, constants.heart_rate). Max length: {inspect(Metric).c.name.type.length} characters."
+                "description": f"Human readable name of the metric (e.g., Distance run, Heart rate). Make sure it only contains nouns and adjectives. Max length: {inspect(Metric).c.name.type.length} characters."
             },
             "value": {
                 "type": "number",
@@ -36,7 +36,7 @@ metrics_schema = {
             },
             "units": {
                 "type": "string",
-                "description": f"The unit of measurement (e.g., constants.miles, constants.kcal, constants.bpm). If no units are mentioned, use a standard unit or constants.unknown. Max length: {inspect(Data).c.units.type.length} characters."
+                "description": f"The unit of measurement (e.g., miles, kcal, bpm). If no units are mentioned, use a standard unit or 'items'. Max length: {inspect(Data).c.units.type.length} characters."
             }
         },
         "required": ["name", "value", "units"]
@@ -45,16 +45,18 @@ metrics_schema = {
 
 prompt = ("You are an expert numeric data extraction bot. Analyze the text below and extract all quantifiable "
           "numeric metrics, including their value and unit. All numbers which measure or describe anything unless explicitly stated to ignore. "
-          " If you detect any sentiment add add it as another metric where name will be specific emotion(not a generic sentiment) you detect and value the magnitude of that sentiment from 1 to 10 inclusive. "
-          "Your output must be ONLY a JSON array that strictly adheres to the provided db. "
+          "Sometimes numeric metrics may not be obvious. And could be explicitly specified like huge, a lot, not enough. In these cases you might estimate the number on the scale 1-10 inclusively. But it's important to extract all quantifiable objects, live creatures, events, actions or anything. As much as you can. "
+          "Especially focus on what a person eats and does or anything related to the persons mental, physical health and wellbeing. Never ignore mentioning of some food consumptions(had some food). Or any activities that are relevant to the person's wellebing and health. Always specify what exactly object/activity was taking place. Of course whenever is possible."
+          "If you detect any sentiment add it as another metric where name will be specific emotion(not a generic sentiment) you detect and value the magnitude of that sentiment from 1 to 10 inclusive. Make sure to specify units for that emotion as 'sentiment'"
+          "Make sure names of the metric are human readable. Your output must be ONLY a JSON array that strictly adheres to the provided db. "
           "If no metrics are found, output an empty array []. "
-          "Ignore non-numeric qualitative adjectives, links, and tasks.\n\n"
+          "Ignore any links, and tasks.\n\n"
           f"**JSON Schema**:\n{json.dumps(metrics_schema, indent=3)}\n\n"
           "--- EXAMPLES ---\n"
           "Text: 'I ran 5 miles today and my heart rate was 120bpm. It felt great!'\n"
-          "Output: [{\"name\": \"distance_run\", \"value\": 5, \"units\": \"miles\"}, {\"name\": \"heart_rate\", \"value\": 120, \"units\": \"bpm\"}]\n\n"
+          "Output: [{\"name\": \"Distance run\", \"value\": 5, \"units\": \"miles\"}, {\"name\": \"heart rate\", \"value\": 120, \"units\": \"bpm\"}]\n\n"
           "Text: 'Weight this morning was 185.3 lbs.'\n"
-          "Output: [{\"name\": \"weight\", \"value\": 185.3, \"units\": \"lbs\"}]\n"
+          "Output: [{\"name\": \"Weight\", \"value\": 185.3, \"units\": \"lbs\"}]\n"
           "--- END EXAMPLES ---\n\n"
           "**Text to Analyze**:\n")
 

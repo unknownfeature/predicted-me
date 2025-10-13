@@ -3,14 +3,15 @@ import os
 from aws_cdk import (
     Stack,
     aws_sns as sns,
-aws_opensearchservice as opensearch,
+    aws_opensearchservice as opensearch,
     aws_sqs as sqs,
     aws_ec2 as ec2,
-aws_iam as iam,
-    aws_lambda as lmbd)
+    aws_iam as iam,
+    aws_lambda as lmbd, RemovalPolicy)
 from constructs import Construct
 
 from shared.variables import *
+from .bastion_stack import PmBastionStack
 from .input import Common, Text, QueueFunction, CustomResourceTriggeredFunction
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
@@ -23,7 +24,7 @@ from .vpc_stack import PmVpcStack
 
 class PmTextStack(Stack):
 
-    def __init__(self, scope: Construct, vpc_stack: PmVpcStack, db_stack: PmDbStack, tagging_stack: PmTaggingStack,
+    def __init__(self, scope: Construct, vpc_stack: PmVpcStack, db_stack: PmDbStack, bastion_stack: PmBastionStack,
                  **kwargs) -> None:
         super().__init__(scope, Text.stack_name, **kwargs)
 
@@ -60,9 +61,14 @@ class PmTextStack(Stack):
                                                                             vpc_stack, Text.tasks_extraction)
 
         self.embedding_domain = opensearch.Domain(self, Text.domain,
-                                   version=opensearch.EngineVersion.OPENSEARCH_2_9,
+                                   version=opensearch.EngineVersion.OPENSEARCH_2_17,
                                    vpc=vpc_stack.vpc,
-                                   vpc_subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED)],
+                                   removal_policy=RemovalPolicy.DESTROY,
+                                   vpc_subnets=[ec2.SubnetSelection(
+                                       subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
+                                       one_per_az=False,
+                                       availability_zones=vpc_stack.vpc.availability_zones[:1]
+                                   )],
                                    capacity=opensearch.CapacityConfig(
                                        data_nodes=Text.domain_data_nodes,
                                        data_node_instance_type=Text.domain_data_node_instance_type
@@ -74,7 +80,10 @@ class PmTextStack(Stack):
 
         self.embedding_function = self._create_embedding_function(self.embedding_queue, vpc_stack, Text.embedding)
         self.embedding_index_creation_function = self._create_initializer_function(vpc_stack, Text.embedding_index_creator_function)
-
+        self.embedding_domain.connections.allow_from(
+            bastion_stack.instance,
+            port_range=ec2.Port.tcp(int(Common.opensearch_port))
+        )
 
     def _create_embedding_function(self, queue: sqs.Queue, vpc_stack: PmVpcStack,
                                            function_params: QueueFunction) -> lmbd.Function:
@@ -83,16 +92,22 @@ class PmTextStack(Stack):
                     bedrock_invoke_policy_statement)
                 self.embedding_domain.grant_write(role)
 
+            def and_then(func: lmbd.Function):
+                self.embedding_domain.connections.allow_from(
+                    func,
+                    port_range=ec2.Port.tcp(int(Common.opensearch_port)))
+                sqs_integration_cb_factory([queue])(func)
+
             params = FunctionFactoryParams(function_params=function_params,
-                                           build_args={Common.func_dir_arg: function_params.code_path}, environment={
+                                           build_args={Common.func_dir_arg: function_params.code_path},
+                                           environment={
                     opensearch_endpoint: self.embedding_domain.domain_endpoint,
                     opensearch_port: Common.opensearch_port,
                     opensearch_index: Text.opensearch_index,
                     embedding_model: Text.embedding_model,
-                    gemini_api_key: os.getenv(gemini_api_key)
 
                 }, role_supplier=create_function_role_factory(on_role),
-                                           and_then=sqs_integration_cb_factory([queue]),
+                                           and_then=and_then,
                                            vpc=vpc_stack.vpc)
 
             return create_function(self, params)
@@ -108,7 +123,6 @@ class PmTextStack(Stack):
                     db_port: db_stack.db_instance.db_instance_endpoint_port,
                     max_tokens: Text.max_tokens,
                     generative_model: Text.generative_model,
-                    gemini_api_key: os.getenv(gemini_api_key)
 
                 }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, lambda role: role.add_to_policy(
                     bedrock_invoke_policy_statement)),
@@ -119,6 +133,12 @@ class PmTextStack(Stack):
 
     def _create_initializer_function(self, vpc_stack: PmVpcStack,
                                      function_params: CustomResourceTriggeredFunction) -> lmbd.Function:
+        def and_then(function: lmbd.Function):
+            self.embedding_domain.connections.allow_from(
+            function,
+            port_range=ec2.Port.tcp(int(Common.opensearch_port)))
+            custom_resource_trigger_cb_factory(self, {}, function_params)(function)
+
         env = {
             opensearch_endpoint: self.embedding_domain.domain_endpoint,
             opensearch_port: Common.opensearch_port,
@@ -133,7 +153,7 @@ class PmTextStack(Stack):
             },
             environment=env,
             role_supplier=create_function_role_factory(lambda role:  self.embedding_domain.grant_write(role)),
-            and_then=custom_resource_trigger_cb_factory(self, {}, function_params ),
+            and_then=and_then,
             vpc=vpc_stack.vpc,
         ))
 

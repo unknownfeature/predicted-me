@@ -2,10 +2,10 @@ import os
 from typing import List
 
 import boto3
-from boto3 import Session
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
-
+from sqlalchemy.orm import Session
+from backend.lib.db import Note
 from shared import constants
 from backend.lib.func.sqs import handler_factory, process_record_factory, Params, note_text_supplier, Model
 from shared.variables import *
@@ -32,10 +32,15 @@ opensearch_client = OpenSearch(
 )
 
 
-def on_response_from_model(_: Session, note_id: int, __: str, data: List[float]):
+def on_response_from_model(session: Session, note_id: int, __: str, data: List[float]):
+    note = session.query(Note).filter(Note.id == note_id).first()
+    if not note:
+        print(f"Note {note_id} not found")
+        return
     document = {
         constants.vector_field: data,
-        constants.note_id: note_id
+        constants.note_id: note_id,
+        constants.user_id: note.user_id,
     }
     opensearch_client.index(
         index=opensearch_index,

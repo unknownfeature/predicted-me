@@ -1,3 +1,4 @@
+import json
 import unittest
 from datetime import datetime, timezone
 
@@ -5,6 +6,9 @@ from backend.lib.util import get_next_run_timestamp, call_generative, call_embed
 from backend.functions.text.metric.index import prompt as metric_prompt
 from backend.functions.text.link.index import prompt as link_prompt
 from backend.functions.text.task.index import prompt as task_prompt
+from backend.functions.tagging.metric.index import tagging_prompt as metric_tagging_prompt
+from backend.functions.tagging.link.index import tagging_prompt as link_tagging_prompt
+from backend.functions.tagging.task.index import tagging_prompt as task_tagging_prompt
 
 
 class Test(unittest.TestCase):
@@ -59,8 +63,7 @@ class Test(unittest.TestCase):
         assert next_run == expected_run
 
     def test_generative(self):
-        generative_model = 'gemini-2.5-flash'
-
+        generative_model = 'anthropic.claude-3-sonnet-20240229-v1:0'
         text = """What a productive Sunday! Woke up feeling fantastic, probably a 9 out of 10. Started the day with a 3.5 mile run, which took about 30 minutes. My average heart rate was around 145 bpm. Later, I did some budgeting and saw I spent $75.40 on groceries. I should probably try to spend less next week. For dinner, I had a huge, delicious salad. Found a cool recipe at https://recipes.com/salad. My final weight before bed was 160.2 pounds. Feeling very tired but accomplished."""
         extracted_data = call_generative(generative_model, metric_prompt, text)
         print(extracted_data)
@@ -70,7 +73,28 @@ class Test(unittest.TestCase):
         print(extracted_tasks)
 
     def test_embedding(self):
-        generative_model = 'gemini-embedding-001'
+        embedding_model = 'amazon.titan-embed-text-v1'
         text = """What a productive Sunday! Woke up feeling fantastic, probably a 9 out of 10. Started the day with a 3.5 mile run, which took about 30 minutes. My average heart rate was around 145 bpm. Later, I did some budgeting and saw I spent $75.40 on groceries. I should probably try to spend less next week. For dinner, I had a huge, delicious salad. Found a cool recipe at https://recipes.com/salad. My final weight before bed was 160.2 pounds. Feeling very tired but accomplished."""
-        extracted_data = call_embedding(generative_model, text)
+        extracted_data = call_embedding(embedding_model, text)
         print(extracted_data)
+
+    def test_tagging(self):
+        metrics_to_tag = ({'id': 1, 'name': 'Well-being sentiment', 'value': 9, 'units': 'sentiment'},
+                          {'id': 2, 'name': 'Distance run',  'value': 3.5,'units': 'miles'},
+                          {'id': 3, 'name': 'Run duration', 'value': 30, 'units': 'minutes'},
+                          {'id': 4, 'name': 'Average heart rate during run', 'value': 145, 'units': 'bpm'},
+                          {'id': 5, 'name': 'Grocery spending', 'value': 75.4, 'units': 'dollars'},
+                          {'id': 6, 'name': 'Salad portion', 'value': 8, 'units': 'items'},
+                          {'id': 7,  'name': 'Weight before bed', 'value': 160.2, 'units': 'pounds'},
+                          {'id': 8, 'name': 'Tiredness sentiment', 'value': 8,'units': 'sentiment'},
+                          {'id': 9,'name': 'Accomplishment sentiment', 'value': 8, 'units': 'sentiment'})
+        generative_model = 'anthropic.claude-3-sonnet-20240229-v1:0'
+        extracted_data = call_generative(generative_model, metric_tagging_prompt, json.dumps(metrics_to_tag))
+        print(extracted_data)
+        links_to_tag = [{'id': 45, 'url': 'https://recipes.com/salad', 'summary': 'recipe for a salad', 'description': 'The author found a cool recipe for a salad at this website, which they had for dinner.'}]
+        extracted_data = call_generative(generative_model, link_tagging_prompt, json.dumps(links_to_tag))
+        print(extracted_data)
+        tasks_to_tag = [{'id': 10, 'summary': 'Try to spend less on groceries next week', 'description': 'Try to spend less than $75.40 on groceries next week', 'priority': 5}]
+        extracted_data = call_generative(generative_model, task_tagging_prompt, json.dumps(tasks_to_tag))
+        print(extracted_data)
+

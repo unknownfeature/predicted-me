@@ -1,12 +1,12 @@
 import datetime
 import json
 import os
-import re
 from decimal import Decimal
 from enum import Enum
 from typing import List, Optional
 
 import boto3
+from slugify import slugify
 from sqlalchemy import (
     text,
     BigInteger,
@@ -31,6 +31,8 @@ from sqlalchemy.orm import (
 
 from shared.variables import *
 
+id_cant_be_empty = 'Identifier cannot be empty.'
+
 
 class Origin(str, Enum):
     text = 'text'
@@ -44,14 +46,13 @@ class Origin(str, Enum):
 def get_utc_timestamp() -> int:
     return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
 
-# todo rewrite and test
 def normalize_identifier(name):
     if not name or not name.strip():
-        raise ValueError('Identifier cannot be empty.')
-    s = name.lower()
-    s = s.replace('\s+', '_')
-    s = re.sub(r'[^a-z0-9_]', '', s)
-    return s
+        raise ValueError(id_cant_be_empty)
+    res =  slugify(name, separator='_')
+    if not res:
+        raise ValueError(id_cant_be_empty)
+    return res
 
 
 class Base(DeclarativeBase):

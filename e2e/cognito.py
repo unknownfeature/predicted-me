@@ -1,38 +1,24 @@
-import base64
-import hashlib
-import hmac
+import os
 
-import boto3
+from dotenv import load_dotenv
+from pycognito import Cognito
 
+load_dotenv()
 
-def get_secret_hash(username: str, client_id: str, client_secret: str) -> str:
-    message = bytes(username + client_id, 'utf-8')
-    key = bytes(client_secret, 'utf-8')
-    hmac_hash = hmac.new(key, message, digestmod=hashlib.sha256)
-    return base64.b64encode(hmac_hash.digest()).decode()
+cognito_pool_id=os.getenv('COGNITO_POOL_ID')
+cognito_client_id=os.getenv('COGNITO_CLIENT_ID')
+admin_user=os.getenv('ADMIN_USER')
+admin_user_password=os.getenv('ADMIN_USER_PASSWORD')
 
+def login() -> str:
 
-def login(email: str, password: str, client_id: str, client_secret: str) -> str:
+    print(admin_user)
+    print(admin_user_password)
+    cognito_user = Cognito(cognito_pool_id, cognito_client_id, username=admin_user)
+    cognito_user.authenticate(password=admin_user_password)
 
-    cognito_client = boto3.client("cognito-idp")
-
-    secret_hash = get_secret_hash(email, client_id, client_secret)
-
-
-    auth_response = cognito_client.initiate_auth(
-        ClientId=client_id,
-        AuthFlow='USER_PASSWORD_AUTH',
-        AuthParameters={
-            'USERNAME': email,
-            'PASSWORD': password,
-            'SECRET_HASH': secret_hash
-        }
-    )
-
-    auth_result = auth_response.get('AuthenticationResult')
-    if auth_result and 'IdToken' in auth_result:
-        return auth_result['IdToken']
-    print(auth_result)
-    raise ValueError('not authorized')
+    access_token = cognito_user.access_token
+    return access_token
 
 
+print(login())

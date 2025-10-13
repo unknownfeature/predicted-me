@@ -41,5 +41,4 @@ handler = handler_factory({
     HttpMethod.POST.value: post,
     HttpMethod.PATCH.value: patch_factory(updatable_fields, patch_handler),
     HttpMethod.DELETE.value: delete_factory(delete_handler),
-
 })

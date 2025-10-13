@@ -57,7 +57,6 @@ class PmTaggingStack(Stack):
                 db_port: db_stack.db_instance.db_instance_endpoint_port,
                 generative_model: Tagging.model,
                 max_tokens: Tagging.max_tokens,
-                gemini_api_key: os.getenv(gemini_api_key)
 
             }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, lambda role: role.add_to_policy(
                 bedrock_invoke_policy_statement)),

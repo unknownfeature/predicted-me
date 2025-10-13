@@ -117,9 +117,11 @@ class Common:
     shared_path = shared_dir
     docker_path = root_dir
 
-    generative_model = 'gemini-2.5-flash'
-    embedding_model = 'gemini-embedding-001'
+
     opensearch_port = '443'
+    generative_model = 'anthropic.claude-3-sonnet-20240229-v1:0'
+    embedding_model = 'amazon.titan-embed-text-v1'
+
 
 
 class Vpc:
@@ -172,7 +174,7 @@ class Cognito:
         name='pm_cognito_admin_creator_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'cognito'),
+        code_path='cognito',
         role_name='pm_cognito_admin_creator_role',
         trigger=CustomResourceTrigger(
             resource_name='pm_cognito_admin_user_resource',
@@ -180,6 +182,7 @@ class Cognito:
         )
     )
     admin_secret_name = 'pm_admin_initial_password'
+    admin_tmp_secret_name = 'pm_admin_tmp_password'
     admin_user_name = os.getenv(admin_user)
 
 
@@ -285,7 +288,7 @@ class Text:
         name='pm_text_embedding_index_creator_func',
         timeout=Duration.minutes(1),
         memory_size=1024,
-        code_path=os.path.join(Common.functions_dir, 'opensearch'),
+        code_path='opensearch',
         role_name='embedding_index_creator_function_role',
         trigger=CustomResourceTrigger(resource_name='pm_embedding_index_creator_function_resource',
                                       provider_name='pm_embedding_index_creator_function_provider')

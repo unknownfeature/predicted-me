@@ -10,8 +10,6 @@ import boto3
 from croniter import croniter
 from sqlalchemy import select, and_, Executable
 from sqlalchemy.orm import Session
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 from shared import constants
 from backend.lib.db import User, Tag, Metric, normalize_identifier, Task, get_utc_timestamp
@@ -85,32 +83,31 @@ def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[in
 
     return user.id if user else None, external_user
 
-
-def call_generative(model_name: str, prompt: str, text_content: str, max_tokens: int = 2048) -> List[Dict[str, Any]]:
+def call_generative(model: str, prompt: str, text_content: str, max_tokens: int = 3072) -> List[Dict[str, Any]]:
     try:
-        api_key = os.getenv(gemini_api_key)
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(
-            (prompt if prompt else '') + (
-                f'TEXT FOR ANALYSIS:    ---START_USER_INPUT {id} ---  {text_content} ---END_USER_INPUT  {id} ---'
-            ) if text_content else '',
-            generation_config={
-                "response_mime_type": "application/json",
-                "max_output_tokens": max_tokens
-            },
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        }
+        bedrock_runtime = boto3.client(constants.bedrock_runtime)
+
+        id = uuid.uuid4().hex
+        response = bedrock_runtime.invoke_model(
+            modelId=model,
+            accept=constants.application_json,
+            contentType=constants.application_json,
+            body=json.dumps({
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens': max_tokens,
+                'messages': [{'role': 'user', 'content': [{'type': 'text', 'text': (prompt if prompt else '') + (
+                    f'TEXT FOR ANALYSIS:    ---START_USER_INPUT {id} ---  {text_content} ---END_USER_INPUT  {id} ---'
+                ) if text_content else ''}]}],
+            })
         )
-        print(response)
-        result_json = json.loads(response.text)
 
+        response_body = json.loads(response[constants.body].read())
+        metrics_json_str = response_body[constants.content][0][constants.text].strip()
 
-        return result_json
+        if metrics_json_str.startswith('```'):
+            metrics_json_str = metrics_json_str.split('\n', 1)[-1].strip('`')
+
+        return json.loads(metrics_json_str)
 
     except Exception as e:
         traceback.print_exc()
@@ -119,19 +116,21 @@ def call_generative(model_name: str, prompt: str, text_content: str, max_tokens:
 
 def call_embedding(model: str, text_content: str) -> Optional[List[float]]:
     try:
-        api_key = os.getenv(gemini_api_key)
-        genai.configure(api_key=api_key)
-        result = genai.embed_content(
-            model=model,
-            content=text_content,
-            task_type="RETRIEVAL_DOCUMENT"
+        bedrock_runtime = boto3.client(constants.bedrock_runtime)
+
+        body = json.dumps({constants.input_text: text_content})
+        response = bedrock_runtime.invoke_model(
+            body=body,
+            modelId=model,
+            accept=constants.application_json,
+            contentType=constants.application_json
         )
-        return result['embedding']
+        response_body = json.loads(response.get(constants.body).read())
+        return response_body.get(constants.embedding)
 
     except Exception as e:
         traceback.print_exc()
         raise e
-
 
 
 

@@ -28,7 +28,7 @@ output_schema = {
                 'type': 'array',
                 'items': {
                     'type': 'string',
-                    'description': f'A list of 1 to 3 relevant tags. Max length per tag: {inspect(Tag).c.name.type.length} characters.'
+                    'description': f'A list of 1 to 3 relevant tags with human readable names. Make sure to only use nouns and adjectives. Max length per tag: {inspect(Tag).c.name.type.length} characters.'
                 }
             }
         },
@@ -51,9 +51,9 @@ tagging_prompt = (
     ']\n'
     'Output:\n'
     '[\n'
-    '  {\'id\': 201, \'tags\': [\'technology\', \'news\']},\n'
-    '  {\'id\': 202, \'tags\': [\'shopping\', \'lifestyle\']},\n'
-    '  {\'id\': 203, \'tags\': [\'food_drink\', \'lifestyle\']}\n'
+    '  {\'id\': 201, \'tags\': [\'technology\', \'News\']},\n'
+    '  {\'id\': 202, \'tags\': [\'Shopping\', \'Lifestyle\']},\n'
+    '  {\'id\': 203, \'tags\': [\'Food drink\', \'Lifestyle\']}\n'
     ']\n'
     '--- END EXAMPLES ---\n\n'
     '**Links to Tag**:\n'

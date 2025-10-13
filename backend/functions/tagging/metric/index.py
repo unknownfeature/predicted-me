@@ -28,7 +28,7 @@ output_schema = {
                 "type": "array",
                 "items": {
                     "type": "string",
-                    "description": f"A list of 1 to 3 relevant tags. Max length per tag: {inspect(Tag).c.name.type.length} characters."
+                    "description": f"A list of 1 to 3 relevant tags with human readable names. Make sure to only use nouns and adjectives. Max length per tag: {inspect(Tag).c.name.type.length} characters."
                 }
             }
         },
@@ -44,13 +44,13 @@ tagging_prompt = (
     "--- EXAMPLES ---\n"
     "Input Metrics:\n"
     "[\n"
-    "  {\"id\": 1, \"name\": \"distance_run\", \"value\": 5, \"units\": \"miles\"},\n"
-    "  {\"id\": 2, \"name\": \"apple_stock_price\", \"value\": 175.50, \"units\": \"USD\"}\n"
+    "  {\"id\": 1, \"name\": \"Distance run\", \"value\": 5, \"units\": \"miles\"},\n"
+    "  {\"id\": 2, \"name\": \"Apple stock proces\", \"value\": 175.50, \"units\": \"USD\"}\n"
     "]\n"
     "Output:\n"
     "[\n"
-    "  {\"id\": 1, \"tags\": [\"health_fitness\", \"activity\"]},\n"
-    "  {\"id\": 2, \"tags\": [\"financial_wellbeing\"]}\n"
+    "  {\"id\": 1, \"tags\": [\"Health fittness\", \"activity\"]},\n"
+    "  {\"id\": 2, \"tags\": [\"Financial wellbeing\"]}\n"
     "]\n"
     "--- END EXAMPLES ---\n\n"
     "**Metrics to Tag**:\n"

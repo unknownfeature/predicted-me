@@ -2,3 +2,4 @@ croniter
 sqlalchemy
 mysql-connector-python
 pymysql
+python-slugify

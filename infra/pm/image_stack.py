@@ -26,26 +26,35 @@ class PmImageStack(Stack):
         super().__init__(scope, Image.stack_name, **kwargs)
         # pre setup blueprint for BDA
         blueprint_schema = {
-            'class': 'ImageDescription',
-            'description': 'The user wants a concise, detailed, and objective summary of the image content for cataloging purposes. And relevant image text extraction where possible.',
+            'class': 'ImageAnalyzer',
+            'description': (
+                "The user wants a highly detailed analysis of an image for data extraction. "
+                "The primary goal is to provide a rich, descriptive summary and to extract any meaningful, structured text. "
+                "For example, if the image contains a food label, the model should extract the ingredients list and nutrition facts, while ignoring incidental text like a brand's slogan."
+            ),
             'inference_schema': {
                 'type': 'object',
                 'properties': {
                     'image_description': {
                         'type': 'string',
-                        'description': 'A single, detailed paragraph describing the image\'s main subject, scene, colors, lighting, and any obvious actions.',
+                        'description': (
+                            'A highly detailed, multi-sentence description of the image. Cover the main subject, setting, colors, textures, lighting, '
+                            'and any notable details or actions. Be as descriptive as possible.'
+                        ),
                         'inference_type': 'GENERATIVE_FIELD'
                     },
                     'image_text': {
                         'type': 'string',
-                        'description': 'Extract relevant text from the image',
+                        'description': (
+                            'An extraction of relevant and structured text from the image. Prioritize lists, tables, ingredients, '
+                            'nutrition facts, instructions, or signs. Ignore minor, irrelevant, or purely decorative text.'
+                        ),
                         'inference_type': 'GENERATIVE_FIELD'
                     }
                 },
-                'required': ['image_description', 'image_text']
+                'required': ['image_description']
             }
         }
-
         image_blueprint = bedrock.CfnBlueprint(
             self, Image.bda_blueprint_name,
             blueprint_name=Image.bda_blueprint_name,
@@ -80,7 +89,6 @@ class PmImageStack(Stack):
                                            bda_job_execution_role_arn: role.role_arn,
                                            bda_blueprint_name: image_blueprint.blueprint_name,
                                            bda_model_name: Image.bda_model_name,
-                                           gemini_api_key: os.getenv(gemini_api_key)
 
                                        }, role_supplier= lambda _, __: role,
                                        and_then=s3_integration_cb_factory(

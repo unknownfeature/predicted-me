@@ -1,3 +1,4 @@
+import datetime
 from typing import Dict
 
 base_url = 'api.predicted.me'
@@ -7,3 +8,6 @@ def get_headers(jwt: str) -> Dict[str, str]:
 
 def build_query_string(query_params: Dict[str, str]) -> str:
     return '&'.join([f'{k}={v}' for k, v in query_params.items()])
+
+def get_utc_timestamp() -> int:
+    return int(datetime.datetime.now(datetime.timezone.utc).timestamp())

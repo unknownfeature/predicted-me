@@ -5,7 +5,7 @@ from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
 
 from shared import constants
-from backend.lib.db import Data, Metric, Note, Tag, Origin
+from backend.lib.db import Data, Metric, Note, Tag
 from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory, get_offset_and_limit, \
     get_ts_start_and_end
 from backend.lib.util import HttpMethod

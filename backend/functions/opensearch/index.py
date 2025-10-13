@@ -51,6 +51,8 @@ def on_create():
                     constants.dimension: int(vector_dimension)
                 },
                 constants.note_id: {constants.type: constants.integer},
+                constants.user_id: {constants.type: constants.integer},
+
             }
         }
     }
