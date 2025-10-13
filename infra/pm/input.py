@@ -414,7 +414,7 @@ class Api:
             name='pm_data_api_function_integration'
         ),
             HttpIntegration(
-                url_path='/metric/{metric_id}/data/{id}',
+                url_path='/data/{id}',
                 methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                          api_gtw.HttpMethod.OPTIONS],
                 name='pm_data_api_function_integration'
@@ -434,7 +434,7 @@ class Api:
             name='pm_occurrence_api_function_integration'
         ),
             HttpIntegration(
-                url_path='/task/{task_id}/occurrence/{id}',
+                url_path='/occurrence/{id}',
                 methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                          api_gtw.HttpMethod.OPTIONS],
                 name='pm_occurrence_api_function_integration'
@@ -463,7 +463,7 @@ class Api:
         code_path='schedule/metric',
         role_name='pm_metric_schedule_api_function_role',
         integrations=[HttpIntegration(
-            url_path='/metric/{metric_id}/schedule/{id}',
+            url_path='/metric/schedule/{id}',
             methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                      api_gtw.HttpMethod.OPTIONS],
             name='pm_task_schedule_api_function_integration'
@@ -482,7 +482,7 @@ class Api:
         code_path='schedule/task',
         role_name='pm_task_schedule_api_function_role',
         integrations=[HttpIntegration(
-            url_path='/task/{task_id}/schedule/{id}',
+            url_path='/task/schedule/{id}',
             methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                      api_gtw.HttpMethod.OPTIONS],
             name='pm_task_schedule_api_function_integration'

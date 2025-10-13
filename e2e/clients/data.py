@@ -4,9 +4,8 @@ import api
 from e2e.common import base_url, build_query_string
 from shared import constants
 
-data_path_update = base_url + '/metric/{metric_id}/data/{id}',
+data_path_update = base_url + '/data/{id}',
 data_path_create = base_url + '/metric/{metric_id}/data',
-
 
 
 def create(metric_id: str, value: float, units: str, time: int, jwt: str) -> int:
@@ -18,7 +17,7 @@ def create(metric_id: str, value: float, units: str, time: int, jwt: str) -> int
         }, jwt)
 
 
-def edit(metric_id: int, id: int, value: float, units: str, time: int, jwt: str):
+def edit( id: int, value: float, units: str, time: int, jwt: str):
     return api.edit(
         data_path_update.format(metric_id=metric_id, id=id), {
             constants.value: value,
@@ -27,9 +26,9 @@ def edit(metric_id: int, id: int, value: float, units: str, time: int, jwt: str)
         }, jwt)
 
 
-def delete(metric_id: int, id: int, jwt: str):
-    return api.delete(  data_path_update.format(metric_id=metric_id, id=id), jwt)
+def delete( id: int, jwt: str):
+    return api.delete(data_path_update.format(metric_id=metric_id, id=id), jwt)
 
-def get(metric_id: int, id: int, jwt: str, query_params: Dict[str, str] = {}, ) -> Dict[str, Any]:
-    return api.get(  data_path_update.format(metric_id=metric_id, id=id) + f'?{build_query_string(query_params)}', jwt)
 
+def get(jwt: str, query_params: Dict[str, str] = {}, ) -> Dict[str, Any]:
+    return api.get(data_path_update.format(id=id) + f'?{build_query_string(query_params)}', jwt)

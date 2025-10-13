@@ -14,7 +14,7 @@ audio_bucket = os.getenv('AUDIO_BUCKET')
 
 
 
-def create(text: str, audio_s3_source: str, image_s3_source: str, jwt: str) -> int:
+def create(text: str, jwt: str, audio_s3_source: str = None, image_s3_source: str= None, ) -> int:
     audio_key = stream_s3_to_presigned_url(audio_bucket, audio_s3_source, jwt) if audio_s3_source else None
     image_key = stream_s3_to_presigned_url(image_bucket, image_s3_source, jwt) if image_s3_source else None
     return api.create(
