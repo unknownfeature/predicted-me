@@ -89,6 +89,8 @@ class PmTextStack(Stack):
                     opensearch_port: Common.opensearch_port,
                     opensearch_index: Text.opensearch_index,
                     embedding_model: Text.embedding_model,
+                    gemini_api_key: os.getenv(gemini_api_key)
+
                 }, role_supplier=create_function_role_factory(on_role),
                                            and_then=sqs_integration_cb_factory([queue]),
                                            vpc=vpc_stack.vpc)
@@ -106,6 +108,8 @@ class PmTextStack(Stack):
                     db_port: db_stack.db_instance.db_instance_endpoint_port,
                     max_tokens: Text.max_tokens,
                     generative_model: Text.generative_model,
+                    gemini_api_key: os.getenv(gemini_api_key)
+
                 }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, lambda role: role.add_to_policy(
                     bedrock_invoke_policy_statement)),
                                            and_then=allow_connection_function_factory(db_stack.db_proxy, sqs_integration_cb_factory([queue])),

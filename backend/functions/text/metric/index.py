@@ -11,13 +11,14 @@ from backend.lib.db import Metric, Data, Note, normalize_identifier, Origin
 from backend.lib.func.sqs import Params, process_record_factory, note_text_supplier, Model
 from backend.lib.func.sqs import handler_factory
 from backend.lib.util import get_or_create_metrics
+from shared.constants import default_max_tokens
 from shared.variables import *
 
-sns_client = boto3.client(constants.sns)
+sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
 tagging_topic_arn = os.getenv(tagging_topic_arn)
 
 generative_model = os.getenv(generative_model)
-max_tokens =  int(os.getenv(max_tokens))
+max_tokens =  int(os.getenv(max_tokens, default_max_tokens))
 
 
 metrics_schema = {
@@ -42,8 +43,9 @@ metrics_schema = {
     }
 }
 
-prompt = ("You are an expert metric extraction bot. Analyze the text below and extract all quantifiable "
-          "numeric metrics, including their value and unit. Normalize the metric name into a snake_case format. "
+prompt = ("You are an expert numeric data extraction bot. Analyze the text below and extract all quantifiable "
+          "numeric metrics, including their value and unit. All numbers which measure or describe anything unless explicitly stated to ignore. "
+          " If you detect any sentiment add add it as another metric where name will be specific emotion(not a generic sentiment) you detect and value the magnitude of that sentiment from 1 to 10 inclusive. "
           "Your output must be ONLY a JSON array that strictly adheres to the provided db. "
           "If no metrics are found, output an empty array []. "
           "Ignore non-numeric qualitative adjectives, links, and tasks.\n\n"

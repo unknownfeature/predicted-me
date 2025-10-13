@@ -117,10 +117,9 @@ class Common:
     shared_path = shared_dir
     docker_path = root_dir
 
-    generative_model = 'anthropic.claude-3-sonnet-20240229-v1:0'
-    embedding_model = 'amazon.titan-embed-text-v1'
+    generative_model = 'gemini-2.5-flash'
+    embedding_model = 'gemini-embedding-001'
     opensearch_port = '443'
-
 
 
 class Vpc:

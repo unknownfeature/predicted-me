@@ -35,4 +35,5 @@ admin_user = 'ADMIN_USER'
 admin_secret_arn = 'ADMIN_SECRET_ARN'
 cognito_pool_id = 'COGNITO_POOL_ID'
 domain_name_mapping_key = 'DOMAIN_NAME_MAPPING_KEY'
+gemini_api_key = 'GEMINI_API_KEY'
 

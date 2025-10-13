@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from shared import constants
 from backend.lib.db import begin_session, Note, Origin
-from backend.lib.util import call_bedrock_generative, text_getters, call_bedrock_embedding
+from backend.lib.util import call_generative, call_embedding
 from shared.variables import *
 
 sns_client = boto3.client('sns', region_name=os.getenv(aws_region))
@@ -71,10 +71,10 @@ def process_record_factory(params: Params, on_response_from_model: Callable[
             data = None
 
             if params.model.type == BedrockModelType.generative:
-                data = call_bedrock_generative(params.model.name, params.prompt, text,
-                                                        max_tokens=params.max_tokens)
+                data = call_generative(params.model.name, params.prompt, text,
+                                       max_tokens=params.max_tokens)
             elif params.model.type == BedrockModelType.embedding:
-                data = call_bedrock_embedding(params.model.name, text)
+                data = call_embedding(params.model.name, text)
 
             if not data:
                 print(f'No numeric metrics extracted by Bedrock for Note ID {note_id}.')

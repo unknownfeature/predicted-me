@@ -10,13 +10,14 @@ from shared import constants
 from backend.lib.db import Link, normalize_identifier, Note, Origin
 from backend.lib.func.sqs import handler_factory, Model
 from backend.lib.func.sqs import process_record_factory, note_text_supplier, Params
+from shared.constants import default_max_tokens
 from shared.variables import *
 
 sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
 tagging_topic_arn = os.getenv(tagging_topic_arn)
 
 generative_model = os.getenv(generative_model)
-max_tokens = int(os.getenv(max_tokens))
+max_tokens = int(os.getenv(max_tokens,  default_max_tokens))
 # todo add logic to submit text for analysis with either audio text + image or with text + image
 link_schema = {
     "type": "array",

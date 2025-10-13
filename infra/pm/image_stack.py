@@ -79,7 +79,8 @@ class PmImageStack(Stack):
                                            bda_output_bucket_name: self.bda_output_bucket.bucket_name,
                                            bda_job_execution_role_arn: role.role_arn,
                                            bda_blueprint_name: image_blueprint.blueprint_name,
-                                           bda_model_name: Image.bda_model_name
+                                           bda_model_name: Image.bda_model_name,
+                                           gemini_api_key: os.getenv(gemini_api_key)
 
                                        }, role_supplier= lambda _, __: role,
                                        and_then=s3_integration_cb_factory(

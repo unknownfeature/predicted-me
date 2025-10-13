@@ -155,3 +155,4 @@ cors_headers = {
     'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH,DELETE'
 }
 default_region = 'us-east-1'
+default_max_tokens = 2048

@@ -9,10 +9,11 @@ from shared import constants
 from backend.lib.db import Tag, Link, User, Note
 from backend.lib.func.sqs import process_record_factory, Params, handler_factory, BedrockModelType, Model
 from backend.lib.util import add_tags
+from shared.constants import default_max_tokens
 from shared.variables import *
 
 generative_model = os.getenv(generative_model)
-max_tokens = int(os.getenv(max_tokens))
+max_tokens = int(os.getenv(max_tokens, default_max_tokens))
 
 output_schema = {
     'type': 'array',

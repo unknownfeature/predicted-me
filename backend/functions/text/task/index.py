@@ -11,13 +11,14 @@ from backend.lib.db import Task, Note, normalize_identifier, Origin, Occurrence
 from backend.lib.func.sqs import handler_factory, Model
 from backend.lib.func.sqs import process_record_factory, Params, note_text_supplier
 from backend.lib.util import get_or_create_tasks
+from shared.constants import default_max_tokens
 from shared.variables import *
 
-sns_client = boto3.client(constants.sns)
+sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
 tagging_topic_arn = os.getenv(tagging_topic_arn)
 
 generative_model = os.getenv(generative_model)
-max_tokens =  int(os.getenv(max_tokens))
+max_tokens =  int(os.getenv(max_tokens, default_max_tokens))
 
 task_schema = {
     "type": "array",
