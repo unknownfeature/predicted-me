@@ -8,13 +8,11 @@ from shared import constants
 
 note_path = base_url + '/note'
 
-
 image_bucket = os.getenv('IMAGE_BUCKET')
 audio_bucket = os.getenv('AUDIO_BUCKET')
 
 
-
-def create(text: str, jwt: str, audio_s3_source: str = None, image_s3_source: str= None, ) -> int:
+def create(jwt: str, text: str = None, audio_s3_source: str = None, image_s3_source: str = None, ) -> int:
     audio_key = stream_s3_to_presigned_url(audio_bucket, audio_s3_source, jwt) if audio_s3_source else None
     image_key = stream_s3_to_presigned_url(image_bucket, image_s3_source, jwt) if image_s3_source else None
     return api.create(
@@ -25,12 +23,5 @@ def create(text: str, jwt: str, audio_s3_source: str = None, image_s3_source: st
         }, jwt)
 
 
-
-
 def get(note_id: int, jwt: str, query_params: Dict[str, str] = {}, ) -> Dict[str, Any]:
     return api.get(note_path + f'/{note_id}?{build_query_string(query_params)}', jwt)
-
-
-
-
-

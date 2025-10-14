@@ -1,17 +1,18 @@
 import os
 
+import pytest
 from dotenv import load_dotenv
 from pycognito import Cognito
 
 load_dotenv()
 
-cognito_pool_id=os.getenv('COGNITO_POOL_ID')
-cognito_client_id=os.getenv('COGNITO_CLIENT_ID')
-admin_user=os.getenv('ADMIN_USER')
-admin_user_password=os.getenv('ADMIN_USER_PASSWORD')
+cognito_pool_id = os.getenv('COGNITO_POOL_ID')
+cognito_client_id = os.getenv('COGNITO_CLIENT_ID')
+admin_user = os.getenv('ADMIN_USER')
+admin_user_password = os.getenv('ADMIN_USER_PASSWORD')
+
 
 def login() -> str:
-
     print(admin_user)
     print(admin_user_password)
     cognito_user = Cognito(cognito_pool_id, cognito_client_id, username=admin_user)
@@ -20,5 +21,3 @@ def login() -> str:
     access_token = cognito_user.access_token
     return access_token
 
-
-print(login())
