@@ -25,10 +25,5 @@ COPY ${REQS} ${LAMBDA_TASK_ROOT}/${REQS}
 RUN dnf update && dnf install -y gcc pkgconf pkgconf-pkg-config python3-devel
 
 RUN pip3 install -r ${LAMBDA_TASK_ROOT}/${REQS}
-RUN if [ -f "${BACKEND_DIR}/${FUNC_ROOT_DIR}/${FUNC_DIR}/${REQS}" ]; then \
-        cp -f "${BACKEND_DIR}/${FUNC_ROOT_DIR}/${FUNC_DIR}/${REQS}" "${LAMBDA_TASK_ROOT}/${REQS}" && \
-        pip3 install -r "${LAMBDA_TASK_ROOT}/${REQS}"; \
-    fi
-
 
 ENTRYPOINT ["/lambda-entrypoint.sh", "index.handler"]
