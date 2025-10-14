@@ -187,7 +187,7 @@ class Cognito:
 
 
 class Audio:
-    stack_name = 'PmAudioProcessingStack'
+    stack_name = 'PmAudioStack'
     transcribe_input_bucket_name = 'pm_transcribe_audio_input_bucket'
     transcribe_output_bucket_name = 'pm_transcribe_audio_output_bucket'
 
@@ -195,38 +195,38 @@ class Audio:
         name='pm_audio_processing_transcribe_in',
         timeout=Duration.seconds(30),
         memory_size=1024,
-        code_path='audio_processing/transcribe_in',
+        code_path='audio/transcribe_in',
         role_name='pm_audio_processing_func_role'
     )
     transcribe_out = Function(
         name='pm_audio_processing_transcribe_out',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path='audio_processing/transcribe_out',
+        code_path='audio/transcribe_out',
         role_name='pm_transcribe_out_function_role'
     )
 
 
 class Image:
-    stack_name = 'PmImageProcessingStack'
+    stack_name = 'PmImageStack'
     bda_input_bucket_name = 'pm_images_input_bucket'
     bda_output_bucket_name = 'pm_bda_image_output_bucket'
     bda_role_name = 'pm_bda_role'
-    bda_blueprint_name = 'pm_image_processing_blueprint'
+    bda_blueprint_name = 'pm_image_analyzer'
     bda_model_name = Common.generative_model
 
     bda_in = Function(
-        name='pm_image_processing_bda_in',
+        name='pm_image_bda_in',
         timeout=Duration.seconds(30),
         memory_size=1024,
-        code_path='image_processing/bda_in',
+        code_path='image/bda_in',
         role_name='pm_bda_in_function_role'
     )
     bda_out = Function(
         name='pm_image_processing_bda_out',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path='image_processing/bda_out',
+        code_path='image/bda_out',
         role_name='pm_bda_out_function_role'
     )
 

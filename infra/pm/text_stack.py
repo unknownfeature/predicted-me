@@ -152,7 +152,10 @@ class PmTextStack(Stack):
                 Common.func_dir_arg: function_params.code_path,
             },
             environment=env,
-            role_supplier=create_function_role_factory(lambda role:  self.embedding_domain.grant_write(role)),
+            role_supplier=create_function_role_factory(lambda role: role.add_to_policy(iam.PolicyStatement(
+                actions=['es:ESHttp*'],
+                resources=[f'{self.embedding_domain.domain_arn}/*']
+            ))),
             and_then=and_then,
             vpc=vpc_stack.vpc,
         ))

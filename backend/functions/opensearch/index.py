@@ -22,7 +22,7 @@ aws_auth = AWS4Auth(credentials.access_key, credentials.secret_key, region, cons
 def handler(event, _):
     request_type = event[constants.request_type]
 
-    if request_type == constants.create_request_type:
+    if request_type == constants.create_request_type or request_type == constants.update_request_type:
 
         return on_create()
 
@@ -41,9 +41,7 @@ def on_create():
 
     index_mapping = {
         constants.settings: {constants.index: {constants.knn: True}},
-        constants.index: {
-            constants.refresh_interval: opensearch_index_refresh_interval
-        },
+
         constants.mappings: {
             constants.properties: {
                 constants.vector_field: {

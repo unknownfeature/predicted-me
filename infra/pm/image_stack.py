@@ -25,50 +25,49 @@ class PmImageStack(Stack):
                  **kwargs) -> None:
         super().__init__(scope, Image.stack_name, **kwargs)
         # pre setup blueprint for BDA
-        blueprint_schema = {
-            'class': 'ImageAnalyzer',
-            'description': (
-                "The user wants a highly detailed analysis of an image for data extraction. "
-                "The primary goal is to provide a rich, descriptive summary and to extract any meaningful, structured text. "
-                "For example, if the image contains a food label, the model should extract the ingredients list and nutrition facts, while ignoring incidental text like a brand's slogan."
-            ),
-            'inference_schema': {
-                'type': 'object',
-                'properties': {
-                    'image_description': {
-                        'type': 'string',
-                        'description': (
-                            'A highly detailed, multi-sentence description of the image. Cover the main subject, setting, colors, textures, lighting, '
-                            'and any notable details or actions. Be as descriptive as possible.'
-                        ),
-                        'inference_type': 'GENERATIVE_FIELD'
-                    },
-                    'image_text': {
-                        'type': 'string',
-                        'description': (
-                            'An extraction of relevant and structured text from the image. Prioritize lists, tables, ingredients, '
-                            'nutrition facts, instructions, or signs. Ignore minor, irrelevant, or purely decorative text.'
-                        ),
-                        'inference_type': 'GENERATIVE_FIELD'
-                    }
-                },
-                'required': ['image_description']
-            }
-        }
-        image_blueprint = bedrock.CfnBlueprint(
-            self, Image.bda_blueprint_name,
-            blueprint_name=Image.bda_blueprint_name,
-            schema=blueprint_schema,
-            type='IMAGE'
-        )
+        # blueprint_schema = {
+        #     'class': 'ImageAnalyzer',
+        #     'description': (
+        #         "The user wants a highly detailed analysis of an image for data extraction. "
+        #         "The primary goal is to provide a rich, descriptive summary and to extract any meaningful, structured text. "
+        #         "For example, if the image contains a food label, the model should extract the ingredients list and nutrition facts, while ignoring incidental text like a brand's slogan."
+        #     ),
+        #     'inference_schema': {
+        #         'type': 'object',
+        #         'properties': {
+        #             'image_description': {
+        #                 'type': 'string',
+        #                 'description': (
+        #                     'A highly detailed, multi-sentence description of the image. Cover the main subject, setting, colors, textures, lighting, '
+        #                     'and any notable details or actions. Be as descriptive as possible.'
+        #                 ),
+        #             },
+        #             'image_text': {
+        #                 'type': 'string',
+        #                 'description': (
+        #                     'An extraction of relevant and structured text from the image. Prioritize lists, tables, ingredients, '
+        #                     'nutrition facts, instructions, or signs. Ignore minor, irrelevant, or purely decorative text.'
+        #                 ),
+        #             }
+        #         },
+        #         'required': ['image_description']
+        #     }
+        # }
+        # image_blueprint = bedrock.CfnBlueprint(
+        #     self, Image.bda_blueprint_name,
+        #     blueprint_name=Image.bda_blueprint_name,
+        #     schema=blueprint_schema,
+        #     type='IMAGE'
+        #
+        # )
 
         self.bda_input_bucket = create_bucket(self, Image.bda_input_bucket_name)
         self.bda_output_bucket = create_bucket(self, Image.bda_output_bucket_name)
 
-        self.bda_in_processing_function = self._create_bda_in_function(image_blueprint)
+        self.bda_in_processing_function = self._create_bda_in_function()
         self.bda_out_processing_function = self._create_bda_out_function(db_stack, text_stack, vpc_stack)
 
-    def _create_bda_in_function(self, image_blueprint: bedrock.CfnBlueprint) -> lmbd.Function:
+    def _create_bda_in_function(self) -> lmbd.Function:
         def on_role(role):
             role.add_to_policy(bedrock_invoke_policy_statement)
             role.add_to_policy(iam.PolicyStatement(
@@ -87,7 +86,7 @@ class PmImageStack(Stack):
                                        environment={
                                            bda_output_bucket_name: self.bda_output_bucket.bucket_name,
                                            bda_job_execution_role_arn: role.role_arn,
-                                           bda_blueprint_name: image_blueprint.blueprint_name,
+                                           bda_blueprint_name: Image.bda_blueprint_name,
                                            bda_model_name: Image.bda_model_name,
 
                                        }, role_supplier= lambda _, __: role,

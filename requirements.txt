@@ -5,3 +5,4 @@ pymysql
 python-slugify
 opensearch-py
 requests-aws4auth
+certifi

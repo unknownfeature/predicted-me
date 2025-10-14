@@ -14,6 +14,6 @@ def create(name: str, jwt: str) -> int:
         }, jwt)
 
 
-def get(tag_id: int, jwt: str, query_params: Dict[str, str] = {}, ) -> Dict[str, Any]:
-    return api.get(tag_path + f'/{tag_id}?{build_query_string(query_params)}', jwt)
+def get(jwt: str, query_params: Dict[str, str] = {}, ) -> Dict[str, Any]:
+    return api.get(tag_path + f'?{build_query_string(query_params)}', jwt)
 
