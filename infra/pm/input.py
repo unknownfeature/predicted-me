@@ -126,7 +126,7 @@ class Common:
 
 class Vpc:
     stack_name = 'PmVpcStack'
-    cidr = '10.0.0.0/24'
+    cidr = '10.0.0.0/16'
     net_prefix = 'pm_vpc'
     secrets_manager_endpoint = 'pm_secretsmanager_endpoint'
 
