@@ -2,7 +2,7 @@ import asyncio
 import datetime
 from typing import Dict, Callable, Any
 
-base_url = 'api.predicted.me'
+base_url = 'https://api.predicted.me'
 
 
 def get_headers(jwt: str) -> Dict[str, str]:

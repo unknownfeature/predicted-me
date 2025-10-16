@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-import api
+from e2e.clients import api
 from e2e.common import base_url
 
 user_path = base_url + '/user'

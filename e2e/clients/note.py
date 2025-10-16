@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any
 
-import api
+from e2e.clients import api
 from e2e.common import base_url, build_query_string
 from e2e.s3 import stream_s3_to_presigned_url
 from shared import constants

@@ -108,7 +108,8 @@ bda = 'bedrock-data-automation'
 bedrock_runtime = 'bedrock-runtime'
 
 s3_uri = 's3Uri'
-
+request_context='requestContext'
+http='http'
 utf_8 = 'utf-8'
 inference_result = 'inference_result'
 request_type = 'RequestType'

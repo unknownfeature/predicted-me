@@ -13,11 +13,10 @@ admin_user_password = os.getenv('ADMIN_USER_PASSWORD')
 
 
 def login() -> str:
-    print(admin_user)
-    print(admin_user_password)
+
     cognito_user = Cognito(cognito_pool_id, cognito_client_id, username=admin_user)
     cognito_user.authenticate(password=admin_user_password)
 
-    access_token = cognito_user.access_token
-    return access_token
+    id_token = cognito_user.id_token
+    return id_token
 

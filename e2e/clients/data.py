@@ -1,8 +1,8 @@
 from typing import Dict, Any
 
-import api
 from e2e.common import base_url, build_query_string
 from shared import constants
+
 data_path_get = base_url + '/data',
 data_path_update = base_url + '/data/{id}',
 data_path_create = base_url + '/metric/{metric_id}/data',

@@ -102,7 +102,7 @@ class PmApiStack(Stack):
             transcribe_bucket_in: audio_stack.transcribe_input_bucket.bucket_name,
 
         }, role_supplier=create_function_role_factory(on_role),
-                                       and_then=http_api_integration_cb_factory(self.http_api, Api.presign),
+                                       and_then=http_api_integration_cb_factory(self.http_authorizer, self.http_api, Api.presign),
                                        vpc=vpc_stack.vpc)
 
         return create_function(self, params)
@@ -121,9 +121,9 @@ class PmApiStack(Stack):
                             db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
                             db_name: os.getenv(db_name),
                             db_port: db_stack.db_instance.db_instance_endpoint_port,
-                        } | env_override if env_override is not None else {},
+                        } | (env_override if env_override is not None else {}),
             role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret),
             and_then=allow_connection_function_factory(db_stack.db_proxy,
-                                                       http_api_integration_cb_factory(self.http_api, function_params)),
+                                                       http_api_integration_cb_factory(self.http_authorizer, self.http_api, function_params)),
             vpc=vpc_stack.vpc,
         )

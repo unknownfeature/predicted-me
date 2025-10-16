@@ -9,6 +9,7 @@ from aws_cdk import (
     aws_rds as rds,
     aws_lambda_event_sources as lmes,
     aws_apigatewayv2 as api_gtw,
+    aws_apigatewayv2_authorizers as auth,
     aws_apigatewayv2_integrations as api_gtw_int,
     aws_s3_notifications as s3n,
     aws_s3 as s3,
@@ -64,12 +65,12 @@ def integration_factory(integration_cb: Callable[[lmbd.IFunction], None],
     return integrate
 
 
-def http_api_integration_cb_factory(api: api_gtw.HttpApi, api_function: ApiFunction) -> Callable[[lmbd.Function], None]:
+def http_api_integration_cb_factory(authorizer: auth.HttpJwtAuthorizer, api: api_gtw.HttpApi, api_function: ApiFunction) -> Callable[[lmbd.Function], None]:
     def cb(func: lmbd.IFunction):
         if not api_function.integrations:
             return
         for ip in api_function.integrations:
-            api.add_routes(path=ip.url_path, methods=ip.methods,
+            api.add_routes(path=ip.url_path, methods=ip.methods, authorizer=authorizer,
                            integration=api_gtw_int.HttpLambdaIntegration(ip.name, func))
 
     return cb
