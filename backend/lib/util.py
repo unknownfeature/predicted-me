@@ -77,7 +77,7 @@ def get_or_create_metrics(session: Session, summary_to_display_summary: Dict[str
 
 
 def get_user_ids_from_event(event: Dict[str, Any], session: Session) -> Tuple[int, str]:
-    external_user = event['requestContext']['authorizer']['jwt']['claims']['username']
+    external_user = event['requestContext']['authorizer']['jwt']['claims']['cognito:username']
     user_query = select(User.id).where(User.external_id == external_user)
     user = session.execute(user_query).first()
 

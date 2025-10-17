@@ -26,4 +26,4 @@ def delete(path: str, jwt: str):
 def get(path: str, jwt: str, fail_on_not_ok: bool = True) -> Dict[str, Any]:
     resp = requests.get(path, headers=get_headers(jwt), )
     assert not fail_on_not_ok or resp.ok
-    return resp.json() if resp.ok else None
+    return resp.json() if resp.ok else resp.text if not fail_on_not_ok else None
