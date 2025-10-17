@@ -77,9 +77,9 @@ def handler_factory(per_method_handlers: Dict[
         session = begin_session()
 
         try:
-            body = event.get(constants.body)
-            query_params = event.get(constants.query_params)
-            path_params = event.get(constants.path_params)
+            body = json.loads(event.get(constants.body, '{}'))
+            query_params = event.get(constants.query_params, {})
+            path_params = event.get(constants.path_params, {})
             http_method = event[constants.request_context][constants.http][constants.method]
 
             if http_method not in per_method_handlers:

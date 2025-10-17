@@ -397,8 +397,12 @@ class Api:
         role_name='pm_note_api_function_role',
         integrations=[HttpIntegration(
             url_path='/note/{id}',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
-            name='pm_note_api_function_integration'
+            methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_note_api_function_integration_a'
+        ), HttpIntegration(
+            url_path='/note',
+            methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
+            name='pm_note_api_function_integration_b'
         )]
     )
     # todo add this path param to path and delete
@@ -411,13 +415,19 @@ class Api:
         integrations=[HttpIntegration(
             url_path='/metric/{id}/data',
             methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
-            name='pm_data_api_function_integration'
+            name='pm_data_api_function_integration_a'
         ),
             HttpIntegration(
                 url_path='/data/{id}',
                 methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                          api_gtw.HttpMethod.OPTIONS],
-                name='pm_data_api_function_integration'
+                name='pm_data_api_function_integration_b'
+            ),
+
+            HttpIntegration(
+                url_path='/data',
+                methods=[api_gtw.HttpMethod.GET,  api_gtw.HttpMethod.OPTIONS],
+                name='pm_data_api_function_integration_c'
             )
         ]
     )
@@ -431,13 +441,18 @@ class Api:
         integrations=[HttpIntegration(
             url_path='/task/{id}/occurrence',
             methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
-            name='pm_occurrence_api_function_integration'
+            name='pm_occurrence_api_function_integration_a'
         ),
             HttpIntegration(
                 url_path='/occurrence/{id}',
                 methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                          api_gtw.HttpMethod.OPTIONS],
-                name='pm_occurrence_api_function_integration'
+                name='pm_occurrence_api_function_integration_b'
+            ),
+            HttpIntegration(
+                url_path='/occurrence',
+                methods=[api_gtw.HttpMethod.GET,  api_gtw.HttpMethod.OPTIONS],
+                name='pm_occurrence_api_function_integration_c'
             )
         ]
     )
@@ -450,9 +465,12 @@ class Api:
         role_name='pm_link_api_function_role',
         integrations=[HttpIntegration(
             url_path='/link/{id}',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                     api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
-            name='pm_link_api_function_integration'
+            methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_link_api_function_integration_a'
+        ), HttpIntegration(
+            url_path='/link',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_link_api_function_integration_b'
         )]
     )
 
@@ -464,14 +482,14 @@ class Api:
         role_name='pm_metric_schedule_api_function_role',
         integrations=[HttpIntegration(
             url_path='/metric/schedule/{id}',
-            methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                     api_gtw.HttpMethod.OPTIONS],
-            name='pm_task_schedule_api_function_integration'
+            methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.OPTIONS],
+            name='pm_task_schedule_api_function_integration_a'
         ),
+
             HttpIntegration(
                 url_path='/metric/{id}/schedule',
                 methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
-                name='pm_task_schedule_api_function_integration'
+                name='pm_task_schedule_api_function_integration_b'
             )]
     )
 
@@ -485,12 +503,12 @@ class Api:
             url_path='/task/schedule/{id}',
             methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
                      api_gtw.HttpMethod.OPTIONS],
-            name='pm_task_schedule_api_function_integration'
+            name='pm_task_schedule_api_function_integration_a'
         ),
             HttpIntegration(
                 url_path='/task/{id}/schedule',
                 methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.OPTIONS],
-                name='pm_task_schedule_api_function_integration'
+                name='pm_task_schedule_api_function_integration_b'
             )
         ]
     )
@@ -503,9 +521,12 @@ class Api:
         role_name='pm_task_api_function_role',
         integrations=[HttpIntegration(
             url_path='/task/{id}',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH,
-                     api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
-            name='pm_task_api_function_integration'
+            methods=[api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_task_api_function_integration_a'
+        ), HttpIntegration(
+            url_path='/task',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_task_api_function_integration_b'
         )]
     )
 
@@ -530,9 +551,12 @@ class Api:
         role_name='pm_metric_api_function_role',
         integrations=[HttpIntegration(
             url_path='/metric/{id}',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET,
-                     api_gtw.HttpMethod.OPTIONS],
-            name='pm_metric_api_function_integration'
+            methods=[api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_metric_api_function_integration_a'
+        ), HttpIntegration(
+            url_path='/metric',
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_metric_api_function_integration_b'
         )]
     )
 
@@ -544,8 +568,12 @@ class Api:
         role_name='pm_tag_api_function_role',
         integrations=[HttpIntegration(
             url_path='/tag/{id}',
+            methods=[api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            name='pm_tag_api_function_integration_a'
+        ), HttpIntegration(
+            url_path='/tag',
             methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
-            name='pm_tag_api_function_integration'
+            name='pm_tag_api_function_integration_b'
         )]
     )
 
