@@ -41,7 +41,7 @@ class _PredictedMeState extends State<PredictedMe> {
             "Region": "us-east-1"
           }
         },
-        "Auth": {
+        "Auth": { 
           "Default": {
             "authenticationFlowType": "USER_SRP_AUTH",
             "usernameAttributes": [
