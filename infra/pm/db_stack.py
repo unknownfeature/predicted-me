@@ -45,7 +45,7 @@ class PmDbStack(Stack):
                                                     version=rds.MysqlEngineVersion.VER_8_4_6,
                                                 ),
                                                 instance_type=ec2.InstanceType.of(ec2.InstanceClass.T3,
-                                                                                  ec2.InstanceSize.XLARGE),
+                                                                                  ec2.InstanceSize.LARGE),
                                                 vpc=vpc_stack.vpc,
                                                 security_groups=[self.db_sec_group],
                                                 database_name=os.getenv(db_name),

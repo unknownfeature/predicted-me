@@ -27,7 +27,7 @@ def send_text_to_sns(note_id: int, origin=Origin.text.value):
 
     sns_client.publish(
         TopicArn=sns_topic_arn,
-        Note=json.dumps(sns_payload),
+        Message=json.dumps(sns_payload),
         Subject='Ready for data extraction'
     )
 

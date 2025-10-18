@@ -76,7 +76,7 @@ def send_text_to_sns(image_description: str, note_id: int, origin: str):
 
         sns_client.publish(
             TopicArn=sns_topic_arn,
-            Note=json.dumps(sns_payload),
+            Message=json.dumps(sns_payload),
             Subject='Text ready for metrics extraction for Note ID {note_id} and origin {origin}.'
         )
 

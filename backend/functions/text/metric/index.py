@@ -80,7 +80,7 @@ def on_response_from_model(session: Session, note_id: int, data: List[Dict[str, 
 def send_to_sns(note_id):
     sns_client.publish(
         TopicArn=tagging_topic_arn,
-        Note=json.dumps({
+        Message=json.dumps({
             constants.note_id: note_id,
         }),
         Subject='Extracted metrics ready for tagging'

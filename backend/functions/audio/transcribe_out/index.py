@@ -77,6 +77,6 @@ def send_to_sns(note_id: int):
     }
     sns_client.publish(
         TopicArn=text_topic_arn,
-        Note=json.dumps(sns_payload),
+        Message=json.dumps(sns_payload),
         Subject=f"Audio Transcript Ready for Metrics Extraction: {note_id}"
     )
