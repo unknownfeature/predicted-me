@@ -1,0 +1,8 @@
+croniter
+sqlalchemy
+mysql-connector-python
+pymysql
+python-slugify
+opensearch-py
+requests-aws4auth
+certifi

@@ -1,0 +1,90 @@
+import json
+import os
+from typing import List, Dict, Any
+
+import boto3
+from sqlalchemy import select, inspect
+from sqlalchemy.orm import Session
+
+from shared import constants
+from backend.lib.db import Metric, Data, Note, normalize_identifier, Origin
+from backend.lib.func.sqs import Params, process_record_factory, note_text_supplier, Model
+from backend.lib.func.sqs import handler_factory
+from backend.lib.util import get_or_create_metrics
+from shared.constants import default_max_tokens
+from shared.variables import *
+
+sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
+tagging_topic_arn = os.getenv(tagging_topic_arn)
+
+generative_model = os.getenv(generative_model)
+max_tokens =  int(os.getenv(max_tokens, default_max_tokens))
+
+
+metrics_schema = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "description": f"Human readable name of the metric (e.g., Distance run, Heart rate). Make sure it only contains nouns and adjectives. Max length: {inspect(Metric).c.name.type.length} characters."
+            },
+            "value": {
+                "type": "number",
+                "description": "The numeric value extracted."
+            },
+            "units": {
+                "type": "string",
+                "description": f"The unit of measurement (e.g., miles, kcal, bpm). If no units are mentioned, use a standard unit or 'items'. Max length: {inspect(Data).c.units.type.length} characters."
+            }
+        },
+        "required": ["name", "value", "units"]
+    }
+}
+
+prompt = ("You are an expert numeric data extraction bot. Analyze the text below and extract all quantifiable "
+          "numeric metrics, including their value and unit. All numbers which measure or describe anything unless explicitly stated to ignore. "
+          "Sometimes numeric metrics may not be obvious. And could be explicitly specified like huge, a lot, not enough. In these cases you might estimate the number on the scale 1-10 inclusively. But it's important to extract all quantifiable objects, live creatures, events, actions or anything. As much as you can. "
+          "Especially focus on what a person eats and does or anything related to the persons mental, physical health and wellbeing. Never ignore mentioning of some food consumptions(had some food). Or any activities that are relevant to the person's wellebing and health. Always specify what exactly object/activity was taking place. Of course whenever is possible."
+          "If you detect any sentiment add it as another metric where name will be specific emotion(not a generic sentiment) you detect and value the magnitude of that sentiment from 1 to 10 inclusive. Make sure to specify units for that emotion as 'sentiment'"
+          "Make sure names of the metric are human readable. Your output must be ONLY a JSON array that strictly adheres to the provided db. "
+          "If no metrics are found, output an empty array []. "
+          "Ignore any links, and tasks.\n\n"
+          f"**JSON Schema**:\n{json.dumps(metrics_schema, indent=3)}\n\n"
+          "--- EXAMPLES ---\n"
+          "Text: 'I ran 5 miles today and my heart rate was 120bpm. It felt great!'\n"
+          "Output: [{\"name\": \"Distance run\", \"value\": 5, \"units\": \"miles\"}, {\"name\": \"heart rate\", \"value\": 120, \"units\": \"bpm\"}]\n\n"
+          "Text: 'Weight this morning was 185.3 lbs.'\n"
+          "Output: [{\"name\": \"Weight\", \"value\": 185.3, \"units\": \"lbs\"}]\n"
+          "--- END EXAMPLES ---\n\n"
+          "**Text to Analyze**:\n")
+
+
+
+def on_response_from_model(session: Session, note_id: int, data: List[Dict[str, Any]]) -> None:
+    target_note = session.scalar(select(Note).where(Note.id == note_id))
+    metrics_map = get_or_create_metrics(session, {normalize_identifier(item[constants.name]) : item[constants.name] for item in data}, target_note.user_id)
+    data_to_add = [
+        Data(value=d.get(constants.value), units=d.get(constants.units),
+             metric=metrics_map[normalize_identifier(d.get(constants.name))],
+             note=target_note)
+     for d in data if constants.name in d]
+
+    if  data_to_add:
+        session.add_all(data_to_add)
+        session.commit()
+
+        send_to_sns(target_note.id)
+
+def send_to_sns(note_id):
+    sns_client.publish(
+        TopicArn=tagging_topic_arn,
+        Message=json.dumps({
+            constants.note_id: note_id,
+        }),
+        Subject='Extracted metrics ready for tagging'
+    )
+
+handler = handler_factory(
+    process_record_factory(Params(prompt, note_text_supplier, Model(generative_model), max_tokens), on_response_from_model))

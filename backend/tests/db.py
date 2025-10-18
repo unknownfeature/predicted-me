@@ -1,50 +1,28 @@
-import pytest
-import uuid
-from datetime import datetime
+import unittest
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from backend.lib.db import Base, User, Note, Metrics, Data, MetricOrigin, Tag
+from backend.lib.db import normalize_identifier
 
 
-@pytest.fixture(scope="module")
-def session():
-    engine = create_engine("sqlite:///:memory:", echo=False)
+class Test(unittest.TestCase):
 
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    db_session = Session()
-    yield db_session
-    db_session.close()
+    def test_normalize_identifier(self):
+            assert normalize_identifier("A Normal Title") ==  "a_normal_title"
 
+            assert normalize_identifier("Some METRIC wITh MiXeD CaSe") ==  "some_metric_with_mixed_case"
 
-def test_mapping(session):
+            assert normalize_identifier("A String with % & * # !") ==  "a_string_with"
 
-    session.query(Data).delete()
-    session.query(Note).delete()
-    session.query(User).delete()
-    session.query(Metrics).delete()
-    session.commit()
+            assert normalize_identifier("  trim these spaces  ") ==  "trim_these_spaces"
 
-    parent_user = User(external_id=str(uuid.uuid4()), name="Parent")
-    session.add(parent_user)
-    session.flush()
+            assert normalize_identifier("Too   many --- spaces --- here") ==  "too_many_spaces_here"
 
-    child_user = User(external_id=str(uuid.uuid4()), name="Child", parent_user_id=parent_user.id)
-    session.add(child_user)
-    session.flush()
+            assert normalize_identifier("Test for version 2.0") ==  "test_for_version_2_0"
 
-    note1 = Note(user_id=child_user.id, text="Parent's first note", time=int(datetime.utcnow().timestamp()))
-    note2 = Note(user_id=child_user.id, text="Parent's second note", time=int(datetime.utcnow().timestamp()))
-    session.add_all([note1, note2])
-    session.flush()
+            assert normalize_identifier("Café Müller & Niño") ==  "cafe_muller_nino"
+            with self.assertRaises(Exception):
+                normalize_identifier("!@#$%^&*()")
 
-    metric = Metrics(name="Heart Rate")
-    data_point = Data(note=note1, metric=metric, value=75.5, units="bpm", origin=MetricOrigin.text,
-                      time=int(datetime.utcnow().timestamp()))
+            assert normalize_identifier("Don't stop the test!") ==  "don_t_stop_the_test"
 
-    session.add_all([metric, data_point])
-    session.flush()
-    session.commit()
+            assert normalize_identifier("Final Test (Round 1) - GO!") ==  "final_test_round_1_go"
+
