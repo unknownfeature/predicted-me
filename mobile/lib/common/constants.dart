@@ -1,0 +1,59 @@
+
+// JSON Keys
+const String kId = 'id';
+const String kName = 'name';
+const String kValue = 'value';
+const String kUnits = 'units';
+const String kTime = 'time';
+const String kOrigin = 'origin';
+const String kNoteId = 'note_id';
+const String kMetricId = 'metric_id';
+const String kTaskId = 'task_id';
+const String kMetric = 'metric';
+const String kTask = 'task';
+const String kSchedule = 'schedule';
+const String kTags = 'tags';
+const String kTagged = 'tagged';
+const String kText = 'text';
+const String kImageKey = 'image_key';
+const String kAudioKey = 'audio_key';
+const String kImageDescribed = 'image_described';
+const String kAudioTranscribed = 'audio_transcribed';
+const String kImageText = 'image_text';
+const String kImageDescription = 'image_description';
+const String kAudioText = 'audio_text';
+const String kUrl = 'url';
+const String kSummary = 'summary';
+const String kDescription = 'description';
+const String kCompleted = 'completed';
+const String kPriority = 'priority';
+const String kMinute = 'minute';
+const String kHour = 'hour';
+const String kDayOfMonth = 'day_of_month';
+const String kMonth = 'month';
+const String kDayOfWeek = 'day_of_week';
+const String kNextRun = 'next_run';
+const String kPeriodSeconds = 'period_seconds';
+const String kTargetValue = 'target_value';
+const String kRecurrenceSchedule = 'recurrence_schedule';
+const String kKey = 'key';
+const String kContentType = 'ContentType';
+// API Query/Path Params
+const String pMethod = 'method';
+const String pExtension = 'extension';
+const String pKey = 'key';
+const String pTags = 'tags';
+const String pMetric = 'metric';
+const String pNoteId = 'note_id';
+const String pText = 'text';
+const String pTask = 'task';
+const String pLink = 'link';
+const String pStart = 'start';
+const String pEnd = 'end';
+const String pOffset = 'offset';
+const String pLimit = 'limit';
+const String pCompleted = 'completed';
+
+// API Values
+const String vPut = 'put';
+const String vGet = 'get';
