@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv/
+.veanv/
+__pycache__/
+*.pyc
+*.pyo
+.idea/
+cdk.out/
+infra/
+website/
+e2e/
+mobile/
