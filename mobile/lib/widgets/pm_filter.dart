@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 class FiltrationCriteria {
   int? _id;
   int? _noteId;
-  int _startTime;
-  int _endTime;
+  int? _startTime;
+  int? _endTime;
   List<String> _tags;
   int _offset;
   int _limit;
@@ -12,8 +12,8 @@ class FiltrationCriteria {
   FiltrationCriteria({
     int? id,
     int? noteId,
-    required int startTime,
-    required int endTime,
+    int? startTime,
+    int? endTime,
     List<String>? tags,
     int offset = 0,
     int limit = 10,
@@ -29,9 +29,9 @@ class FiltrationCriteria {
 
   int? get noteId => _noteId;
 
-  int get startTime => _startTime;
+  int? get startTime => _startTime;
 
-  int get endTime => _endTime;
+  int? get endTime => _endTime;
 
   List<String> get tags => List.unmodifiable(_tags);
 
@@ -66,14 +66,11 @@ class PredictedMeFilterWidget extends StatefulWidget {
   PredictedMeFilterWidget(this._criteria, this._onCriteriaChanged);
 
   @override
-  State<StatefulWidget> createState() =>
-      PredictedMeFilterWidgetState();
+  State<StatefulWidget> createState() => PredictedMeFilterWidgetState();
 }
 
 class PredictedMeFilterWidgetState extends State<PredictedMeFilterWidget>
     with TickerProviderStateMixin {
-
-
   PredictedMeFilterWidgetState();
 
   @override
