@@ -129,6 +129,8 @@ class User(Base):
     accepted_terms: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_user_id: Mapped[int | None] = mapped_column(ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
+    links_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    tasks_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def __repr__(self) -> str:
         return f'User(id={self.id!r}, name={self.name!r})'

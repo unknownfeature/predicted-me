@@ -548,7 +548,7 @@ class Api:
         role_name='pm_user_api_function_role',
         integrations=[HttpIntegration(
             url_path='/user',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
             name='pm_user_api_function_integration'
         )]
     )
