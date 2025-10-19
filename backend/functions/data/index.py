@@ -1,5 +1,8 @@
+import json
+import os
 from typing import Dict, Any, List, Tuple
 
+import boto3
 from sqlalchemy import select, update, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
@@ -9,8 +12,12 @@ from backend.lib.db import Data, Metric, Note, Tag
 from backend.lib.func.http import handler_factory, RequestContext, delete_factory, patch_factory, get_offset_and_limit, \
     get_ts_start_and_end
 from backend.lib.util import HttpMethod
+from shared.variables import *
 
-updatable_fileds = {constants.value, constants.units, constants.time}
+sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
+processing_topic_arn = os.getenv(processing_topic_arn)
+
+updatable_fields = {constants.value, constants.units, constants.time}
 
 
 def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int]:
@@ -21,10 +28,11 @@ def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int
         select(Metric).where(and_(*[Metric.user_id == context.user.id, Metric.id == id]))).first()
     if not metric:
         return {constants.status: constants.not_found}, 404
-    data = Data(**{f: body[f] for f in body if f in updatable_fileds},
+    data = Data(**{f: body[f] for f in body if f in updatable_fields},
                 metric=metric)
     session.add(data)
     session.commit()
+    send_to_sns(data.id)
     return {constants.status: constants.success, constants.id: data.id}, 201
 
 
@@ -79,6 +87,7 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
         constants.value: float(dp.value),
         constants.units: dp.units,
         constants.time: dp.time,
+        constants.parent_data_id: dp.parent_data_id,
         constants.metric: {
             constants.id: dp.metric.id,
             constants.name: dp.metric.display_name,
@@ -108,10 +117,20 @@ patch_handler = lambda session, update_fields, user_id, path_params: session.exe
 delete_handler = lambda session, user_id, id: session.execute(sql_delete(Data).where(Data.metric_id == Metric.id)
                                                               .where(and_(*[Data.id == id, Metric.user_id == user_id])))
 
+def send_to_sns(data_id: int):
+    sns_client.publish(
+        TopicArn=processing_topic_arn,
+        Message=json.dumps({
+            constants.data_id: data_id,
+        }),
+        Subject='Data ready for processing'
+    )
+
+
 handler = handler_factory({
     HttpMethod.GET.value: get,
     HttpMethod.POST.value: post,
-    HttpMethod.PATCH.value: patch_factory(updatable_fileds, patch_handler),
+    HttpMethod.PATCH.value: patch_factory(updatable_fields, patch_handler),
     HttpMethod.DELETE.value: delete_factory(delete_handler),
 
 })

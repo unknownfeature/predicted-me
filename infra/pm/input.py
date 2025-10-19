@@ -295,39 +295,49 @@ class Text:
     )
 
 
-class Tagging:
-    stack_name = 'PmTaggingStack'
-    topic_name = 'pm_tagging_topic'
+class Processing:
+    stack_name = 'PmProcessingStack'
+    topic_name = 'pm_processing_topic'
     model = Common.generative_model
-    max_tokens = '1024'
+    max_tokens = '4096'
 
-    metric = QueueFunction(
+    metric_tagging = QueueFunction(
         name='pm_metric_tagging_func',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path='tagging/metric',
+        code_path='processing/tagging/metric',
         role_name='pm_metric_tagging_role',
         integration=QueueIntegration(queue_name='pm_metric_tagging_queue',
                                      visibility_timeout=Duration.minutes(2))
     )
 
-    link = QueueFunction(
+    link_tagging = QueueFunction(
         name='pm_link_tagging_func',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path='tagging/link',
+        code_path='processing/tagging/link',
         role_name='pm_link_tagging_role',
         integration=QueueIntegration(queue_name='pm_link_tagging_queue',
                                      visibility_timeout=Duration.minutes(2))
     )
 
-    task = QueueFunction(
+    task_tagging = QueueFunction(
         name='pm_task_tagging_func',
         timeout=Duration.minutes(1),
         memory_size=2048,
-        code_path='tagging/task',
+        code_path='processing/tagging/task',
         role_name='pm_task_tagging_role',
         integration=QueueIntegration(queue_name='pm_task_tagging_queue',
+                                     visibility_timeout=Duration.minutes(2))
+    )
+
+    nutrients_extraction = QueueFunction(
+        name='pm_nutrients_func',
+        timeout=Duration.minutes(1),
+        memory_size=2048,
+        code_path='processing/extraction/nutrients',
+        role_name='pm_nutrition_extraction_role',
+        integration=QueueIntegration(queue_name='pm_nutrients_extraction_queue',
                                      visibility_timeout=Duration.minutes(2))
     )
 
@@ -538,7 +548,7 @@ class Api:
         role_name='pm_user_api_function_role',
         integrations=[HttpIntegration(
             url_path='/user',
-            methods=[api_gtw.HttpMethod.POST, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
+            methods=[api_gtw.HttpMethod.POST,api_gtw.HttpMethod.DELETE, api_gtw.HttpMethod.PATCH, api_gtw.HttpMethod.GET, api_gtw.HttpMethod.OPTIONS],
             name='pm_user_api_function_integration'
         )]
     )

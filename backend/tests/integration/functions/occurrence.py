@@ -2,11 +2,12 @@ import json
 import unittest
 from decimal import Decimal
 from typing import Tuple
+from unittest.mock import patch
+
 from backend.tests.integration.base import *
-from backend.functions.occurance.index import handler
+from backend.functions.occurrence.index import handler
 from backend.lib.db import Occurrence
 from backend.lib.util import get_user_ids_from_event
-
 
 # test occurrence
 
@@ -50,15 +51,17 @@ class Test(unittest.TestCase):
         super().setUp()
         self.event = baseSetUp(Trigger.http)
 
-    def test_incomplete_occurrence_post_returns_500(self):
+    @patch('backend.functions.occurrence.index.send_to_sns')
+    def test_incomplete_occurrence_post_returns_500(self, mock_send_to_sns):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.completed: completed,
             constants.summary: display_summary,
 
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {
+            constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 500
@@ -68,10 +71,12 @@ class Test(unittest.TestCase):
 
         try:
             assert len(get_tasks_by_display_summary(display_summary, session)) == 0
+            mock_send_to_sns.assert_not_called()
         finally:
             session.close()
 
-    def test_occurrence_post_succeeds(self):
+    @patch('backend.functions.occurrence.index.send_to_sns')
+    def test_occurrence_post_succeeds(self, mock_send_to_sns):
 
         task_id, occurrence_id = self._setup_task(display_summary, priority=priority_one, completed=completed)
 
@@ -100,12 +105,13 @@ class Test(unittest.TestCase):
             assert occurrence.completed == completed
             assert occurrence.time > 0
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.priority: priority_two,
                 constants.completed: completed,
-            }
+            })
             self.event[constants.path_params][constants.id] = task_id
-            self.event[constants.http_method] = constants.post
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.post}}
 
             result = handler(self.event, None)
 
@@ -129,11 +135,13 @@ class Test(unittest.TestCase):
             assert occurrence.priority == priority_two
             assert occurrence.completed == completed
             assert occurrence.time > 0
+            mock_send_to_sns.assert_called()
 
         finally:
             session.close()
 
-    def test_occurrence_post_fails_for_malicious_user(self):
+    @patch('backend.functions.occurrence.index.send_to_sns')
+    def test_occurrence_post_fails_for_malicious_user(self, mock_send_to_sns):
         task_id, _ = self._setup_task(display_summary)
 
         name = normalize_identifier(display_summary)
@@ -143,13 +151,14 @@ class Test(unittest.TestCase):
         try:
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.post
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.post}}
             malicious_event[constants.query_params] = {}
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
 
                 constants.value: priority_two,
                 constants.completed: completed,
-            }
+            })
             malicious_event[constants.path_params][constants.id] = task_id
             result = handler(malicious_event, None)
 
@@ -165,6 +174,7 @@ class Test(unittest.TestCase):
 
             # should add one more
             assert len(task.occurrences) == 0
+            mock_send_to_sns.assert_not_called()
 
             # just in case
             assert session.query(User).count() == 2
@@ -194,13 +204,14 @@ class Test(unittest.TestCase):
             assert occurrence.completed == completed
             assert occurrence.time > 0
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.priority: priority_two,
                 constants.completed: other_completed,
                 constants.time: 25
-            }
+            })
             self.event[constants.path_params][constants.id] = occurrence_id
-            self.event[constants.http_method] = constants.patch
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.patch}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -239,13 +250,14 @@ class Test(unittest.TestCase):
         try:
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.patch
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.patch}}
             malicious_event[constants.query_params] = {}
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
 
                 constants.value: priority_three,
                 constants.completed: malicious_completed,
-            }
+            })
             malicious_event[constants.path_params][constants.id] = occurrence_id
             result = handler(malicious_event, None)
 
@@ -283,9 +295,10 @@ class Test(unittest.TestCase):
         try:
 
             self.event = prepare_http_event(get_user_by_id(legit_user_id, session).external_id)
-            self.event[constants.body] = {}
+            self.event[constants.body] = json.dumps({})
             self.event[constants.path_params][constants.id] = occurrence_id
-            self.event[constants.http_method] = constants.delete
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.delete}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -314,9 +327,10 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.delete
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.delete}}
             malicious_event[constants.query_params] = {}
-            malicious_event[constants.body] = {}
+            malicious_event[constants.body] = json.dumps({})
             malicious_event[constants.path_params][constants.id] = 1
             result = handler(malicious_event, None)
 
@@ -345,7 +359,8 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             self.event[constants.path_params][constants.id] = 4
             result = handler(self.event, None)
@@ -370,10 +385,12 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.path_params] = {}
             malicious_event[constants.path_params][constants.id] = 1
@@ -390,7 +407,8 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             self.event[constants.query_params] = {
                 constants.note_id: 1,
@@ -419,7 +437,8 @@ class Test(unittest.TestCase):
             self._setup_occurrences_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.completed: True,
                 constants.start: three_days_ago - seconds_in_day,
@@ -438,7 +457,8 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             self.event[constants.query_params] = {
                 constants.completed: '1',
@@ -489,7 +509,8 @@ class Test(unittest.TestCase):
             self._setup_occurrences_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.path_params] = {}
             malicious_event[constants.path_params][constants.id] = 1
@@ -505,7 +526,8 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             ##########################################
             self.event[constants.query_params] = {
@@ -536,7 +558,8 @@ class Test(unittest.TestCase):
         try:
             self._setup_occurrences_for_search(session)
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.tags: f'{tag_two_display_name}',
                 constants.start: three_days_ago - seconds_in_day,
@@ -553,7 +576,8 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.task: task_one_description,
                 constants.start: three_days_ago - seconds_in_day,
@@ -580,7 +604,8 @@ class Test(unittest.TestCase):
         try:
             self._setup_occurrences_for_search(session)
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.task: task_one_description,
                 constants.start: three_days_ago - seconds_in_day
@@ -597,7 +622,8 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.task: task_one_display_summary,
                 constants.start: three_days_ago - seconds_in_day,
@@ -624,7 +650,8 @@ class Test(unittest.TestCase):
         try:
             self._setup_occurrences_for_search(session)
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.task: task_one_display_summary,
                 constants.start: three_days_ago - seconds_in_day,
@@ -642,7 +669,8 @@ class Test(unittest.TestCase):
             #  m1_d2 & m2_d5 3d |   m1_d1 2d |  m1_d3  1d | m2_d4 & m2_d6  now
 
             self._setup_occurrences_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
                 constants.end: three_days_ago,
@@ -654,7 +682,7 @@ class Test(unittest.TestCase):
 
             assert items[0][constants.priority] == occurrence_priority_five
             assert items[1][constants.priority] == occurrence_priority_two
-            
+
             assert items[0][constants.completed] == occurrence_five_completed
             assert items[1][constants.completed] == occurrence_two_completed
 
@@ -670,7 +698,7 @@ class Test(unittest.TestCase):
             assert items[0][constants.task][constants.schedule][constants.next_run] > 0
 
             assert len(items[0][constants.task][constants.tags]) == 2
-            
+
             assert items[1][constants.task][constants.tags][0] == tag_one_display_name
             assert items[1][constants.task][constants.tags][1] == tag_two_display_name
 
@@ -687,7 +715,7 @@ class Test(unittest.TestCase):
             assert items[1][constants.priority] == occurrence_priority_four
             assert items[0][constants.completed] == occurrence_six_completed
             assert items[1][constants.completed] == occurrence_four_completed
-            
+
             assert items[0][constants.task][constants.summary] == task_two_display_summary
             assert items[1][constants.task][constants.summary] == task_two_display_summary
 
@@ -710,7 +738,7 @@ class Test(unittest.TestCase):
             assert items[0][constants.priority] == occurrence_priority_six
             assert items[1][constants.priority] == occurrence_priority_four
             assert items[2][constants.priority] == occurrence_priority_three
-            
+
             assert items[0][constants.task][constants.summary] == task_two_display_summary
             assert items[1][constants.task][constants.summary] == task_two_display_summary
             assert items[2][constants.task][constants.summary] == task_one_display_summary
@@ -725,7 +753,7 @@ class Test(unittest.TestCase):
 
             assert items[0][constants.priority] == occurrence_priority_one
             assert items[0][constants.completed] == occurrence_one_completed
-            
+
             assert items[0][constants.task][constants.summary] == task_one_display_summary
 
             # pagination
@@ -779,7 +807,8 @@ class Test(unittest.TestCase):
             self._setup_occurrences_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
                 constants.end: get_utc_timestamp(),  #
@@ -835,7 +864,9 @@ class Test(unittest.TestCase):
 
         task_one = Task(summary=task_one_summary, display_summary=task_one_display_summary,
                         description=task_one_description, user=user,
-                        tags=[tag_one, tag_two], schedule=OccurrenceSchedule(priority=schedule_priority, period_seconds=300,  next_run=get_utc_timestamp()))
+                        tags=[tag_one, tag_two],
+                        schedule=OccurrenceSchedule(priority=schedule_priority, period_seconds=300,
+                                                    next_run=get_utc_timestamp()))
         task_two = Task(summary=task_two_summary, display_summary=task_two_display_summary, user=user,
                         description=task_two_description,
                         tags=[tag_two, tag_three], tagged=True,
@@ -861,4 +892,3 @@ class Test(unittest.TestCase):
 
     def tearDown(self):
         baseTearDown()
-

@@ -17,6 +17,7 @@ from .function_factories import http_api_integration_cb_factory, create_function
     create_role_with_db_access_factory, allow_connection_function_factory
 from .image_stack import PmImageStack
 from .constants import true
+from .processing_stack import PmProcessingStack
 from .util import create_function
 from .text_stack import PmTextStack
 from .vpc_stack import PmVpcStack
@@ -25,7 +26,7 @@ from .vpc_stack import PmVpcStack
 class PmApiStack(Stack):
 
     def __init__(self, scope: Construct, cognito_stack: PmCognitoStack, image_stack: PmImageStack,
-                 audio_stack: PmAudioStack, text_stack: PmTextStack, db_stack: PmDbStack, vpc_stack: PmVpcStack,
+                 audio_stack: PmAudioStack, text_stack: PmTextStack, processing_stack: PmProcessingStack, db_stack: PmDbStack, vpc_stack: PmVpcStack,
                  **kwargs):
         super().__init__(scope, Api.stack_name, **kwargs)
 
@@ -49,19 +50,17 @@ class PmApiStack(Stack):
         self.presign_function = self._presign(audio_stack, image_stack, vpc_stack)
 
         self.note_api_function = create_function(self,
-                                                 self._create_api_function_with_db_params(db_stack, vpc_stack, Api.note,
-                                                                                          {
-                                                                                              text_processing_topic_arn: text_stack.text_processing_topic.topic_arn}))
+                                                 self._create_api_function_with_db_params(db_stack, vpc_stack, Api.note, text_stack=text_stack),)
 
         self.data_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack,
-                                                                                                Api.data))
+                                                                                                Api.data, processing_stack=processing_stack))
 
         self.occurrence_api_function = create_function(self,
                                                        self._create_api_function_with_db_params(db_stack, vpc_stack,
-                                                                                                Api.occurrence))
+                                                                                                Api.occurrence, processing_stack=processing_stack))
 
         self.link_api_function = create_function(self, self._create_api_function_with_db_params(db_stack, vpc_stack,
-                                                                                                Api.link))
+                                                                                                Api.link, processing_stack=processing_stack))
 
         self.data_schedule_api_function = create_function(self,
                                                           self._create_api_function_with_db_params(db_stack, vpc_stack,
@@ -109,7 +108,14 @@ class PmApiStack(Stack):
 
     def _create_api_function_with_db_params(self, db_stack: PmDbStack, vpc_stack: PmVpcStack,
                                             function_params: ApiFunction,
-                                            env_override: Dict[str, str] = None) -> FunctionFactoryParams:
+                                            processing_stack: PmProcessingStack = None,
+                                            text_stack: PmTextStack = None) -> FunctionFactoryParams:
+        def on_role(role):
+            if processing_stack:
+                processing_stack.processing_topic.grant_publish(role)
+            if text_stack:
+                text_stack.text_topic.grant_publish(role)
+
         return FunctionFactoryParams(
             function_params=function_params,
             build_args={
@@ -117,12 +123,14 @@ class PmApiStack(Stack):
                 Common.install_mysql_arg: true,
             },
             environment={
+                            processing_topic_arn: processing_stack.processing_topic.topic_arn if processing_stack else None,
+                            text_topic_arn: text_stack.text_topic.topic_arn if text_stack else None,
                             db_secret_arn: db_stack.db_secret.secret_full_arn,
-                            db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                            db_endpoint: db_stack.db_proxy.db_instance_endpoint_address,
                             db_name: os.getenv(db_name),
-                            db_port: db_stack.db_instance.db_instance_endpoint_port,
-                        } | (env_override if env_override is not None else {}),
-            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret),
+                            db_port: db_stack.db_proxy.db_instance_endpoint_port,
+                        },
+            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, on_role),
             and_then=allow_connection_function_factory(db_stack.db_proxy,
                                                        http_api_integration_cb_factory(self.http_authorizer, self.http_api, function_params)),
             vpc=vpc_stack.vpc,

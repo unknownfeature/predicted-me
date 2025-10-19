@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from shared import constants
 from backend.lib.db import Metric, Data, Tag, Note
-from backend.lib.func.sqs import process_record_factory, Params, handler_factory, Model
+from backend.lib.func.sqs import process_record_factory, Params, handler_factory, Model, MessageInput
 from backend.lib.util import add_tags
 from shared.constants import default_max_tokens
 from shared.variables import *
@@ -38,7 +38,7 @@ output_schema = {
 
 tagging_prompt = (
     "You are an expert taxonomy and categorization engine. Analyze the provided list of metrics and assign 1 to 3 "
-    "relevant categories to each one from the allowed taxonomy. Your output must be ONLY a JSON array that "
+    "relevant categories to each one. If you detect data with name which can be a food add 'Food' tag to it. If you detect something that looks like supplement add 'Supplement' tag. And if you detect a medication add 'Medication' tag to it.  Your output must be ONLY a JSON array that "
     "strictly adheres to the provided db.\n\n"
     f"**Output JSON Schema**:\n{json.dumps(output_schema, indent=3)}\n\n"
     "--- EXAMPLES ---\n"
@@ -57,33 +57,52 @@ tagging_prompt = (
 )
 
 
-def text_supplier(session: Session, note_id, _):
-    query = select(Metric).join(Metric.data_points).where(and_(Data.note_id == note_id,  Metric.tagged == False))
+def text_supplier(session: Session, message_input: MessageInput):
+    if not message_input.note_id and not message_input.data_id:
+        return None
+
+    conditions = []
+    if message_input.note_id:
+        conditions.append(Data.note_id == message_input.note_id)
+    if message_input.data_id:
+        conditions.append(Data.id == message_input.data_id)
+    conditions.append(Metric.tagged == False)
+
+    query = select(Metric).join(Metric.data_points).where(and_(*conditions))
 
     untagged_metrics = session.scalars(query).unique().all()
 
     if not untagged_metrics:
-        print(f"No metrics to tag{note_id} are already tagged. Skipping.")
         return
 
-    # todo could be duplicates? not sure
-    return (
-        f"\n{json.dumps([{
+    return json.dumps([{
             constants.id: d.id,
             constants.name: d.display_name} for d in untagged_metrics
-        ])}"
-    )
+        ])
 
 
-def on_response_from_model(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
-    note = session.get(Note, note_id)
-    add_tags(note.user_id, session, data, lambda: select(Metric)
-             .join(Metric.data_points).where(and_(
-        Metric.id.in_([item[constants.id] for item in data]),
-        Data.note_id == note_id,
-        Metric.tagged == False
-    )
-    ).options(selectinload(Metric.tags)))
+
+def on_response_from_model(session: Session, message_input: MessageInput, data: List[Dict[str, Any]]):
+    if message_input.note_id:
+       note = session.get(Note, message_input.note_id)
+       add_tags(note.user_id, session, data, lambda: select(Metric)
+                .join(Metric.data_points).where(and_(
+           Metric.id.in_([item[constants.id] for item in data]),
+           Data.note_id == message_input.note_id,
+           Metric.tagged == False
+       )
+       ).options(selectinload(Metric.tags)))
+    elif message_input.data_id:
+        stmt = select(Metric).join(Metric.data_points).where(Data.id == message_input.data_id)
+        metric = session.scalar(stmt)
+        add_tags(metric.user_id, session, data, lambda:  select(Metric)
+                .join(Metric.data_points).where(and_(
+           Data.id  == message_input.data_id,
+           Metric.tagged == False
+        )).options(selectinload(Metric.tags)))
+
+    else:
+        raise ValueError('no metric id an no note id')  # should not happen
     session.commit()
 
 

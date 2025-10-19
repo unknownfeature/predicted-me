@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker, Session, selectinload
 from shared import constants
 load_dotenv()
 from backend.lib.db import Base, User, Metric, Task, begin_session, normalize_identifier, get_utc_timestamp, Link, Note, \
-    Tag, DataSchedule, OccurrenceSchedule
+    Tag, DataSchedule, OccurrenceSchedule, Occurrence
 from backend.lib.func.http import seconds_in_day
 from shared.variables import *
 
@@ -38,10 +38,10 @@ unique_piece = 'unique piece'
 
 def prepare_http_event(external_user_id: str) -> Dict[str, Any]:
     return {
-        constants.body: {},
+        constants.body: '{}',
         constants.query_params: {},
         constants.path_params: {},
-        'requestContext': {'authorizer': {'jwt': {'claims': {'username': external_user_id}}}},
+        'requestContext': {'authorizer': {'jwt': {'claims': {'cognito:username': external_user_id}}}},
 
     }
 def refresh_cache(session):
@@ -61,6 +61,10 @@ def get_metrics_by_display_name(display_name: str, session: Session) -> List[Typ
 
 def get_task_by_id(task_id: int, session: Session) -> Optional[Task]:
     return session.query(Task).get(task_id)
+
+def get_task_by_occurrence_id(occurrence_id: int, session: Session) -> Optional[Task]:
+    return session.query(Occurrence).get(occurrence_id).task;
+
 def get_tasks_by_display_summary(display_summary: str, session: Session) -> List[Type[Task]]:
     return session.query(Task).filter(Task.display_summary == display_summary).all()
 

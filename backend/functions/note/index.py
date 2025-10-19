@@ -15,7 +15,7 @@ from backend.lib.util import  HttpMethod
 from shared.variables import *
 
 sns_client = boto3.client(constants.sns)
-sns_topic_arn = os.getenv(text_processing_topic_arn)
+sns_topic_arn = os.getenv(text_topic_arn)
 
 
 def send_text_to_sns(note_id: int, origin=Origin.text.value):

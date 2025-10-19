@@ -44,11 +44,11 @@ class Test(unittest.TestCase):
 
     def test_incomplete_post_returns_400(self):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
 
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 400
@@ -64,13 +64,13 @@ class Test(unittest.TestCase):
     @patch('backend.functions.note.index.send_text_to_sns')
     def test_note_post_succeeds(self, mock_send_text_to_sns):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.text: note_one_text,
             constants.image_key: note_four_image_key,
 
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
 
         result = handler(self.event, None)
         assert result[constants.status_code] == 201
@@ -100,14 +100,14 @@ class Test(unittest.TestCase):
     @patch('backend.functions.note.index.send_text_to_sns')
     def test_note_post_with_bothauidio_and_text_fails(self, mock_send_text_to_sns):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.text: note_one_text,
             constants.audio_key: note_two_audio_key,
             constants.image_key: note_four_image_key,
 
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
 
         result = handler(self.event, None)
         assert result[constants.status_code] == 400
@@ -119,7 +119,7 @@ class Test(unittest.TestCase):
 
         session = begin_session()
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             self.event[constants.path_params][constants.id] = 1
             result = handler(self.event, None)
@@ -146,7 +146,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             malicious_event[constants.path_params][constants.id] = 1
             result = handler(malicious_event, None)
@@ -171,7 +171,7 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             ##########################################
             self.event[constants.query_params] = {
@@ -224,7 +224,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             ##########################################
             malicious_event[constants.query_params] = {
@@ -249,7 +249,7 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             ##########################################
             self.event[constants.query_params] = {
@@ -284,7 +284,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             ##########################################
             malicious_event[constants.query_params] = {
@@ -318,7 +318,7 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.text: 'one',
                 constants.start: three_days_ago - seconds_in_day,
@@ -355,7 +355,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.text: note_one_text,
                 constants.start: three_days_ago - seconds_in_day,
@@ -374,7 +374,7 @@ class Test(unittest.TestCase):
         self._setup_notes()
         session = begin_session()
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
                 constants.end: three_days_ago,
@@ -506,7 +506,7 @@ class Test(unittest.TestCase):
         try:
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
                 constants.end: get_utc_timestamp(),  #
@@ -557,7 +557,7 @@ class Test(unittest.TestCase):
                                 tagged=True)
 
             metric_one.data_points.extend(
-                [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60, 
+                [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60,
                       note=note_one, ),
                  Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60,
                       note=note_two, ),

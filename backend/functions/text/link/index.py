@@ -14,7 +14,7 @@ from shared.constants import default_max_tokens
 from shared.variables import *
 
 sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
-tagging_topic_arn = os.getenv(tagging_topic_arn)
+processing_topic_arn = os.getenv(processing_topic_arn)
 
 generative_model = os.getenv(generative_model)
 max_tokens = int(os.getenv(max_tokens,  default_max_tokens))
@@ -81,7 +81,7 @@ def on_response_from_model(session: Session, note_id: int, data: List[Dict[str, 
 
 def send_to_sns(note_id):
     sns_client.publish(
-        TopicArn=tagging_topic_arn,
+        TopicArn=processing_topic_arn,
         Message=json.dumps({
             constants.note_id: note_id,
         }),

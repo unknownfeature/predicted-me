@@ -1,7 +1,8 @@
 import json
 import unittest
-from backend.tests.integration.base import *
+from unittest.mock import patch
 
+from backend.tests.integration.base import *
 from backend.functions.task.index import handler
 from backend.lib.util import get_user_ids_from_event
 
@@ -26,11 +27,11 @@ class Test(unittest.TestCase):
 
     def test_incomplete_post_returns_500(self):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.description: task_one_description,
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 500
@@ -50,33 +51,31 @@ class Test(unittest.TestCase):
 
         try:
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.summary: task_two_display_summary,
                 constants.description: task_two_description + unique_piece,
-            }
-            self.event[constants.http_method] = constants.post
+            })
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 500
-
 
         finally:
             session.close()
 
 
-
-    def test_link_post_succeeds_for_duplicate_from_another_user(self):
+    def test_task_post_succeeds_for_duplicate_from_another_user(self):
 
          self._setup_tasks()
          session = begin_session()
 
          try:
              malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-             malicious_event[constants.body] = {
+             malicious_event[constants.body] = json.dumps({
                  constants.summary: task_two_display_summary,
                  constants.description: task_two_description + unique_piece,
-             }
-             malicious_event[constants.http_method] = constants.post
+             })
+             malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.post}}
              result = handler(malicious_event, None)
 
              assert result[constants.status_code] == 201
@@ -90,16 +89,15 @@ class Test(unittest.TestCase):
          finally:
              session.close()
 
-
     def test_task_post_succeeds(self):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.summary: task_one_display_summary,
             constants.description: task_one_description,
             constants.tags: [tag_two_display_name, tag_three_display_name]
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
 
         result = handler(self.event, None)
         assert result[constants.status_code] == 201
@@ -121,7 +119,6 @@ class Test(unittest.TestCase):
             assert task.tagged
             assert len(task.tags) == 2
             assert task.user.external_id == external_id
-
 
 
         finally:
@@ -148,14 +145,14 @@ class Test(unittest.TestCase):
             task_id = task.id
 
             new_tag_name = 'new_tag'
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.summary: task_two_display_summary + unique_piece,
                 constants.description: task_two_description,
                 #  one exists and one new, both should replace old ones
                 constants.tags: [new_tag_name, tag_three_display_name]
-            }
+            })
             self.event[constants.path_params][constants.id] = task_id
-            self.event[constants.http_method] = constants.patch
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.patch}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -202,12 +199,12 @@ class Test(unittest.TestCase):
             task_id = task.id
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
                 constants.summary: task_two_display_summary,
                 constants.description: task_two_description,
-            }
+            })
             malicious_event[constants.path_params][constants.id] = task_id
-            malicious_event[constants.http_method] = constants.patch
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.patch}}
             result = handler(malicious_event, None)
 
             assert result[constants.status_code] == 400
@@ -234,7 +231,7 @@ class Test(unittest.TestCase):
 
         session = begin_session()
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             self.event[constants.path_params][constants.id] = 1
             result = handler(self.event, None)
@@ -261,7 +258,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             malicious_event[constants.path_params][constants.id] = 1
             result = handler(malicious_event, None)
@@ -288,7 +285,7 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             ##########################################
             self.event[constants.query_params] = {
@@ -355,7 +352,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             ##########################################
             malicious_event[constants.query_params] = {
@@ -386,7 +383,7 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.text: 'one',
 
@@ -419,7 +416,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.text: task_one_description,
             }
