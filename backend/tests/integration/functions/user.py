@@ -2,7 +2,6 @@ import json
 import unittest
 
 from backend.tests.integration.base import *
-
 from backend.functions.user.index import handler
 
 
@@ -17,7 +16,7 @@ class Test(unittest.TestCase):
 
         new_external_id = uuid.uuid4().hex
         event = prepare_http_event(new_external_id)
-        event[constants.http_method] = constants.post
+        event[constants.request_context] = event[constants.request_context] | {constants.http: {constants.method: constants.post}}
         result = handler(event, None)
         assert result[constants.status_code] == 201
         id = json.loads(result[constants.body])[constants.id]
@@ -41,7 +40,7 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
             user = json.loads(result[constants.body])
@@ -56,7 +55,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             result = handler(malicious_event, None)
             user = json.loads(result[constants.body])
             assert user[constants.id] == malicious_user_id

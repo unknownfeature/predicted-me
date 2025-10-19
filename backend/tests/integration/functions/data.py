@@ -2,6 +2,8 @@ import json
 import unittest
 from decimal import Decimal
 from typing import Tuple
+from unittest.mock import patch
+
 from backend.tests.integration.base import *
 
 from backend.functions.data.index import handler
@@ -56,22 +58,24 @@ units = 'the units'
 other_units = 'other units'
 malicious_units = 'mal units'
 
+
 class Test(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
         self.event = baseSetUp(Trigger.http)
 
-    def test_data_incomplete_post_returns_500(self):
+    @patch('backend.functions.data.index.send_to_sns')
+    def test_data_incomplete_post_returns_500(self, send_to_sns_mock):
         name = normalize_identifier(display_name)
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.units: units,
             constants.name: display_name,
 
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 500
@@ -82,10 +86,12 @@ class Test(unittest.TestCase):
         try:
             assert len(get_metrics_by_display_name(display_name, session)) == 0
             assert len(get_metrics_by_name(name, session)) == 0
+            send_to_sns_mock.assert_not_called()
         finally:
             session.close()
 
-    def test_data_post_succeeds(self):
+    @patch('backend.functions.data.index.send_to_sns')
+    def test_data_post_succeeds(self, send_to_sns_mock):
 
         metric_id, data_id = self._setup_metric(display_name, value=value_one, units=units)
 
@@ -114,12 +120,12 @@ class Test(unittest.TestCase):
             assert data.units == units
             assert data.time > 0
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.value: value_two,
                 constants.units: units,
-            }
+            })
             self.event[constants.path_params][constants.id] = metric_id
-            self.event[constants.http_method] = constants.post
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
 
             result = handler(self.event, None)
 
@@ -143,11 +149,13 @@ class Test(unittest.TestCase):
             assert data.value == Decimal(str(value_two))
             assert data.units == units
             assert data.time > 0
+            send_to_sns_mock.assert_called_once()
 
         finally:
             session.close()
 
-    def test_data_post_fails_for_malicious_user(self):
+    @patch('backend.functions.data.index.send_to_sns')
+    def test_data_post_fails_for_malicious_user(self, send_to_sns_mock):
         metric_id, _ = self._setup_metric(display_name)
 
         name = normalize_identifier(display_name)
@@ -157,13 +165,13 @@ class Test(unittest.TestCase):
         try:
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.post
+            malicious_event[constants.request_context] =  malicious_event[constants.request_context] | {constants.http: {constants.method: constants.post}}
             malicious_event[constants.query_params] = {}
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
 
                 constants.value: value_two,
                 constants.units: units,
-            }
+            })
             malicious_event[constants.path_params][constants.id] = metric_id
             result = handler(malicious_event, None)
 
@@ -182,6 +190,7 @@ class Test(unittest.TestCase):
 
             # just in case
             assert session.query(User).count() == 2
+            send_to_sns_mock.assert_not_called()
 
 
         finally:
@@ -208,13 +217,13 @@ class Test(unittest.TestCase):
             assert data.units == units
             assert data.time > 0
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.value: value_two,
                 constants.units: other_units,
                 constants.time: 25
-            }
+            })
             self.event[constants.path_params][constants.id] = data_id
-            self.event[constants.http_method] = constants.patch
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.patch}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -245,7 +254,7 @@ class Test(unittest.TestCase):
             session.close()
 
     def test_data_patch_fails_for_malicious_user(self):
-        
+
         metric_id, data_id = self._setup_metric(display_name, value=value_one, units=units)
 
         session = begin_session()
@@ -253,13 +262,13 @@ class Test(unittest.TestCase):
         try:
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.patch
+            malicious_event[constants.request_context] =  malicious_event[constants.request_context]  | {constants.http: {constants.method: constants.patch}}
             malicious_event[constants.query_params] = {}
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
 
                 constants.value: value_three,
                 constants.units: malicious_units,
-            }
+            })
             malicious_event[constants.path_params][constants.id] = data_id
             result = handler(malicious_event, None)
 
@@ -292,15 +301,14 @@ class Test(unittest.TestCase):
 
         _, data_id = self._setup_metric(display_name, value=value_one, units=units)
 
-
         session = begin_session()
 
         try:
 
-            self.event =  prepare_http_event(get_user_by_id(legit_user_id, session).external_id)
-            self.event[constants.body] = {}
+            self.event = prepare_http_event(get_user_by_id(legit_user_id, session).external_id)
+            self.event[constants.body] = '{}'
             self.event[constants.path_params][constants.id] = data_id
-            self.event[constants.http_method] = constants.delete
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.delete}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -329,9 +337,9 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.delete
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.delete}}
             malicious_event[constants.query_params] = {}
-            malicious_event[constants.body] = {}
+            malicious_event[constants.body] = '{}'
             malicious_event[constants.path_params][constants.id] = 1
             result = handler(malicious_event, None)
 
@@ -351,16 +359,16 @@ class Test(unittest.TestCase):
             assert data.value == Decimal(str(value_one))
             assert data.units == units
             assert data.time > 0
-           
+
         finally:
             session.close()
-            
+
     def test_data_get_by_data_id_succeeds(self):
 
         session = begin_session()
         try:
             self._setup_data_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             self.event[constants.path_params][constants.id] = 4
             result = handler(self.event, None)
@@ -385,11 +393,10 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_data_for_search(session)
-            self.event[constants.http_method] = constants.get
-
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context]  | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.path_params] = {}
             malicious_event[constants.path_params][constants.id] = 1
@@ -402,13 +409,11 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-
-
     def test_data_get_by_note_succeeds(self):
         session = begin_session()
         try:
             self._setup_data_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             self.event[constants.query_params] = {
                 constants.note_id: 1,
@@ -437,7 +442,7 @@ class Test(unittest.TestCase):
             self._setup_data_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] =  malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.path_params] = {}
             malicious_event[constants.path_params][constants.id] = 1
@@ -453,7 +458,7 @@ class Test(unittest.TestCase):
         session = begin_session()
         try:
             self._setup_data_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
 
             ##########################################
             self.event[constants.query_params] = {
@@ -484,7 +489,7 @@ class Test(unittest.TestCase):
         try:
             self._setup_data_for_search(session)
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.tags: f'{tag_two_display_name}',
                 constants.start: three_days_ago - seconds_in_day,
@@ -496,14 +501,12 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-
-
     def test_data_get_by_metrics_display_name_succeeds(self):
 
         session = begin_session()
         try:
             self._setup_data_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.metric: metric_one_display_name,
                 constants.start: three_days_ago - seconds_in_day,
@@ -530,7 +533,7 @@ class Test(unittest.TestCase):
         try:
             self._setup_data_for_search(session)
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.metric: metric_one_display_name,
                 constants.start: three_days_ago - seconds_in_day,
@@ -542,13 +545,12 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-
     def test_data_get_by_date_succeeds(self):
         session = begin_session()
         try:
 
             self._setup_data_for_search(session)
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
                 constants.end: three_days_ago,
@@ -675,10 +677,10 @@ class Test(unittest.TestCase):
             self._setup_data_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
-                constants.end: get_utc_timestamp(), #
+                constants.end: get_utc_timestamp(),  #
             }
             malicious_event[constants.path_params] = {}
             result = handler(malicious_event, None)
@@ -688,7 +690,7 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def _setup_metric(self, display_name: str, value=None, units=None) -> Tuple[int, int|None]:
+    def _setup_metric(self, display_name: str, value=None, units=None) -> Tuple[int, int | None]:
         session = begin_session()
 
         try:
@@ -707,12 +709,11 @@ class Test(unittest.TestCase):
             session.commit()
 
             if value and units:
-                return  metric_one.id, metric_one.data_points[0].id
+                return metric_one.id, metric_one.data_points[0].id
             return metric_one.id, None
 
         finally:
             session.close()
-
 
     def _setup_data_for_search(self, session):
         user_id, external_user_id = get_user_ids_from_event(self.event, session)
@@ -731,8 +732,9 @@ class Test(unittest.TestCase):
 
         metric_one = Metric(name=metric_one_name, display_name=metric_one_display_name, user=user,
                             tagged=True,
-                            tags=[tag_one, tag_two],  schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
-                                                  period_seconds=300,  next_run=get_utc_timestamp()))
+                            tags=[tag_one, tag_two],
+                            schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
+                                                  period_seconds=300, next_run=get_utc_timestamp()))
         metric_two = Metric(name=metric_two_name, display_name=metric_two_display_name, user=user,
                             tags=[tag_two, tag_three],
                             tagged=True,
@@ -744,7 +746,7 @@ class Test(unittest.TestCase):
             [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60),
              Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60),
              Data(value=data_three_value, units=data_three_units,
-                  time=two_days_ago + 60,  note=note), ])
+                  time=two_days_ago + 60, note=note), ])
         metric_two.data_points.extend(
             [Data(value=data_four_value, units=data_four_units, time=day_ago + 60),
              Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60),
@@ -754,4 +756,3 @@ class Test(unittest.TestCase):
 
     def tearDown(self):
         baseTearDown()
-

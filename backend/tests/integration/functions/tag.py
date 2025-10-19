@@ -1,5 +1,6 @@
 import json
 import unittest
+
 from backend.tests.integration.base import *
 from backend.functions.tag.index import handler
 from backend.lib.util import get_user_ids_from_event
@@ -20,10 +21,10 @@ class Test(unittest.TestCase):
 
     def test_incomplete_post_returns_500(self):
 
-        self.event[constants.body] = {
-        }
+        self.event[constants.body] = json.dumps({
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 500
@@ -43,10 +44,10 @@ class Test(unittest.TestCase):
 
         try:
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.name: tag_two_name,
-            }
-            self.event[constants.http_method] = constants.post
+            })
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 500
@@ -63,10 +64,10 @@ class Test(unittest.TestCase):
 
          try:
              malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-             malicious_event[constants.body] = {
+             malicious_event[constants.body] = json.dumps({
                  constants.name: tag_two_display_name,
-             }
-             malicious_event[constants.http_method] = constants.post
+             })
+             malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.post}}
              result = handler(malicious_event, None)
 
              assert result[constants.status_code] == 201
@@ -76,11 +77,11 @@ class Test(unittest.TestCase):
 
     def test_tag_post_succeeds(self):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.name: tag_one_display_name,
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
 
         result = handler(self.event, None)
         assert result[constants.status_code] == 201
@@ -114,7 +115,7 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.name: 'one',
 
@@ -179,7 +180,7 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.name: 'one',
             }

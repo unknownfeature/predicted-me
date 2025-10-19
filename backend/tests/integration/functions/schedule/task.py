@@ -21,16 +21,16 @@ class Test(unittest.TestCase):
 
     def test_incomplete_post_returns_500(self):
         self._setup_task()
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.minute: all,
             constants.hour: first,
             constants.day_of_month: second,
             constants.month: all,
             constants.day_of_week: first,
             constants.priority: 3
-        }
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 500
@@ -50,7 +50,7 @@ class Test(unittest.TestCase):
 
         try:
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.minute: all,
                 constants.hour: first,
                 constants.day_of_month: second,
@@ -58,8 +58,8 @@ class Test(unittest.TestCase):
                 constants.day_of_week: first,
                 constants.priority: 4,
                 constants.period_seconds: 30,
-            }
-            self.event[constants.http_method] = constants.post
+            })
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
             self.event[constants.path_params][constants.id] = 1
             curr_ts = get_utc_timestamp()
             result = handler(self.event, None)
@@ -96,29 +96,29 @@ class Test(unittest.TestCase):
             session.commit()
             session = refresh_cache(session)
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.minute: all,
                 constants.hour: first,
                 constants.day_of_month: second,
                 constants.month: all,
                 constants.day_of_week: first,
                 constants.priority: 4,
-            }
-            self.event[constants.http_method] = constants.post
+            })
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
             self.event[constants.path_params][constants.id] = 1
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 500
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.minute: all,
                 constants.hour: first,
                 constants.day_of_month: second,
                 constants.month: all,
                 constants.day_of_week: first,
                 constants.priority: 4,
-            }
-            self.event[constants.http_method] = constants.post
+            })
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
             self.event[constants.path_params][constants.id] = 2
 
             result = handler(self.event, None)
@@ -153,17 +153,17 @@ class Test(unittest.TestCase):
             session.commit()
             session = refresh_cache(session)
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.post
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.post}}
             malicious_event[constants.path_params][constants.id] = 1
 
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
                 constants.minute: all,
                 constants.hour: first,
                 constants.day_of_month: second,
                 constants.month: all,
                 constants.day_of_week: first,
                 constants.priority: 4,
-            }
+            })
 
             result = handler(malicious_event, None)
 
@@ -207,7 +207,7 @@ class Test(unittest.TestCase):
             old_next_run = schedule.next_run
             assert schedule.next_run > 0
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.minute: all,
                 constants.hour: first,
                 constants.day_of_month: second,
@@ -215,10 +215,10 @@ class Test(unittest.TestCase):
                 constants.day_of_week: first,
                 constants.priority: 4,
                 constants.period_seconds: 30
-            }
+            })
             self.event[constants.path_params][constants.id] = 1
             self.event[constants.path_params][constants.task_id] = 1
-            self.event[constants.http_method] = constants.patch
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.patch}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -274,17 +274,17 @@ class Test(unittest.TestCase):
             assert schedule.next_run > 0
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
                 constants.minute: all,
                 constants.hour: first,
                 constants.day_of_month: second,
                 constants.month: all,
                 constants.day_of_week: first,
                 constants.priority: 4,
-            }
+            })
             malicious_event[constants.path_params][constants.id] = 1
             malicious_event[constants.path_params][constants.task_id] = 1
-            malicious_event[constants.http_method] = constants.patch
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.patch}}
             result = handler(malicious_event, None)
 
             assert result[constants.status_code] == 404
@@ -332,9 +332,9 @@ class Test(unittest.TestCase):
             assert schedule.task_id == old_task_id
 
             self.event = prepare_http_event(get_user_by_id(legit_user_id, session).external_id)
-            self.event[constants.body] = {}
+            self.event[constants.body] = json.dumps({})
             self.event[constants.path_params][constants.id] = 1
-            self.event[constants.http_method] = constants.delete
+            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.delete}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -374,9 +374,9 @@ class Test(unittest.TestCase):
             assert schedule.task_id == old_task_id
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.body] = {}
+            malicious_event[constants.body] = json.dumps({})
             malicious_event[constants.path_params][constants.id] = 1
-            malicious_event[constants.http_method] = constants.delete
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.delete}}
             result = handler(malicious_event, None)
 
             assert result[constants.status_code] == 404

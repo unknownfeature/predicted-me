@@ -1,5 +1,8 @@
+import json
+import os
 from typing import Dict, Any, List, Tuple
 
+import boto3
 from sqlalchemy import select, update, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
@@ -9,6 +12,11 @@ from backend.lib.db import Note, Tag, Task, Origin, Occurrence
 from backend.lib.func.http import RequestContext, handler_factory, patch_factory, delete_factory, get_offset_and_limit, \
     get_ts_start_and_end
 from backend.lib.util import HttpMethod
+
+from shared.variables import *
+
+sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
+processing_topic_arn = os.getenv(processing_topic_arn)
 
 updatable_fields = {constants.completed, constants.priority, constants.time}
 
@@ -25,6 +33,7 @@ def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int
                             task=task)
     session.add(occurrence)
     session.commit()
+    send_to_sns(occurrence.id)
     return {constants.status: constants.success, constants.id: occurrence.id}, 201
 
 
@@ -108,6 +117,15 @@ patch_handler = lambda session, update_fields, user_id, path_params: session.exe
 delete_handler = lambda session, user_id, id: session.execute(
     sql_delete(Occurrence).where(Occurrence.task_id == Task.id)
     .where(and_(Occurrence.id == id, Task.user_id == user_id)))
+
+def send_to_sns(occurrence_id: int):
+    sns_client.publish(
+        TopicArn=processing_topic_arn,
+        Message=json.dumps({
+            constants.occurrence_id: occurrence_id,
+        }),
+        Subject='Occurrence ready for processing'
+    )
 
 handler = handler_factory({
     HttpMethod.GET.value: get,

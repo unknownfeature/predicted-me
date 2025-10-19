@@ -8,7 +8,7 @@ from aws_cdk import (
 from constructs import Construct
 
 from shared.variables import *
-from .input import Common, Tagging, QueueFunction
+from .input import Common, Processing, QueueFunction
 from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
 from .function_factories import sqs_integration_cb_factory, create_role_with_db_access_factory, FunctionFactoryParams, \
@@ -17,34 +17,34 @@ from .util import create_queue, create_function
 from .vpc_stack import PmVpcStack
 
 
-class PmTaggingStack(Stack):
+class PmProcessingStack(Stack):
 
     def __init__(self, scope: Construct, db_stack: PmDbStack, vpc_stack: PmVpcStack, **kwargs) -> None:
-        super().__init__(scope, Tagging.stack_name, **kwargs)
+        super().__init__(scope, Processing.stack_name, **kwargs)
 
-        self.tagging_topic = sns.Topic(self, Tagging.topic_name, display_name=Tagging.topic_name,
-                                       topic_name=Tagging.topic_name)
+        self.processing_topic = sns.Topic(self, Processing.topic_name, display_name=Processing.topic_name,
+                                          topic_name=Processing.topic_name)
 
-        self.metrics_tagging_queue = create_queue(self, Tagging.metric.integration.name,
-                                                  visibility_timeout=Tagging.metric.integration.visibility_timeout,
-                                                  with_subscription_to=self.tagging_topic, max_retires=Tagging.metric.integration.max_retries)
+        self.metrics_tagging_queue = create_queue(self, Processing.metric_tagging.integration.name,
+                                                  visibility_timeout=Processing.metric_tagging.integration.visibility_timeout,
+                                                  with_subscription_to=self.processing_topic, max_retires=Processing.metric_tagging.integration.max_retries)
 
-        self.links_tagging_queue = create_queue(self, Tagging.link.integration.name,
-                                                visibility_timeout=Tagging.link.integration.visibility_timeout,
-                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.link.integration.max_retries)
+        self.links_tagging_queue = create_queue(self, Processing.link_tagging.integration.name,
+                                                visibility_timeout=Processing.link_tagging.integration.visibility_timeout,
+                                                with_subscription_to=self.processing_topic, max_retires=Processing.link_tagging.integration.max_retries)
 
-        self.tasks_tagging_queue = create_queue(self, Tagging.task.integration.name,
-                                                visibility_timeout=Tagging.task.integration.visibility_timeout,
-                                                with_subscription_to=self.tagging_topic, max_retires=Tagging.task.integration.max_retries)
+        self.tasks_tagging_queue = create_queue(self, Processing.task_tagging.integration.name,
+                                                visibility_timeout=Processing.task_tagging.integration.visibility_timeout,
+                                                with_subscription_to=self.processing_topic, max_retires=Processing.task_tagging.integration.max_retries)
 
         self.metrics_tagging_function = self._create_sqs_triggered_function(db_stack, self.metrics_tagging_queue,
-                                                                            vpc_stack, Tagging.metric)
+                                                                            vpc_stack, Processing.metric_tagging)
 
         self.links_tagging_function = self._create_sqs_triggered_function(db_stack, self.links_tagging_queue, vpc_stack,
-                                                                          Tagging.link)
+                                                                          Processing.link_tagging)
 
         self.tasks_tagging_function = self._create_sqs_triggered_function(db_stack, self.tasks_tagging_queue, vpc_stack,
-                                                                          Tagging.task)
+                                                                          Processing.task_tagging)
 
     def _create_sqs_triggered_function(self, db_stack: PmDbStack, queue: sqs.Queue, vpc_stack: PmVpcStack,
                                        function_params: QueueFunction) -> lmbd.Function:
@@ -55,8 +55,8 @@ class PmTaggingStack(Stack):
                 db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
                 db_name: os.getenv(db_name),
                 db_port: db_stack.db_instance.db_instance_endpoint_port,
-                generative_model: Tagging.model,
-                max_tokens: Tagging.max_tokens,
+                generative_model: Processing.model,
+                max_tokens: Processing.max_tokens,
 
             }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, lambda role: role.add_to_policy(
                 bedrock_invoke_policy_statement)),

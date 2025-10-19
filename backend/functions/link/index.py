@@ -1,5 +1,8 @@
+import json
+import os
 from typing import Dict, Any, List, Tuple
 
+import boto3
 from sqlalchemy import select, and_, delete as sql_delete, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session, joinedload
@@ -10,6 +13,10 @@ from backend.lib.func.http import RequestContext, handler_factory, delete_factor
     get_ts_start_and_end
 from backend.lib.util import HttpMethod, get_or_create_tags
 
+from shared.variables import *
+
+sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
+processing_topic_arn = os.getenv(processing_topic_arn)
 
 def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]], int]:
     query_params = context.query_params
@@ -108,11 +115,8 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
 
     return {constants.status: constants.success}, 204
 
-
-delete_handler = lambda session, user_id, id: session.execute(sql_delete(Link).where(
-    and_(*[Link.id == id, Link.user_id == user_id])))
-
-post_handler = lambda context, session: Link(user_id=context.user.id, url=context.body[constants.url],
+def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int]:
+    link = Link(user_id=context.user.id, url=context.body[constants.url],
                                              display_summary=context.body[constants.summary],
                                              summary=normalize_identifier(context.body[constants.summary]),
                                              description=context.body[constants.description],
@@ -120,9 +124,27 @@ post_handler = lambda context, session: Link(user_id=context.user.id, url=contex
                                              tags=list(get_or_create_tags(context.user.id, session,
                                                                           set(context.body.get(constants.tags,
                                                                                                []))).values()))
+    session.add(link)
+    session.commit()
+    send_to_sns(link.id)
+    return {constants.status: constants.success, constants.id: link.id}, 201
+
+delete_handler = lambda session, user_id, id: session.execute(sql_delete(Link).where(
+    and_(*[Link.id == id, Link.user_id == user_id])))
+
+def send_to_sns(link_id: int):
+    sns_client.publish(
+        TopicArn=processing_topic_arn,
+        Message=json.dumps({
+            constants.link_id: link_id,
+        }),
+        Subject='Link ready for processing'
+    )
+
+
 handler = handler_factory({
     HttpMethod.GET.value: get,
-    HttpMethod.POST.value: post_factory(post_handler),
+    HttpMethod.POST.value: post,
     HttpMethod.PATCH.value: patch,
     HttpMethod.DELETE.value: delete_factory(delete_handler),
 

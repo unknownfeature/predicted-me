@@ -233,9 +233,7 @@ class Data(Base):
     units: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     time: Mapped[int] = mapped_column(BigInteger, default=get_utc_timestamp)
-
-
-    #  todo think how to do orphan delete where orphan is metric
+    parent_data_id: Mapped[int] = mapped_column(ForeignKey('data.id'), nullable=True)
     metric: Mapped['Metric'] = relationship()
 
     note: Mapped[Optional['Note']] = relationship()

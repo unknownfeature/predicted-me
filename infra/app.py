@@ -4,7 +4,7 @@ import aws_cdk as cdk
 
 from infra.pm.recurrent_stack import PmRecurrentStack
 from pm.audio_stack import PmAudioStack
-from pm.tagging_stack import PmTaggingStack
+from pm.processing_stack import PmProcessingStack
 from pm.text_stack import PmTextStack
 from pm.image_stack import PmImageStack
 from pm.api_stack import PmApiStack
@@ -25,12 +25,12 @@ vpc_stack = PmVpcStack(app, env=env)
 db_stack = PmDbStack(app, vpc_stack, env=env)
 bastion_stack = PmBastionStack(app, db_stack, vpc_stack, env=env)
 cognito_stack = PmCognitoStack(app, env=env)
-tagging_stack = PmTaggingStack(app, db_stack, vpc_stack, env=env)
-text_processing_stack = PmTextStack(app, vpc_stack, db_stack, bastion_stack, env=env)
-image_processing_stack = PmImageStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
-audio_stack = PmAudioStack(app, vpc_stack, db_stack, text_processing_stack, env=env)
+processing_stack = PmProcessingStack(app, db_stack, vpc_stack, env=env)
+text_stack = PmTextStack(app, vpc_stack, db_stack, processing_stack, bastion_stack, env=env)
+image_stack = PmImageStack(app, vpc_stack, db_stack, text_stack, env=env)
+audio_stack = PmAudioStack(app, vpc_stack, db_stack, text_stack, env=env)
 recurrent_stack = PmRecurrentStack(app, db_stack, vpc_stack, env=env)
-api_stack = PmApiStack(app, cognito_stack, image_processing_stack, audio_stack, text_processing_stack, db_stack, vpc_stack, env=env)
+api_stack = PmApiStack(app, cognito_stack, image_stack, audio_stack, text_stack, processing_stack, db_stack,
+                       vpc_stack, env=env)
 
 app.synth()
-

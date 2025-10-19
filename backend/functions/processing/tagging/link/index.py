@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from shared import constants
 from backend.lib.db import Tag, Link, User, Note
-from backend.lib.func.sqs import process_record_factory, Params, handler_factory, BedrockModelType, Model
+from backend.lib.func.sqs import process_record_factory, Params, handler_factory, BedrockModelType, Model, MessageInput
 from backend.lib.util import add_tags
 from shared.constants import default_max_tokens
 from shared.variables import *
@@ -60,13 +60,20 @@ tagging_prompt = (
 )
 
 
-def text_supplier(session: Session, note_id, _) -> Optional[str]:
-    query = select(Link).where(and_(Link.note_id == note_id,  Link.tagged == False))
+def text_supplier(session: Session, message_input: MessageInput) -> Optional[str]:
+    if not message_input.note_id and not message_input.link_id:
+        return None
+    conditions = []
+    if message_input.note_id:
+        conditions.append(Link.note_id == message_input.note_id)
+    if message_input.link_id:
+        conditions.append(Link.id == message_input.link_id)
+    conditions.append(Link.tagged == False)
+    query = select(Link).where(and_(*conditions))
 
     untagged_links = session.scalars(query).unique().all()
 
     if not untagged_links:
-        print(f'No tasks to tag{note_id} are already tagged. Skipping.')
         return None
 
     return json.dumps([{
@@ -75,19 +82,32 @@ def text_supplier(session: Session, note_id, _) -> Optional[str]:
     ])
 
 
+def on_response_from_model(session: Session, message_input: MessageInput, data: List[Dict[str, Any]]):
+    if message_input.note_id:
+        note = session.get(Note, message_input.note_id)
 
-def on_response_from_model(session: Session, note_id: int, _: str, data: List[Dict[str, Any]]):
-    note = session.get(Note, note_id)
+        add_tags(note.user_id, session, data, lambda: select(Link).where(
+            and_(
+                Link.id.in_([item[constants.id] for item in data]),
+                Link.tagged == False,
+                Link.note_id == message_input.note_id
+            )
+        ).options(selectinload(Link.tags)))
+    elif message_input.link_id:
+        link = session.get(Link, message_input.link_id)
+        add_tags(link.user_id, session, data, lambda: select(Link).where(
+            and_(
+                Link.tagged == False,
+                Link.id == message_input.link_id
+            )
+        ).options(selectinload(Link.tags)))
 
-    add_tags(note.user_id, session, data, lambda: select(Link).where(
-        and_(
-            Link.id.in_([item[constants.id] for item in data]),
-            Link.tagged == False,
-            Link.note_id == note_id
-        )
-    ).options(selectinload(Link.tags)))
+    else:
+        raise ValueError('no link id and no note id')  # should not happen
+
     session.commit()
 
 
 handler = handler_factory(
-    process_record_factory(Params(tagging_prompt, text_supplier, Model(generative_model), max_tokens), on_response_from_model))
+    process_record_factory(Params(tagging_prompt, text_supplier, Model(generative_model), max_tokens),
+                           on_response_from_model))

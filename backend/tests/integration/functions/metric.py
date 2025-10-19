@@ -1,10 +1,8 @@
 import json
 import unittest
-
 from backend.tests.integration.base import *
 from backend.functions.metric.index import handler
 from backend.lib.util import get_user_ids_from_event
-
 
 metric_one_display_name = 'display name one'
 metric_two_display_name = 'display name two'
@@ -21,10 +19,11 @@ class Test(unittest.TestCase):
 
     def test_incomplete_post_returns_500(self):
 
-        self.event[constants.body] = {
-        }
+        self.event[constants.body] = json.dumps({
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {
+            constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 500
@@ -44,10 +43,11 @@ class Test(unittest.TestCase):
 
         try:
 
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.name: metric_two_display_name,
-            }
-            self.event[constants.http_method] = constants.post
+            })
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.post}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 500
@@ -58,37 +58,39 @@ class Test(unittest.TestCase):
 
     def test_metric_post_succeeds_for_duplicate_from_another_user(self):
 
-         self._setup_metrics()
-         session = begin_session()
+        self._setup_metrics()
+        session = begin_session()
 
-         try:
-             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-             malicious_event[constants.body] = {
-                 constants.name: metric_two_display_name,
-             }
-             malicious_event[constants.http_method] = constants.post
-             result = handler(malicious_event, None)
+        try:
+            malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
+            malicious_event[constants.body] = json.dumps({
+                constants.name: metric_two_display_name,
+            })
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.post}}
+            result = handler(malicious_event, None)
 
-             assert result[constants.status_code] == 201
+            assert result[constants.status_code] == 201
 
-             session = refresh_cache(session)
+            session = refresh_cache(session)
 
-             metrics = get_metrics_by_display_name(metric_two_display_name, session)
-             assert len(metrics) == 2
-             assert not metrics[1].tagged
+            metrics = get_metrics_by_display_name(metric_two_display_name, session)
+            assert len(metrics) == 2
+            assert not metrics[1].tagged
 
 
-         finally:
-             session.close()
+        finally:
+            session.close()
 
     def test_metric_post_succeeds(self):
 
-        self.event[constants.body] = {
+        self.event[constants.body] = json.dumps({
             constants.name: metric_one_display_name,
-          constants.tags: [tag_two_display_name, tag_three_display_name]
-        }
+            constants.tags: [tag_two_display_name, tag_three_display_name]
+        })
 
-        self.event[constants.http_method] = constants.post
+        self.event[constants.request_context] = self.event[constants.request_context] | {
+            constants.http: {constants.method: constants.post}}
 
         result = handler(self.event, None)
         assert result[constants.status_code] == 201
@@ -135,13 +137,14 @@ class Test(unittest.TestCase):
             metric_id = metric.id
 
             new_tag_name = 'new_tag'
-            self.event[constants.body] = {
+            self.event[constants.body] = json.dumps({
                 constants.name: metric_two_display_name + unique_piece,
                 #  one exists and one new, both should replace old ones
                 constants.tags: [new_tag_name, tag_three_display_name]
-            }
+            })
             self.event[constants.path_params][constants.id] = metric_id
-            self.event[constants.http_method] = constants.patch
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.patch}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -187,11 +190,12 @@ class Test(unittest.TestCase):
             metric_id = metric.id
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.body] = {
+            malicious_event[constants.body] = json.dumps({
                 constants.name: metric_two_display_name,
-            }
+            })
             malicious_event[constants.path_params][constants.id] = metric_id
-            malicious_event[constants.http_method] = constants.patch
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.patch}}
             result = handler(malicious_event, None)
 
             assert result[constants.status_code] == 400
@@ -210,14 +214,14 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-
     def test_metric_get_by_metric_id_succeeds(self):
 
         self._setup_metrics()
 
         session = begin_session()
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             self.event[constants.path_params][constants.id] = 1
             result = handler(self.event, None)
@@ -231,7 +235,7 @@ class Test(unittest.TestCase):
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
-            assert len(items) == 5 # all of them
+            assert len(items) == 5  # all of them
 
         finally:
             session.close()
@@ -244,7 +248,8 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             malicious_event[constants.path_params][constants.id] = 1
             result = handler(malicious_event, None)
@@ -263,7 +268,6 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-
     def test_metric_get_by_tags_display_names_succeeds(self):
 
         self._setup_metrics()
@@ -271,7 +275,8 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             ##########################################
             self.event[constants.query_params] = {
@@ -338,7 +343,8 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             ##########################################
             malicious_event[constants.query_params] = {
@@ -369,7 +375,8 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            self.event[constants.http_method] = constants.get
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.name: 'one',
 
@@ -402,7 +409,8 @@ class Test(unittest.TestCase):
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.http_method] = constants.get
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.text: metric_one_display_name,
             }
@@ -429,23 +437,28 @@ class Test(unittest.TestCase):
             user = session.query(User).get(user_id)
 
             assert user.external_id == external_user_id
-        
+
             session.flush()
-            metric_one = Metric(user=user, name=normalize_identifier(metric_one_display_name), display_name=metric_one_display_name,
-                            tagged=True,
-                            tags=[tag_one, tag_two])
-            metric_two = Metric(user=user, name=normalize_identifier(metric_two_display_name), display_name=metric_two_display_name, 
-                            tagged=True,
-                            tags=[tag_one, tag_three])
-            metric_three = Metric( user=user, name=normalize_identifier(metric_three_display_name), display_name=metric_three_display_name,
-                              tagged=True,
-                              tags=[tag_three, tag_two])
-            metric_four = Metric( user=user, name=normalize_identifier(metric_four_display_name), display_name=metric_four_display_name,
-                             tagged=True,
-                             tags=[tag_two, tag_three])
-            metric_five = Metric(user=user, name=normalize_identifier(metric_five_display_name), display_name=metric_five_display_name, 
-                             tagged=True,
-                             tags=[tag_one, tag_two])
+            metric_one = Metric(user=user, name=normalize_identifier(metric_one_display_name),
+                                display_name=metric_one_display_name,
+                                tagged=True,
+                                tags=[tag_one, tag_two])
+            metric_two = Metric(user=user, name=normalize_identifier(metric_two_display_name),
+                                display_name=metric_two_display_name,
+                                tagged=True,
+                                tags=[tag_one, tag_three])
+            metric_three = Metric(user=user, name=normalize_identifier(metric_three_display_name),
+                                  display_name=metric_three_display_name,
+                                  tagged=True,
+                                  tags=[tag_three, tag_two])
+            metric_four = Metric(user=user, name=normalize_identifier(metric_four_display_name),
+                                 display_name=metric_four_display_name,
+                                 tagged=True,
+                                 tags=[tag_two, tag_three])
+            metric_five = Metric(user=user, name=normalize_identifier(metric_five_display_name),
+                                 display_name=metric_five_display_name,
+                                 tagged=True,
+                                 tags=[tag_one, tag_two])
             session.add_all([metric_one, metric_two, metric_three, metric_four, metric_five])
             session.commit()
         finally:

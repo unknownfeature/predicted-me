@@ -7,9 +7,10 @@ os.environ[generative_model] = 'lalalala'
 
 import json
 import unittest
+from backend.lib.func.sqs import MessageInput
 
-from backend.functions.tagging.metric.index import text_supplier, on_response_from_model
-from backend.lib.db import Origin, Data
+from backend.functions.processing.tagging.metric.index import text_supplier, on_response_from_model
+from backend.lib.db import Data
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 
@@ -30,7 +31,7 @@ class Test(unittest.TestCase):
         self._setup_metrics()
         session = begin_session()
         try:
-            text = text_supplier(session, 1, None)
+            text = text_supplier(session, MessageInput(note_id=1))
             results = json.loads(text)
             print(results)
             assert results == [{
@@ -44,14 +45,40 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
+    def test_text_supplier_succeeds_for_untagged_metric_by_data_id(self):
+        self._setup_metrics()
+        session = begin_session()
+        try:
+            text = text_supplier(session, MessageInput(data_id=1))
+            results = json.loads(text)
+            print(results)
+            assert results == [{
+                constants.id: 1,
+                constants.name: metric_one_name,
+            }
+            ]
+        finally:
+            session.close()
+
     def test_text_supplier_returns_nothing_for_tagged_metrics(self):
         self._setup_metrics(tagged=True)
         session = begin_session()
         try:
-            text = text_supplier(session, 1, None)
+            text = text_supplier(session, MessageInput(note_id=1))
             assert text is None
         finally:
             session.close()
+
+
+    def test_text_supplier_returns_nothing_for_tagged_metrics_by_data_id(self):
+        self._setup_metrics(tagged=True)
+        session = begin_session()
+        try:
+            text = text_supplier(session, MessageInput(data_id=1))
+            assert text is None
+        finally:
+            session.close()
+
 
     def test_on_response_from_model_succeeds(self):
         self._setup_metrics()
@@ -72,7 +99,41 @@ class Test(unittest.TestCase):
                 assert len(get_metric_by_id(id, session).tags) == 0
 
             session = refresh_cache(session)
-            on_response_from_model(session, 1, None, model_output, )
+            on_response_from_model(session, MessageInput(note_id=1),  model_output, )
+            session.commit()  # this will be called by the handler
+
+            session = refresh_cache(session)
+            all_tags_after = session.query(Tag).all()
+            assert len(all_tags_after) == 2
+
+            for k, v in input.items():
+                found_tags = sorted([str(tag.display_name) for tag in get_metric_by_id(k, session).tags])
+                assert found_tags == sorted(v)
+
+
+
+        finally:
+            session.close()
+
+    def test_on_response_from_model_succeeds_by_data_id(self):
+        self._setup_metrics()
+        session = begin_session()
+        input = {
+            1: [tag_one_display_name, tag_two_display_name],
+
+        }
+        model_output = [{constants.id: k, constants.tags: v} for k, v in input.items()]
+
+        try:
+
+            all_tags_before = session.query(Tag).all()
+            assert len(all_tags_before) == 0
+
+            for id in input.keys():
+                assert len(get_metric_by_id(id, session).tags) == 0
+
+            session = refresh_cache(session)
+            on_response_from_model(session, MessageInput(data_id=1),  model_output, )
             session.commit()  # this will be called by the handler
 
             session = refresh_cache(session)

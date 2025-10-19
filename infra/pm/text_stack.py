@@ -17,48 +17,48 @@ from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, sqs_integration_cb_factory, \
     create_function_role_factory, custom_resource_trigger_cb_factory, allow_connection_function_factory
-from .tagging_stack import PmTaggingStack
+from .processing_stack import PmProcessingStack
 from .util import create_function, create_queue
 from .vpc_stack import PmVpcStack
 
 
 class PmTextStack(Stack):
 
-    def __init__(self, scope: Construct, vpc_stack: PmVpcStack, db_stack: PmDbStack, bastion_stack: PmBastionStack,
+    def __init__(self, scope: Construct, vpc_stack: PmVpcStack, db_stack: PmDbStack, processing_stack: PmProcessingStack,  bastion_stack: PmBastionStack,
                  **kwargs) -> None:
         super().__init__(scope, Text.stack_name, **kwargs)
 
 
 
-        self.text_processing_topic = sns.Topic(self, Text.topic_name, display_name=Text.topic_name,
-                                       topic_name=Text.topic_name)
+        self.text_topic = sns.Topic(self, Text.topic_name, display_name=Text.topic_name,
+                                    topic_name=Text.topic_name)
 
         self.metrics_extraction_queue = create_queue(self, Text.metrics_extraction.integration.name,
                                                      visibility_timeout=Text.metrics_extraction.integration.visibility_timeout,
-                                                     with_subscription_to=self.text_processing_topic, max_retires=Text.metrics_extraction.integration.max_retries)
+                                                     with_subscription_to=self.text_topic, max_retires=Text.metrics_extraction.integration.max_retries)
 
         self.links_extraction_queue = create_queue(self, Text.links_extraction.integration.name,
                                                    visibility_timeout=Text.links_extraction.integration.visibility_timeout,
-                                                   with_subscription_to=self.text_processing_topic, max_retires=Text.links_extraction.integration.max_retries)
+                                                   with_subscription_to=self.text_topic, max_retires=Text.links_extraction.integration.max_retries)
 
         self.tasks_extraction_queue = create_queue(self, Text.tasks_extraction.integration.name,
                                                    visibility_timeout=Text.tasks_extraction.integration.visibility_timeout,
-                                                   with_subscription_to=self.text_processing_topic, max_retires=Text.tasks_extraction.integration.max_retries)
+                                                   with_subscription_to=self.text_topic, max_retires=Text.tasks_extraction.integration.max_retries)
 
         self.embedding_queue = create_queue(self, Text.embedding.integration.name,
                                                    visibility_timeout=Text.embedding.integration.visibility_timeout,
-                                                   with_subscription_to=self.text_processing_topic, max_retires=Text.embedding.integration.max_retries)
+                                                   with_subscription_to=self.text_topic, max_retires=Text.embedding.integration.max_retries)
 
         self.metrics_extraction_function = self._create_sqs_triggered_function(db_stack, self.metrics_extraction_queue,
-                                                                            vpc_stack, Text.metrics_extraction)
+                                                                            vpc_stack, Text.metrics_extraction, processing_stack)
         
 
         self.links_extraction_function = self._create_sqs_triggered_function(db_stack, self.links_extraction_queue,
-                                                                            vpc_stack, Text.links_extraction)
+                                                                            vpc_stack, Text.links_extraction, processing_stack)
         
 
         self.tasks_extraction_function = self._create_sqs_triggered_function(db_stack, self.tasks_extraction_queue,
-                                                                            vpc_stack, Text.tasks_extraction)
+                                                                            vpc_stack, Text.tasks_extraction, processing_stack)
 
         self.embedding_domain = opensearch.Domain(self, Text.domain,
                                    version=opensearch.EngineVersion.OPENSEARCH_2_17,
@@ -113,8 +113,12 @@ class PmTextStack(Stack):
             return create_function(self, params)
 
     def _create_sqs_triggered_function(self, db_stack: PmDbStack, queue: sqs.Queue, vpc_stack: PmVpcStack,
-                                           function_params: QueueFunction) -> lmbd.Function:
-            params = FunctionFactoryParams(function_params=function_params,
+                                           function_params: QueueFunction, processing_stack: PmProcessingStack) -> lmbd.Function:
+        def on_role(role: iam.Role):
+            processing_stack.processing_topic.grant_publish(role)
+            role.add_to_policy(bedrock_invoke_policy_statement)
+
+        params = FunctionFactoryParams(function_params=function_params,
                                            build_args={Common.func_dir_arg: function_params.code_path,
                                                        Common.install_mysql_arg: true}, environment={
                     db_secret_arn: db_stack.db_secret.secret_full_arn,
@@ -123,13 +127,13 @@ class PmTextStack(Stack):
                     db_port: db_stack.db_instance.db_instance_endpoint_port,
                     max_tokens: Text.max_tokens,
                     generative_model: Text.generative_model,
+                    processing_topic_arn: processing_stack.processing_topic.arn,
 
-                }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, lambda role: role.add_to_policy(
-                    bedrock_invoke_policy_statement)),
-                                           and_then=allow_connection_function_factory(db_stack.db_proxy, sqs_integration_cb_factory([queue])),
+                }, role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, on_role),
+                                           and_then=allow_connection_function_factory(db_stack.db_proxy, sqs_integration_cb_factory([queue]) ),
                                            vpc=vpc_stack.vpc)
 
-            return create_function(self, params)
+        return create_function(self, params)
 
     def _create_initializer_function(self, vpc_stack: PmVpcStack,
                                      function_params: CustomResourceTriggeredFunction) -> lmbd.Function:

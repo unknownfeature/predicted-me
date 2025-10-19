@@ -1,14 +1,16 @@
-import os
+
+
 from backend.tests.integration.base import *
 from shared.variables import *
-
+from backend.lib.db import Occurrence
 os.environ[max_tokens] = '1024'
 os.environ[generative_model] = 'lalalala'
 
 import json
 import unittest
+from backend.lib.func.sqs import MessageInput
 
-from backend.functions.tagging.task.index import text_supplier, on_response_from_model
+from backend.functions.processing.tagging.task.index import text_supplier, on_response_from_model
 from backend.lib.util import get_user_ids_from_event
 from backend.tests.integration.base import *
 
@@ -37,7 +39,7 @@ class Test(unittest.TestCase):
         self._setup_tasks()
         session = begin_session()
         try:
-            text = text_supplier(session, 1, None)
+            text = text_supplier(session, MessageInput(note_id=1))
             results = json.loads(text)
             assert results == [{
                 constants.id: 1,
@@ -59,14 +61,39 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
+
+    def test_text_supplier_succeeds_for_occurrence_id(self):
+        self._setup_tasks()
+        session = begin_session()
+        try:
+            text = text_supplier(session, MessageInput(occurrence_id=1))
+            results = json.loads(text)
+            assert results == [{
+                constants.id: 1,
+                constants.description: task_one_description,
+            }
+            ]
+        finally:
+            session.close()
+
     def test_text_supplier_returns_nothing_for_tagged_tasks(self):
         self._setup_tasks(tagged=True)
         session = begin_session()
         try:
-            text = text_supplier(session, 1, None)
+            text = text_supplier(session, MessageInput(note_id=1))
             assert text is None
         finally:
             session.close()
+
+    def test_text_supplier_returns_nothing_for_tagged_tasks_by_occurrence_id(self):
+        self._setup_tasks(tagged=True)
+        session = begin_session()
+        try:
+            text = text_supplier(session, MessageInput(occurrence_id=1))
+            assert text is None
+        finally:
+            session.close()
+
 
     def test_on_response_from_model_succeeds(self):
         self._setup_tasks()
@@ -91,7 +118,7 @@ class Test(unittest.TestCase):
                assert len(get_task_by_id(id, session).tags) == 0
 
            session = refresh_cache(session)
-           on_response_from_model(session, 1, None, model_output, )
+           on_response_from_model(session, MessageInput(note_id=1),  model_output, )
            session.commit() # this will be called by the handler
 
            session = refresh_cache(session)
@@ -107,6 +134,42 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
+
+    def test_on_response_from_model_succeeds_by_occurrence_id(self):
+        self._setup_tasks()
+        session = begin_session()
+        input = {
+            1: [tag_one_display_name, tag_two_display_name],
+
+        }
+        model_output = [{constants.id: k, constants.tags: v} for k, v in input.items()]
+
+
+        try:
+
+           all_tags_before = session.query(Tag).all()
+           assert len(all_tags_before) == 0
+
+
+           for id in input.keys():
+               assert len(get_task_by_id(id, session).tags) == 0
+
+           session = refresh_cache(session)
+           on_response_from_model(session, MessageInput(occurrence_id=1),  model_output, )
+           session.commit() # this will be called by the handler
+
+           session = refresh_cache(session)
+           all_tags_after = session.query(Tag).all()
+           assert len(all_tags_after) == 2
+
+           for k, v in input.items():
+               found_tags = sorted([str(tag.display_name) for tag in get_task_by_id(k, session).tags])
+               assert found_tags == sorted(v)
+
+
+
+        finally:
+            session.close()
     def _setup_tasks(self, tagged=False):
 
         session = begin_session()
@@ -120,7 +183,7 @@ class Test(unittest.TestCase):
             session.flush()
             task_one = Task(note=note, user=user, description=task_one_description,
                             display_summary=task_one_summary, summary=normalize_identifier(task_one_summary),
-                            tagged=tagged)
+                            tagged=tagged, occurrences=[Occurrence(priority = 1)])
             task_two = Task(note=note, user=user, description=task_two_description,
                             display_summary=task_two_summary, summary=normalize_identifier(task_two_summary),
                             tagged=tagged)
