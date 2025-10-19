@@ -36,6 +36,9 @@ class PmProcessingStack(Stack):
         self.tasks_tagging_queue = create_queue(self, Processing.task_tagging.integration.name,
                                                 visibility_timeout=Processing.task_tagging.integration.visibility_timeout,
                                                 with_subscription_to=self.processing_topic, max_retires=Processing.task_tagging.integration.max_retries)
+        self.nutrients_extraction_queue = create_queue(self, Processing.nutrients_extraction.integration.name,
+                                                visibility_timeout=Processing.nutrients_extraction.integration.visibility_timeout,
+                                                with_subscription_to=self.processing_topic, max_retires=Processing.nutrients_extraction.integration.max_retries)
 
         self.metrics_tagging_function = self._create_sqs_triggered_function(db_stack, self.metrics_tagging_queue,
                                                                             vpc_stack, Processing.metric_tagging)
@@ -45,6 +48,8 @@ class PmProcessingStack(Stack):
 
         self.tasks_tagging_function = self._create_sqs_triggered_function(db_stack, self.tasks_tagging_queue, vpc_stack,
                                                                           Processing.task_tagging)
+        self.nutrients_extraction_functions = self._create_sqs_triggered_function(db_stack, self.nutrients_extraction_queue, vpc_stack,
+                                                                          Processing.nutrients_extraction)
 
     def _create_sqs_triggered_function(self, db_stack: PmDbStack, queue: sqs.Queue, vpc_stack: PmVpcStack,
                                        function_params: QueueFunction) -> lmbd.Function:
@@ -52,9 +57,9 @@ class PmProcessingStack(Stack):
                                        build_args={Common.func_dir_arg: function_params.code_path,
                                                    Common.install_mysql_arg: true}, environment={
                 db_secret_arn: db_stack.db_secret.secret_full_arn,
-                db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                db_endpoint: db_stack.db_proxy.db_instance_endpoint_address,
                 db_name: os.getenv(db_name),
-                db_port: db_stack.db_instance.db_instance_endpoint_port,
+                db_port: db_stack.db_proxy.db_instance_endpoint_port,
                 generative_model: Processing.model,
                 max_tokens: Processing.max_tokens,
 

@@ -17,7 +17,7 @@ from shared.variables import *
 sns_client = boto3.client(constants.sns, region_name=os.getenv(aws_region))
 processing_topic_arn = os.getenv(processing_topic_arn)
 
-updatable_fileds = {constants.value, constants.units, constants.time}
+updatable_fields = {constants.value, constants.units, constants.time}
 
 
 def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int]:
@@ -28,7 +28,7 @@ def post(session: Session, context: RequestContext) -> Tuple[Dict[str, Any], int
         select(Metric).where(and_(*[Metric.user_id == context.user.id, Metric.id == id]))).first()
     if not metric:
         return {constants.status: constants.not_found}, 404
-    data = Data(**{f: body[f] for f in body if f in updatable_fileds},
+    data = Data(**{f: body[f] for f in body if f in updatable_fields},
                 metric=metric)
     session.add(data)
     session.commit()
@@ -130,7 +130,7 @@ def send_to_sns(data_id: int):
 handler = handler_factory({
     HttpMethod.GET.value: get,
     HttpMethod.POST.value: post,
-    HttpMethod.PATCH.value: patch_factory(updatable_fileds, patch_handler),
+    HttpMethod.PATCH.value: patch_factory(updatable_fields, patch_handler),
     HttpMethod.DELETE.value: delete_factory(delete_handler),
 
 })

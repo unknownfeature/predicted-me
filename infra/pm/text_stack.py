@@ -122,9 +122,9 @@ class PmTextStack(Stack):
                                            build_args={Common.func_dir_arg: function_params.code_path,
                                                        Common.install_mysql_arg: true}, environment={
                     db_secret_arn: db_stack.db_secret.secret_full_arn,
-                    db_endpoint: db_stack.db_instance.db_instance_endpoint_address,
+                    db_endpoint: db_stack.db_proxy.db_instance_endpoint_address,
                     db_name: os.getenv(db_name),
-                    db_port: db_stack.db_instance.db_instance_endpoint_port,
+                    db_port: db_stack.db_secret.db_instance_endpoint_port,
                     max_tokens: Text.max_tokens,
                     generative_model: Text.generative_model,
                     processing_topic_arn: processing_stack.processing_topic.arn,

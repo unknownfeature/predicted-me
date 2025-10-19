@@ -38,7 +38,7 @@ output_schema = {
 
 tagging_prompt = (
     "You are an expert taxonomy and categorization engine. Analyze the provided list of metrics and assign 1 to 3 "
-    "relevant categories to each one. If you detect data with name which can be a food add 'Food' tag to it. If you detect somethind taht looks lilema supplement add 'Supplement' tag. and if you detect a medication add 'Medication' tag to it.  Your output must be ONLY a JSON array that "
+    "relevant categories to each one. If you detect data with name which can be a food add 'Food' tag to it. If you detect something that looks like supplement add 'Supplement' tag. And if you detect a medication add 'Medication' tag to it.  Your output must be ONLY a JSON array that "
     "strictly adheres to the provided db.\n\n"
     f"**Output JSON Schema**:\n{json.dumps(output_schema, indent=3)}\n\n"
     "--- EXAMPLES ---\n"

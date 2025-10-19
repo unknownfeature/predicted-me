@@ -331,6 +331,16 @@ class Processing:
                                      visibility_timeout=Duration.minutes(2))
     )
 
+    nutrients_extraction = QueueFunction(
+        name='pm_nutrients_func',
+        timeout=Duration.minutes(1),
+        memory_size=2048,
+        code_path='processing/extraction/nutrients',
+        role_name='pm_nutrition_extraction_role',
+        integration=QueueIntegration(queue_name='pm_nutrients_extraction_queue',
+                                     visibility_timeout=Duration.minutes(2))
+    )
+
 
 class Recurrent:
     stack_name = 'PmRecurrentStack'
