@@ -1,12 +1,13 @@
 import json
 import os
-from typing import List, Dict, Any
+from decimal import Decimal
+from typing import List, Dict, Any, Tuple
 
 from sqlalchemy import inspect, select, and_
 from sqlalchemy.orm import Session, selectinload, joinedload
 
 from shared import constants
-from backend.lib.db import Metric, Data, Tag, Note, normalize_identifier
+from backend.lib.db import Metric, Data, Tag, Note, normalize_identifier, AggregationFunction, seconds_in_day
 from backend.lib.func.sqs import process_record_factory, Params, handler_factory, Model, MessageInput
 from backend.lib.util import add_tags, get_or_create_metrics
 from shared.constants import default_max_tokens
@@ -14,6 +15,12 @@ from shared.variables import *
 
 generative_model = os.getenv(generative_model)
 max_tokens = int(os.getenv(max_tokens, default_max_tokens))
+
+iu_conversions = {
+    'vitamin_d': {'to_unit': 'mcg', 'coefficient': 0.025},
+    'vitamin_a': {'to_unit': 'mcg', 'coefficient': 0.3},
+    'vitamin_e': {'to_unit': 'mg', 'coefficient': 0.67},
+}
 
 output_schema = {
     "type": "array",
@@ -137,18 +144,51 @@ def on_response_from_model(session: Session, message_input: MessageInput, data: 
 def process_ingredient(data_id: int, ingredient: str, ingredient_tag: Tag, session: Session, user_id: int):
     normalized_name = normalize_identifier(ingredient)
     ingredient_metric = get_or_create_metrics(session, {normalized_name: ingredient}, user_id)[normalized_name]
+    if not ingredient_metric.default_units:
+        ingredient_metric.default_units = 'item'
+    if not ingredient_metric.default_aggregator_function:
+        ingredient_metric.default_aggregator_function = AggregationFunction.count
+    if not ingredient_metric.default_aggregation_period_seconds:
+        ingredient_metric.default_aggregation_period_seconds = seconds_in_day
     if not ingredient_metric.tagged:
         ingredient_metric.tagged = True
         ingredient_metric.tags.append(ingredient_tag)
     ingredient_metric.data_points.append(Data(value=1, parent_data_id=data_id))
 
 
+def normalize_value_and_units(value: float, name: str, from_units: str) -> Tuple[Decimal, str]:
+    value_decimal = Decimal(str(value)) if value else None
+
+    if not from_units or not value:
+        return value_decimal, from_units
+
+    normalized_name = normalize_identifier(name)
+    if from_units.strip().lower() == 'iu':
+        for k, v in iu_conversions.items():
+            if k in normalized_name:
+                conversion = iu_conversions[k]
+                value = value_decimal * Decimal(str(conversion[constants.coefficient]))
+                units = conversion[constants.to_unit]
+                return value, units
+        return value_decimal, from_units
+    else:
+        return value_decimal, from_units
+
 def process_nutrient(data_id: int, nutrient: Dict[str, Any], nutrient_tag: Tag, session: Session, user_id: int):
     name = nutrient[constants.name]
     value = nutrient[constants.value]
     units = nutrient[constants.units]
     normalized_name = normalize_identifier(name)
+    value, units = normalize_value_and_units(value, name, units)
     nutrient_metric = get_or_create_metrics(session, {normalized_name: name}, user_id)[normalized_name]
+
+    if not nutrient_metric.default_units:
+        nutrient_metric.default_units = units
+    if not nutrient_metric.default_aggregator_function:
+        nutrient_metric.default_aggregator_function = AggregationFunction.sum
+    if not nutrient_metric.default_aggregation_period_seconds:
+        nutrient_metric.default_aggregation_period_seconds = seconds_in_day
+
     if not nutrient_metric.tagged:
         nutrient_metric.tagged = True
         nutrient_metric.tags.append(nutrient_tag)

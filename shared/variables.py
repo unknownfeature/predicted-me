@@ -25,6 +25,8 @@ bastion_instance_key_name = 'BASTION_INSTANCE_KEY_NAME'
 regional_domain_name = 'REGIONAL_DOMAIN_NAME'
 regional_hosted_zone_id = 'REGIONAL_HOSTED_ZONE_ID'
 max_tokens = 'MAX_TOKENS'
+batch_size = 'BATCH_SIZE'
+
 opensearch_endpoint = 'OPENSEARCH_ENDPOINT'
 opensearch_port = 'OPENSEARCH_PORT'
 opensearch_index = 'OPENSEARCH_INDEX'

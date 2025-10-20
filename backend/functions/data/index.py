@@ -93,6 +93,9 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
             constants.name: dp.metric.display_name,
             constants.tagged: dp.metric.tagged,
             constants.tags: [tag.display_name for tag in dp.metric.tags],
+            constants.default_aggregation_period_seconds: dp.metric.default_aggregation_period_seconds,
+            constants.default_aggregator_function: dp.metric.default_aggregator_function,
+            constants.default_units: dp.metric.default_units,
             constants.schedule: {} if dp.metric.schedule is None else {
                 constants.id: dp.metric.schedule.id,
                 constants.minute: dp.metric.schedule.minute,

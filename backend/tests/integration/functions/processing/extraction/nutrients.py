@@ -1,16 +1,17 @@
 from backend.tests.integration.base import *
 import json
 import unittest
+from decimal import Decimal
 
 from sqlalchemy import select, and_
 
 from backend.functions.processing.extraction.nutrients.index import (
     text_supplier, get_user_id, on_response_from_model, get_or_create_tag,
-    process_nutrient, process_ingredient
+    process_nutrient, process_ingredient, normalize_value_and_units
 )
 from backend.tests.integration.base import *
 from backend.lib.db import (
-    Metric, Data, Tag, Note, User, Origin, get_utc_timestamp
+    Metric, Data, Tag, Note, User, get_utc_timestamp, AggregationFunction, seconds_in_day
 )
 from backend.lib.func.sqs import MessageInput
 from shared import constants
@@ -210,19 +211,14 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_on_response_from_model_creates_tags_and_metrics(self):
+    def test_process_nutrient_sets_default_fields(self):
         self._setup_data()
         session = begin_session()
         try:
             nutrient_data = {constants.name: 'Test Vitamin', constants.value: 50, constants.units: 'mg'}
-            ingredient_data = "Test Ingredient"
-
             nutrient_tag = get_or_create_tag(constants.nutrient_tag, session, legit_user_id)
+
             process_nutrient(1, nutrient_data, nutrient_tag, session, legit_user_id)
-
-            ingredient_tag = get_or_create_tag(constants.ingredient_tag, session, legit_user_id)
-            process_ingredient(1, ingredient_data, ingredient_tag, session, legit_user_id)
-
             session.commit()
             session = refresh_cache(session)
 
@@ -233,6 +229,24 @@ class Test(unittest.TestCase):
             assert vitamin_metric.data_points[0].value == 50
             assert vitamin_metric.data_points[0].parent_data_id == 1
 
+            assert vitamin_metric.default_units == 'mg'
+            assert vitamin_metric.default_aggregator_function == AggregationFunction.sum
+            assert vitamin_metric.default_aggregation_period_seconds == seconds_in_day
+
+        finally:
+            session.close()
+
+    def test_process_ingredient_sets_default_fields(self):
+        self._setup_data()
+        session = begin_session()
+        try:
+            ingredient_data = "Test Ingredient"
+            ingredient_tag = get_or_create_tag(constants.ingredient_tag, session, legit_user_id)
+
+            process_ingredient(1, ingredient_data, ingredient_tag, session, legit_user_id)
+            session.commit()
+            session = refresh_cache(session)
+
             ingredient_metric = get_metrics_by_name("test_ingredient", session)[0]
             assert ingredient_metric is not None
             assert ingredient_metric.tagged
@@ -240,5 +254,80 @@ class Test(unittest.TestCase):
             assert ingredient_metric.data_points[0].value == 1
             assert ingredient_metric.data_points[0].parent_data_id == 1
 
+            assert ingredient_metric.default_units == 'item'
+            assert ingredient_metric.default_aggregator_function == AggregationFunction.count
+            assert ingredient_metric.default_aggregation_period_seconds == seconds_in_day
         finally:
             session.close()
+
+    def test_process_nutrient_does_not_overwrite_existing_defaults(self):
+        self._setup_data()
+        session = begin_session()
+        try:
+            # Create a metric with pre-existing defaults
+            metric_name = "calories"
+            metric = Metric(
+                name=metric_name,
+                display_name="Calories",
+                user_id=legit_user_id,
+                default_units="kcal_test",
+                default_aggregator_function=AggregationFunction.avg,
+                default_aggregation_period_seconds=3600
+            )
+            session.add(metric)
+            session.commit()
+
+            nutrient_data = {constants.name: 'Calories', constants.value: 150, constants.units: 'kcal'}
+            nutrient_tag = get_or_create_tag(constants.nutrient_tag, session, legit_user_id)
+
+            process_nutrient(1, nutrient_data, nutrient_tag, session, legit_user_id)
+            session.commit()
+            session = refresh_cache(session)
+
+            calories_metric = get_metrics_by_name(metric_name, session)[0]
+            assert calories_metric.default_units == 'kcal_test'
+            assert calories_metric.default_aggregator_function == AggregationFunction.avg
+            assert calories_metric.default_aggregation_period_seconds == 3600
+
+        finally:
+            session.close()
+
+    def test_normalize_value_and_units_converts_vitamin_d(self):
+        value, units = normalize_value_and_units(100.0, "Vitamin D", "IU")
+        assert value == Decimal('2.5')
+        assert units == 'mcg'
+
+    def test_normalize_value_and_units_converts_vitamin_a(self):
+        value, units = normalize_value_and_units(1000.0, "Vitamin A", "IU")
+        assert value == Decimal('300.0')
+        assert units == 'mcg'
+
+    def test_normalize_value_and_units_converts_vitamin_e(self):
+        value, units = normalize_value_and_units(100.0, "Vitamin E", "IU")
+        assert value == Decimal('67.00')
+        assert units == 'mg'
+
+    def test_normalize_value_and_units_handles_case_and_spacing(self):
+        value, units = normalize_value_and_units(100.0, "vitamin_d_supplement", " iu ")
+        assert value == Decimal('2.5')
+        assert units == 'mcg'
+
+    def test_normalize_value_and_units_ignores_unknown_iu(self):
+        value, units = normalize_value_and_units(50.0, "Vitamin K", "IU")
+        assert value == Decimal('50.0')
+        assert units == 'IU'
+
+    def test_normalize_value_and_units_ignores_non_iu_units(self):
+        value, units = normalize_value_and_units(20.0, "Protein", "g")
+        assert value == Decimal('20.0')
+        assert units == 'g'
+
+    def test_normalize_value_and_units_handles_no_unit(self):
+        value, units = normalize_value_and_units(10.0, "Calories", None)
+        assert value == Decimal('10.0')
+        assert units is None
+
+    def test_normalize_value_and_units_handles_no_value(self):
+        value, units = normalize_value_and_units(None, "Calories", "kcal")
+        assert value is None
+        assert units == 'kcal'

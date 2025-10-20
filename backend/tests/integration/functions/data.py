@@ -5,58 +5,44 @@ from typing import Tuple
 from unittest.mock import patch
 
 from backend.tests.integration.base import *
-
-from backend.functions.data.index import handler
-from backend.lib.db import Data
+from backend.functions.occurrence.index import handler
+from backend.lib.db import Occurrence
 from backend.lib.util import get_user_ids_from_event
 
-# test data
+# test occurrence
 
-tag_one_display_name = 'tag one Test 4^'
-tag_two_display_name = 'tag & two_ la la'
-tag_three_display_name = 'tag ^ three ??'
+task_one_display_summary = 'Some task with special characters, such as "%" 1'
+task_one_summary = normalize_identifier(task_one_display_summary)
+task_one_description = 'Some task with one description special characters, such as "%" 1'
+task_two_display_summary = 'Some task with special characters, such as "%" 2 and a unique piece'
+task_two_summary = normalize_identifier(task_two_display_summary)
+task_two_description = 'Some task with two description special characters, such as "%" 2 and a unique piece'
 
-tag_one_name = normalize_identifier(tag_one_display_name)
-tag_two_name = normalize_identifier(tag_two_display_name)
-tag_three_name = normalize_identifier(tag_three_display_name)
+schedule_priority = 4
 
-metric_one_display_name = 'Some metric with special characters, such as "%" 1'
-metric_one_name = normalize_identifier(metric_one_display_name)
-metric_two_display_name = 'Some metric with special characters, such as "%" 2 and a unique piece'
-metric_two_name = normalize_identifier(metric_two_display_name)
+occurrence_priority_one = 1
+occurrence_priority_two = 2
+occurrence_priority_three = 3
+occurrence_priority_four = 4
+occurrence_priority_five = 5
+occurrence_priority_six = 6
 
-schedule_target_value = 4
-schedule_units = 'testu'
-schedule_recurrence = '1 * * * * *'
+occurrence_one_completed = True
+occurrence_two_completed = True
+occurrence_three_completed = False
+occurrence_four_completed = False
+occurrence_five_completed = True
+occurrence_six_completed = False
 
-time_now = get_utc_timestamp()
-day_ago = time_now - seconds_in_day
-two_days_ago = time_now - seconds_in_day * 2
-three_days_ago = time_now - seconds_in_day * 3
+display_summary = 'Some human readable task with special characters, such as "%"'
+description = 'Some human readable task description lalala  with special characters, such as "%"'
+priority_one = 1
+priority_two = 2
+priority_three = 3
 
-data_one_value = 4.5
-data_two_value = 38.5
-data_three_value = 100.5
-data_four_value = 5678.5
-data_five_value = 45.5
-data_six_value = 78
-
-data_one_units = 'u1'
-data_two_units = 'u2'
-data_three_units = 'u3'
-data_four_units = 'u4'
-data_five_units = 'u5'
-data_six_units = 'u6'
-
-display_name = 'Some human readable metric with special characters, such as "%"'
-
-value_one = 12.45
-value_two = 11.88
-value_three = 114.88
-
-units = 'the units'
-other_units = 'other units'
-malicious_units = 'mal units'
+completed = True
+other_completed = False
+malicious_completed = False
 
 
 class Test(unittest.TestCase):
@@ -65,17 +51,17 @@ class Test(unittest.TestCase):
         super().setUp()
         self.event = baseSetUp(Trigger.http)
 
-    @patch('backend.functions.data.index.send_to_sns')
-    def test_data_incomplete_post_returns_500(self, send_to_sns_mock):
-        name = normalize_identifier(display_name)
+    @patch('backend.functions.occurrence.index.send_to_sns')
+    def test_incomplete_occurrence_post_returns_500(self, mock_send_to_sns):
 
         self.event[constants.body] = json.dumps({
-            constants.units: units,
-            constants.name: display_name,
+            constants.completed: completed,
+            constants.summary: display_summary,
 
         })
 
-        self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
+        self.event[constants.request_context] = self.event[constants.request_context] | {
+            constants.http: {constants.method: constants.post}}
         result = handler(self.event, None)
 
         assert result[constants.status_code] == 500
@@ -84,48 +70,48 @@ class Test(unittest.TestCase):
         session = begin_session()
 
         try:
-            assert len(get_metrics_by_display_name(display_name, session)) == 0
-            assert len(get_metrics_by_name(name, session)) == 0
-            send_to_sns_mock.assert_not_called()
+            assert len(get_tasks_by_display_summary(display_summary, session)) == 0
+            mock_send_to_sns.assert_not_called()
         finally:
             session.close()
 
-    @patch('backend.functions.data.index.send_to_sns')
-    def test_data_post_succeeds(self, send_to_sns_mock):
+    @patch('backend.functions.occurrence.index.send_to_sns')
+    def test_occurrence_post_succeeds(self, mock_send_to_sns):
 
-        metric_id, data_id = self._setup_metric(display_name, value=value_one, units=units)
+        task_id, occurrence_id = self._setup_task(display_summary, priority=priority_one, completed=completed)
 
         session = begin_session()
 
         try:
 
             #  make sure name and display name are expected
-            metrics = get_metrics_by_display_name(display_name, session)
-            assert len(metrics) == 1
+            tasks = get_tasks_by_display_summary(display_summary, session)
+            assert len(tasks) == 1
 
-            metric = metrics[0]
+            task = tasks[0]
 
             user_id, external_id = get_user_ids_from_event(self.event, session)
 
             # make sure user is correct
-            assert user_id == metric.user_id
-            assert metric.user.external_id == external_id
+            assert user_id == task.user_id
+            assert task.user.external_id == external_id
 
-            # lan of data is correct
-            assert len(metric.data_points) == 1
+            # lan of occurrence is correct
+            assert len(task.occurrences) == 1
 
-            data = metric.data_points[0]
+            occurrence = task.occurrences[0]
 
-            assert data.value == Decimal(str(value_one))
-            assert data.units == units
-            assert data.time > 0
+            assert occurrence.priority == Decimal(str(priority_one))
+            assert occurrence.completed == completed
+            assert occurrence.time > 0
 
             self.event[constants.body] = json.dumps({
-                constants.value: value_two,
-                constants.units: units,
+                constants.priority: priority_two,
+                constants.completed: completed,
             })
-            self.event[constants.path_params][constants.id] = metric_id
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.post}}
+            self.event[constants.path_params][constants.id] = task_id
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.post}}
 
             result = handler(self.event, None)
 
@@ -135,95 +121,97 @@ class Test(unittest.TestCase):
             # new cache
             session = refresh_cache(session)
 
-            # make sure it didn't insert ore metrics
-            metrics = get_metrics_by_display_name(display_name, session)
-            assert len(metrics) == 1
+            # make sure it didn't insert ore tasks
+            tasks = get_tasks_by_display_summary(display_summary, session)
+            assert len(tasks) == 1
 
-            metric = metrics[0]
+            task = tasks[0]
 
             # should add one more
-            assert len(metric.data_points) == 2
-            data = metric.data_points[1]
+            assert len(task.occurrences) == 2
+            occurrence = task.occurrences[1]
 
-            # and second data point got saved
-            assert data.value == Decimal(str(value_two))
-            assert data.units == units
-            assert data.time > 0
-            send_to_sns_mock.assert_called_once()
+            # and second occurrence point got saved
+            assert occurrence.priority == priority_two
+            assert occurrence.completed == completed
+            assert occurrence.time > 0
+            mock_send_to_sns.assert_called()
 
         finally:
             session.close()
 
-    @patch('backend.functions.data.index.send_to_sns')
-    def test_data_post_fails_for_malicious_user(self, send_to_sns_mock):
-        metric_id, _ = self._setup_metric(display_name)
+    @patch('backend.functions.occurrence.index.send_to_sns')
+    def test_occurrence_post_fails_for_malicious_user(self, mock_send_to_sns):
+        task_id, _ = self._setup_task(display_summary)
 
-        name = normalize_identifier(display_name)
+        name = normalize_identifier(display_summary)
 
         session = begin_session()
 
         try:
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.request_context] =  malicious_event[constants.request_context] | {constants.http: {constants.method: constants.post}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.post}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.body] = json.dumps({
 
-                constants.value: value_two,
-                constants.units: units,
+                constants.value: priority_two,
+                constants.completed: completed,
             })
-            malicious_event[constants.path_params][constants.id] = metric_id
+            malicious_event[constants.path_params][constants.id] = task_id
             result = handler(malicious_event, None)
 
             assert result[constants.status_code] == 404
 
             session = refresh_cache(session)
 
-            # make sure it didn't insert ore metrics
-            metrics = get_metrics_by_display_name(display_name, session)
-            assert len(metrics) == 1
+            # make sure it didn't insert ore tasks
+            tasks = get_tasks_by_display_summary(display_summary, session)
+            assert len(tasks) == 1
 
-            metric = metrics[0]
+            task = tasks[0]
 
             # should add one more
-            assert len(metric.data_points) == 0
+            assert len(task.occurrences) == 0
+            mock_send_to_sns.assert_not_called()
 
             # just in case
             assert session.query(User).count() == 2
-            send_to_sns_mock.assert_not_called()
 
 
         finally:
             session.close()
 
-    def test_data_patch_succeeds(self):
+    def test_occurrence_patch_succeeds(self):
 
-        metric_id, data_id = self._setup_metric(display_name, value=value_one, units=units)
+        task_id, occurrence_id = self._setup_task(display_summary, priority=priority_one, completed=completed)
 
         session = begin_session()
 
         try:
             #  make sure name and display name are expected
-            metrics = get_metrics_by_display_name(display_name, session)
+            tasks = get_tasks_by_display_summary(display_summary, session)
 
-            metric = metrics[0]
-            # lan of data is correct
-            assert len(metric.data_points) == 1
-            assert metric.id == metric_id
+            task = tasks[0]
+            # lan of occurrence is correct
+            assert len(task.occurrences) == 1
+            assert task.id == task_id
 
-            data = metric.data_points[0]
+            occurrence = task.occurrences[0]
 
-            assert data.value == Decimal(str(value_one))
-            assert data.units == units
-            assert data.time > 0
+            assert occurrence.priority == priority_one
+            assert occurrence.completed == completed
+            assert occurrence.time > 0
 
             self.event[constants.body] = json.dumps({
-                constants.value: value_two,
-                constants.units: other_units,
+                constants.priority: priority_two,
+                constants.completed: other_completed,
                 constants.time: 25
             })
-            self.event[constants.path_params][constants.id] = data_id
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.patch}}
+            self.event[constants.path_params][constants.id] = occurrence_id
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.patch}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -231,21 +219,21 @@ class Test(unittest.TestCase):
             # new cache bc sqlalchemy
             session = refresh_cache(session)
 
-            # make sure it didn't insert ore metrics
-            metrics = get_metrics_by_display_name(display_name, session)
-            assert len(metrics) == 1
+            # make sure it didn't insert ore tasks
+            tasks = get_tasks_by_display_summary(display_summary, session)
+            assert len(tasks) == 1
 
-            metric = metrics[0]
+            task = tasks[0]
 
             # should still be one
-            assert len(metric.data_points) == 1
-            data = metric.data_points[0]
+            assert len(task.occurrences) == 1
+            occurrence = task.occurrences[0]
 
             # but with updated fields
-            assert data.value == Decimal(str(value_two))
-            assert data.units == other_units
-            assert data.time == 25
-            assert data.id == data_id
+            assert occurrence.priority == priority_two
+            assert occurrence.completed == other_completed
+            assert occurrence.time == 25
+            assert occurrence.id == occurrence_id
 
             # just in case
             assert session.query(User).count() == 2
@@ -253,42 +241,43 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_patch_fails_for_malicious_user(self):
+    def test_occurrence_patch_fails_for_malicious_user(self):
 
-        metric_id, data_id = self._setup_metric(display_name, value=value_one, units=units)
+        task_id, occurrence_id = self._setup_task(display_summary, priority=priority_one, completed=completed)
 
         session = begin_session()
 
         try:
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.request_context] =  malicious_event[constants.request_context]  | {constants.http: {constants.method: constants.patch}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.patch}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.body] = json.dumps({
 
-                constants.value: value_three,
-                constants.units: malicious_units,
+                constants.value: priority_three,
+                constants.completed: malicious_completed,
             })
-            malicious_event[constants.path_params][constants.id] = data_id
+            malicious_event[constants.path_params][constants.id] = occurrence_id
             result = handler(malicious_event, None)
 
             assert result[constants.status_code] == 404
 
-            # make sure new data wans't added for the malicious user
+            # make sure new occurrence wans't added for the malicious user
             session = refresh_cache(session)
 
-            # make sure it didn't insert ore metrics
-            metrics = get_metrics_by_display_name(display_name, session)
-            assert len(metrics) == 1
+            # make sure it didn't insert ore tasks
+            tasks = get_tasks_by_display_summary(display_summary, session)
+            assert len(tasks) == 1
 
-            metric = metrics[0]
-            assert len(metric.data_points) == 1
+            task = tasks[0]
+            assert len(task.occurrences) == 1
 
-            data = metric.data_points[0]
+            occurrence = task.occurrences[0]
 
             # should be old values
-            assert data.value == Decimal(str(value_one))
-            assert data.units == units
+            assert occurrence.priority == priority_one
+            assert occurrence.completed == completed
 
             # just in case
             assert session.query(User).count() == 2
@@ -297,18 +286,19 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_delete_succeeds(self):
+    def test_occurrence_delete_succeeds(self):
 
-        _, data_id = self._setup_metric(display_name, value=value_one, units=units)
+        _, occurrence_id = self._setup_task(display_summary, priority=priority_one, completed=completed)
 
         session = begin_session()
 
         try:
 
             self.event = prepare_http_event(get_user_by_id(legit_user_id, session).external_id)
-            self.event[constants.body] = '{}'
-            self.event[constants.path_params][constants.id] = data_id
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.delete}}
+            self.event[constants.body] = json.dumps({})
+            self.event[constants.path_params][constants.id] = occurrence_id
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.delete}}
             result = handler(self.event, None)
 
             assert result[constants.status_code] == 204
@@ -316,30 +306,31 @@ class Test(unittest.TestCase):
             # new cache
             session = refresh_cache(session)
 
-            # make sure it didn't insert ore metrics
-            metrics = get_metrics_by_display_name(display_name, session)
-            assert len(metrics) == 1
+            # make sure it didn't insert ore tasks
+            tasks = get_tasks_by_display_summary(display_summary, session)
+            assert len(tasks) == 1
 
-            metric = metrics[0]
+            task = tasks[0]
 
             # should be 0
-            assert len(metric.data_points) == 0
+            assert len(task.occurrences) == 0
 
 
         finally:
             session.close()
 
-    def test_data_delete_fails_for_malicious_user(self):
+    def test_occurrence_delete_fails_for_malicious_user(self):
 
-        _, data_id = self._setup_metric(display_name, value=value_one, units=units)
+        _, occurrence_id = self._setup_task(display_summary, priority=priority_one, completed=completed)
 
         session = begin_session()
 
         try:
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.delete}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.delete}}
             malicious_event[constants.query_params] = {}
-            malicious_event[constants.body] = '{}'
+            malicious_event[constants.body] = json.dumps({})
             malicious_event[constants.path_params][constants.id] = 1
             result = handler(malicious_event, None)
 
@@ -348,27 +339,28 @@ class Test(unittest.TestCase):
             session = refresh_cache(session)
 
             #  make sure name and display name are expected
-            metrics = get_metrics_by_display_name(display_name, session)
+            tasks = get_tasks_by_display_summary(display_summary, session)
 
-            metric = metrics[0]
-            # lan of data is correct bc it wasn't deleted
-            assert len(metric.data_points) == 1
+            task = tasks[0]
+            # lan of occurrence is correct bc it wasn't deleted
+            assert len(task.occurrences) == 1
 
-            data = metric.data_points[0]
+            occurrence = task.occurrences[0]
 
-            assert data.value == Decimal(str(value_one))
-            assert data.units == units
-            assert data.time > 0
+            assert occurrence.priority == priority_one
+            assert occurrence.completed == completed
+            assert occurrence.time > 0
 
         finally:
             session.close()
 
-    def test_data_get_by_data_id_succeeds(self):
+    def test_occurrence_get_by_occurrence_id_succeeds(self):
 
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             self.event[constants.path_params][constants.id] = 4
             result = handler(self.event, None)
@@ -376,7 +368,7 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 1
             assert items[0][constants.id] == 4
-            assert items[0][constants.metric][constants.schedule][constants.period_seconds] == 300
+            assert items[0][constants.task][constants.schedule][constants.period_seconds] == 300
 
             self.event[constants.query_params] = {}
             self.event[constants.path_params] = {}
@@ -388,15 +380,17 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_get_by_data_id_fails_for_malicious_user(self):
+    def test_occurrence_get_by_occurrence_id_fails_for_malicious_user(self):
 
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             malicious_event = prepare_http_event(get_user_by_id(malicious_user_id, session).external_id)
-            malicious_event[constants.request_context] = malicious_event[constants.request_context]  | {constants.http: {constants.method: constants.get}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.path_params] = {}
             malicious_event[constants.path_params][constants.id] = 1
@@ -409,15 +403,16 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_get_by_note_succeeds(self):
+    def test_occurrence_get_by_note_succeeds(self):
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             self.event[constants.query_params] = {
                 constants.note_id: 1,
-                # start and end will be  == now - 1 day which is outside for this particular data point but it should be ignored
+                # start and end will be  == now - 1 day which is outside for this particular occurrence point but it should be ignored
             }
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
@@ -436,13 +431,86 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_get_by_note_fails_for_malicious_user(self):
+    def test_occurrence_get_by_completed_fails_for_malicious_user(self):
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
+            self._setup_occurrences_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.request_context] =  malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
+            malicious_event[constants.query_params] = {
+                constants.completed: True,
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp()
+            }
+            malicious_event[constants.path_params] = {}
+
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0  # no items for this user
+        finally:
+            session.close()
+
+    def test_occurrence_get_by_completed_succeeds(self):
+        session = begin_session()
+        try:
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
+
+            self.event[constants.query_params] = {
+                constants.completed: '1',
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp()
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 3
+
+            assert items[0][constants.priority] == occurrence_priority_five
+            assert items[0][constants.completed]
+
+            assert items[1][constants.priority] == occurrence_priority_two
+            assert items[1][constants.completed]
+
+            assert items[2][constants.priority] == occurrence_priority_one
+            assert items[2][constants.completed]
+
+            self.event[constants.query_params] = {
+                constants.completed: '0',
+                constants.start: three_days_ago - seconds_in_day,
+                constants.end: get_utc_timestamp()
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            items = json.loads(result[constants.body])
+            assert len(items) == 3
+
+            assert items[0][constants.priority] == occurrence_priority_six
+            assert not items[0][constants.completed]
+
+            assert items[1][constants.priority] == occurrence_priority_four
+            assert not items[1][constants.completed]
+
+            assert items[2][constants.priority] == occurrence_priority_three
+            assert not items[2][constants.completed]
+
+
+        finally:
+            session.close()
+
+    def test_occurrence_get_by_note_fails_for_malicious_user(self):
+        session = begin_session()
+        try:
+            self._setup_occurrences_for_search(session)
+
+            malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {}
             malicious_event[constants.path_params] = {}
             malicious_event[constants.path_params][constants.id] = 1
@@ -453,12 +521,13 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_get_by_tags_display_names_succeeds(self):
+    def test_occurrence_get_by_tags_display_summaries_succeeds(self):
 
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
 
             ##########################################
             self.event[constants.query_params] = {
@@ -483,13 +552,14 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_get_by_tags_display_names_fails_for_malicious_user(self):
+    def test_occurrence_get_by_tags_display_summaries_fails_for_malicious_user(self):
 
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
+            self._setup_occurrences_for_search(session)
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.tags: f'{tag_two_display_name}',
                 constants.start: three_days_ago - seconds_in_day,
@@ -501,14 +571,15 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_get_by_metrics_display_name_succeeds(self):
+    def test_occurrence_get_by_tasks_description_succeeds(self):
 
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
-                constants.metric: metric_one_display_name,
+                constants.task: task_one_description,
                 constants.start: three_days_ago - seconds_in_day,
             }
             result = handler(self.event, None)
@@ -517,25 +588,72 @@ class Test(unittest.TestCase):
             assert len(items) == 6
 
             self.event[constants.query_params] = {
-                constants.metric: unique_piece,
+                constants.task: unique_piece,
                 constants.start: three_days_ago - seconds_in_day,
             }
             result = handler(self.event, None)
             assert result[constants.status_code] == 200
             items = json.loads(result[constants.body])
-            assert len(items) == 3  # only 2nd metric's data
+            assert len(items) == 3  # only 2nd task's occurrence
 
         finally:
             session.close()
 
-    def test_data_get_by_metrics_display_name_fails_for_malicious_user(self):
+    def test_occurrence_get_by_tasks_description_fails_for_malicious_user(self):
         session = begin_session()
         try:
-            self._setup_data_for_search(session)
+            self._setup_occurrences_for_search(session)
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
-                constants.metric: metric_one_display_name,
+                constants.task: task_one_description,
+                constants.start: three_days_ago - seconds_in_day
+            }
+            result = handler(malicious_event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 0
+        finally:
+            session.close()
+
+    def test_occurrence_get_by_tasks_display_summary_succeeds(self):
+
+        session = begin_session()
+        try:
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
+            self.event[constants.query_params] = {
+                constants.task: task_one_display_summary,
+                constants.start: three_days_ago - seconds_in_day,
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 6
+
+            self.event[constants.query_params] = {
+                constants.task: 'unique piece',
+                constants.start: three_days_ago - seconds_in_day,
+            }
+            result = handler(self.event, None)
+            assert result[constants.status_code] == 200
+            items = json.loads(result[constants.body])
+            assert len(items) == 3  # only 2nd task's occurrence
+
+        finally:
+            session.close()
+
+    def test_occurrence_get_by_tasks_display_summary_fails_for_malicious_user(self):
+        session = begin_session()
+        try:
+            self._setup_occurrences_for_search(session)
+            malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
+            malicious_event[constants.query_params] = {
+                constants.task: task_one_display_summary,
                 constants.start: three_days_ago - seconds_in_day,
             }
             result = handler(malicious_event, None)
@@ -545,12 +663,14 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def test_data_get_by_date_succeeds(self):
+    def test_occurrence_get_by_date_succeeds(self):
         session = begin_session()
         try:
+            #  m1_d2 & m2_d5 3d |   m1_d1 2d |  m1_d3  1d | m2_d4 & m2_d6  now
 
-            self._setup_data_for_search(session)
-            self.event[constants.request_context] = self.event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            self._setup_occurrences_for_search(session)
+            self.event[constants.request_context] = self.event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             self.event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
                 constants.end: three_days_ago,
@@ -560,26 +680,27 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 2
 
-            assert items[0][constants.value] == data_five_value
-            assert items[1][constants.value] == data_two_value
+            assert items[0][constants.priority] == occurrence_priority_five
+            assert items[1][constants.priority] == occurrence_priority_two
 
-            assert items[0][constants.metric][constants.name] == metric_two_display_name
-            assert items[1][constants.metric][constants.name] == metric_one_display_name
+            assert items[0][constants.completed] == occurrence_five_completed
+            assert items[1][constants.completed] == occurrence_two_completed
 
-            assert items[0][constants.metric][constants.schedule][constants.target_value] == schedule_target_value
-            assert items[0][constants.metric][constants.schedule][constants.units] == schedule_units
-            assert items[0][constants.metric][constants.schedule][constants.minute] == '1'
-            assert items[0][constants.metric][constants.schedule][constants.hour] == '2'
-            assert items[0][constants.metric][constants.schedule][constants.day_of_month] == '3'
-            assert items[0][constants.metric][constants.schedule][constants.month] == '4'
-            assert items[0][constants.metric][constants.schedule][constants.day_of_week] == '5'
-            assert items[0][constants.metric][constants.schedule][constants.next_run] > 0
+            assert items[0][constants.task][constants.summary] == task_two_display_summary
+            assert items[1][constants.task][constants.summary] == task_one_display_summary
 
-            assert len(items[1][constants.metric][constants.tags]) == 2
-            assert items[1][constants.metric][constants.tags][0] == tag_one_display_name
-            assert items[1][constants.metric][constants.tags][1] == tag_two_display_name
+            assert items[0][constants.task][constants.schedule][constants.priority] == schedule_priority
+            assert items[0][constants.task][constants.schedule][constants.minute] == '1'
+            assert items[0][constants.task][constants.schedule][constants.hour] == '2'
+            assert items[0][constants.task][constants.schedule][constants.day_of_month] == '3'
+            assert items[0][constants.task][constants.schedule][constants.month] == '4'
+            assert items[0][constants.task][constants.schedule][constants.day_of_week] == '5'
+            assert items[0][constants.task][constants.schedule][constants.next_run] > 0
 
-            assert items[1][constants.metric][constants.tagged]
+            assert len(items[0][constants.task][constants.tags]) == 2
+
+            assert items[1][constants.task][constants.tags][0] == tag_one_display_name
+            assert items[1][constants.task][constants.tags][1] == tag_two_display_name
 
             #############################################
 
@@ -590,11 +711,15 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 2
 
-            assert items[0][constants.value] == data_four_value
-            assert items[1][constants.value] == data_six_value
+            assert items[0][constants.priority] == occurrence_priority_six
+            assert items[1][constants.priority] == occurrence_priority_four
+            assert items[0][constants.completed] == occurrence_six_completed
+            assert items[1][constants.completed] == occurrence_four_completed
 
-            assert items[0][constants.metric][constants.name] == metric_two_display_name
-            assert items[1][constants.metric][constants.name] == metric_two_display_name
+            assert items[0][constants.task][constants.summary] == task_two_display_summary
+            assert items[1][constants.task][constants.summary] == task_two_display_summary
+
+            assert items[1][constants.task][constants.tagged]
 
             #############################################
             self.event[constants.query_params] = {
@@ -606,13 +731,17 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 3
 
-            assert items[0][constants.value] == data_four_value
-            assert items[1][constants.value] == data_six_value
-            assert items[2][constants.value] == data_three_value
+            assert items[0][constants.completed] == occurrence_four_completed
+            assert items[1][constants.completed] == occurrence_six_completed
+            assert items[2][constants.completed] == occurrence_three_completed
 
-            assert items[0][constants.metric][constants.name] == metric_two_display_name
-            assert items[1][constants.metric][constants.name] == metric_two_display_name
-            assert items[2][constants.metric][constants.name] == metric_one_display_name
+            assert items[0][constants.priority] == occurrence_priority_six
+            assert items[1][constants.priority] == occurrence_priority_four
+            assert items[2][constants.priority] == occurrence_priority_three
+
+            assert items[0][constants.task][constants.summary] == task_two_display_summary
+            assert items[1][constants.task][constants.summary] == task_two_display_summary
+            assert items[2][constants.task][constants.summary] == task_one_display_summary
 
             ##############################################
             self.event[constants.query_params] = {
@@ -622,10 +751,11 @@ class Test(unittest.TestCase):
             items = json.loads(result[constants.body])
             assert len(items) == 1
 
-            assert items[0][constants.value] == data_one_value
-            assert items[0][constants.metric][constants.name] == metric_one_display_name
+            assert items[0][constants.priority] == occurrence_priority_one
+            assert items[0][constants.completed] == occurrence_one_completed
 
-            ##############################################
+            assert items[0][constants.task][constants.summary] == task_one_display_summary
+
             # pagination
             ##############################################
 
@@ -663,21 +793,22 @@ class Test(unittest.TestCase):
             assert result[constants.status_code] == 200
             assert len(json.loads(result[constants.body])) == 2
 
-            assert session.query(Metric).count() == 2
-            assert session.query(Data).count() == 6
+            assert session.query(Task).count() == 2
+            assert session.query(Occurrence).count() == 6
 
         finally:
             session.close()
 
-    def test_data_get_by_date_fails_for_malicious_user(self):
+    def test_occurrence_get_by_date_fails_for_malicious_user(self):
         session = begin_session()
         try:
             #  m1_d2 & m2_d5 3d |   m1_d1 2d |  m1_d3  1d | m2_d4 & m2_d6  now
 
-            self._setup_data_for_search(session)
+            self._setup_occurrences_for_search(session)
 
             malicious_event = prepare_http_event(get_user_by_id(2, session).external_id)
-            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {constants.http: {constants.method: constants.get}}
+            malicious_event[constants.request_context] = malicious_event[constants.request_context] | {
+                constants.http: {constants.method: constants.get}}
             malicious_event[constants.query_params] = {
                 constants.start: three_days_ago - seconds_in_day,
                 constants.end: get_utc_timestamp(),  #
@@ -690,7 +821,7 @@ class Test(unittest.TestCase):
         finally:
             session.close()
 
-    def _setup_metric(self, display_name: str, value=None, units=None) -> Tuple[int, int | None]:
+    def _setup_task(self, display_summary: str, priority=None, completed=None) -> Tuple[int, int | None]:
         session = begin_session()
 
         try:
@@ -700,22 +831,23 @@ class Test(unittest.TestCase):
             tag_two = Tag(user_id=user_id, name=tag_two_name, display_name=tag_two_display_name)
 
             user = session.query(User).get(user_id)
-            metric_one = Metric(name=normalize_identifier(display_name), display_name=display_name, user=user,
-                                tags=[tag_one, tag_two])
+            task_one = Task(display_summary=display_summary, summary=task_one_display_summary,
+                            description=task_one_description, user=user,
+                            tags=[tag_one, tag_two])
 
-            if value and units:
-                metric_one.data_points.append(Data(value=value, units=units))
-            session.add(metric_one)
+            if priority and completed:
+                task_one.occurrences.append(Occurrence(priority=priority, completed=completed))
+            session.add(task_one)
             session.commit()
 
-            if value and units:
-                return metric_one.id, metric_one.data_points[0].id
-            return metric_one.id, None
+            if priority and completed:
+                return task_one.id, task_one.occurrences[0].id
+            return task_one.id, None
 
         finally:
             session.close()
 
-    def _setup_data_for_search(self, session):
+    def _setup_occurrences_for_search(self, session):
         user_id, external_user_id = get_user_ids_from_event(self.event, session)
 
         tag_one = Tag(user_id=user_id, name=tag_one_name, display_name=tag_one_display_name)
@@ -730,28 +862,32 @@ class Test(unittest.TestCase):
         session.add(note)
         session.flush()
 
-        metric_one = Metric(name=metric_one_name, display_name=metric_one_display_name, user=user,
-                            tagged=True,
-                            tags=[tag_one, tag_two],
-                            schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
-                                                  period_seconds=300, next_run=get_utc_timestamp()))
-        metric_two = Metric(name=metric_two_name, display_name=metric_two_display_name, user=user,
-                            tags=[tag_two, tag_three],
-                            tagged=True,
-                            schedule=DataSchedule(target_value=schedule_target_value, units=schedule_units,
-                                                  minute='1', hour='2', day_of_month='3',
-                                                  month='4', day_of_week='5', next_run=get_utc_timestamp()))
+        task_one = Task(summary=task_one_summary, display_summary=task_one_display_summary,
+                        description=task_one_description, user=user,
+                        tags=[tag_one, tag_two],
+                        schedule=OccurrenceSchedule(priority=schedule_priority, period_seconds=300,
+                                                    next_run=get_utc_timestamp()))
+        task_two = Task(summary=task_two_summary, display_summary=task_two_display_summary, user=user,
+                        description=task_two_description,
+                        tags=[tag_two, tag_three], tagged=True,
+                        schedule=OccurrenceSchedule(priority=schedule_priority, minute='1', hour='2', day_of_month='3',
+                                                    month='4', day_of_week='5', next_run=get_utc_timestamp()))
 
-        metric_one.data_points.extend(
-            [Data(value=data_one_value, units=data_one_units, time=three_days_ago + 60),
-             Data(value=data_two_value, units=data_two_units, time=three_days_ago - 60),
-             Data(value=data_three_value, units=data_three_units,
-                  time=two_days_ago + 60, note=note), ])
-        metric_two.data_points.extend(
-            [Data(value=data_four_value, units=data_four_units, time=day_ago + 60),
-             Data(value=data_five_value, units=data_five_units, time=three_days_ago - 60),
-             Data(value=data_six_value, units=data_six_units, time=day_ago + 60), ])
-        session.add_all([note, metric_one, metric_two])
+        task_one.occurrences.extend(
+            [Occurrence(priority=occurrence_priority_one, completed=occurrence_one_completed, time=three_days_ago + 60,
+                        ),
+             Occurrence(priority=occurrence_priority_two, completed=occurrence_two_completed, time=three_days_ago - 60,
+                        ),
+             Occurrence(priority=occurrence_priority_three, completed=occurrence_three_completed,
+                        time=two_days_ago + 60, note=note), ])
+        task_two.occurrences.extend(
+            [Occurrence(priority=occurrence_priority_four, completed=occurrence_four_completed, time=day_ago + 60,
+                        ),
+             Occurrence(priority=occurrence_priority_five, completed=occurrence_five_completed,
+                        time=three_days_ago - 60),
+             Occurrence(priority=occurrence_priority_six, completed=occurrence_six_completed, time=day_ago + 60,
+                        ), ])
+        session.add_all([note, task_one, task_two])
         session.commit()
 
     def tearDown(self):

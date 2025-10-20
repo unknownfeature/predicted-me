@@ -160,6 +160,12 @@ resource_success = 'SUCCESS'
 resource_failed = 'FAILED'
 resource_reason = 'Reason'
 
+from_unit = 'from_unit'
+to_unit = 'to_unit'
+coefficient = 'coefficient'
+default_units = 'default_units'
+default_aggregator_function = 'default_aggregator_function'
+default_aggregation_period_seconds = 'default_aggregation_period_seconds'
 
 cors_headers = {
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -167,4 +173,5 @@ cors_headers = {
     'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH,DELETE'
 }
 default_region = 'us-east-1'
-default_max_tokens = 2048
+default_max_tokens = 4096
+default_batch_size = 50

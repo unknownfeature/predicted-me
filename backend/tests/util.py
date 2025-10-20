@@ -6,9 +6,9 @@ from backend.lib.util import get_next_run_timestamp, call_generative, call_embed
 from backend.functions.text.metric.index import prompt as metric_prompt
 from backend.functions.text.link.index import prompt as link_prompt
 from backend.functions.text.task.index import prompt as task_prompt
-from backend.functions.tagging.metric.index import tagging_prompt as metric_tagging_prompt
-from backend.functions.tagging.link.index import tagging_prompt as link_tagging_prompt
-from backend.functions.tagging.task.index import tagging_prompt as task_tagging_prompt
+from backend.functions.processing.tagging.metric.index import tagging_prompt as metric_tagging_prompt
+from backend.functions.processing.tagging.link.index import tagging_prompt as link_tagging_prompt
+from backend.functions.processing.tagging.task.index import tagging_prompt as task_tagging_prompt
 
 
 class Test(unittest.TestCase):
