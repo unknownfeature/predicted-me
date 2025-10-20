@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'config/sizes.dart';
 
 class PredictedMeTagsSelectorWidget extends StatefulWidget {
   final Set<String> initialTagNames;
@@ -7,15 +8,6 @@ class PredictedMeTagsSelectorWidget extends StatefulWidget {
   final Function(String)? onNew;
   final int limit;
 
-
-  final Color? chipBorderColor;
-  final Color? chipBackgroundColor;
-  final Color? chipCloseIconColor;
-  final Color? chipAddIconColor;
-  final Color? textAreaBackgroundColor;
-  final Color? textAreaBorderColor;
-
-
   const PredictedMeTagsSelectorWidget({
     Key? key,
     this.initialTagNames = const {},
@@ -23,12 +15,6 @@ class PredictedMeTagsSelectorWidget extends StatefulWidget {
     required this.onChanged,
     this.onNew,
     this.limit = 10,
-    this.chipBorderColor,
-    this.chipBackgroundColor,
-    this.chipCloseIconColor,
-    this.chipAddIconColor,
-    this.textAreaBackgroundColor,
-    this.textAreaBorderColor,
   }) : super(key: key);
 
   @override
@@ -74,6 +60,7 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
     if (!_focusNode.hasFocus) {
       setState(() {
         _suggestions = {};
+        _showAddIcon = false;
       });
     } else {
       _onTextChanged();
@@ -127,7 +114,8 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
       return;
     }
 
-    final tagExists = _tags.any((tag) => tag.toLowerCase() == newTag.toLowerCase());
+    final tagExists =
+    _tags.any((tag) => tag.toLowerCase() == newTag.toLowerCase());
 
     if (tagExists) {
       setState(() {
@@ -153,13 +141,10 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
   }
 
   Widget _buildTagChip(String tagName, Function(String) onDeleted) {
+
     return Chip(
       label: Text(tagName),
-      backgroundColor: widget.chipBackgroundColor,
-      deleteIconColor: widget.chipCloseIconColor,
-      side: widget.chipBorderColor == null
-          ? null
-          : BorderSide(color: widget.chipBorderColor!),
+      deleteIcon: Icon(Icons.cancel_outlined),
       onDeleted: () => onDeleted(tagName),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
@@ -167,44 +152,49 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
   }
 
   Widget _buildInputTextField(Function() onAdd) {
+    final theme = Theme.of(context);
+
     return SizedBox(
-      width: 150, // todo media query
+      width: Sizes.tagInputWidth,
       child: TextField(
         controller: _textController,
         focusNode: _focusNode,
         decoration: InputDecoration(
           isDense: true,
-          hintText: 'tag name ..', // todo do I need this?
+          hintText: 'tag name ..',
+          // fillColor: theme.colorScheme.surface,
+          // filled: true,
           border: InputBorder.none,
           suffixIcon: _showAddIcon
               ? IconButton(
-                  icon: const Icon(Icons.add_circle),
-                  iconSize: 20, // todo media query
-                  padding: EdgeInsets.zero,
-                  color: widget.chipAddIconColor,
-                  onPressed: onAdd,
-                )
+            icon: const Icon(Icons.add),
+            iconSize: Sizes.iconSizeMedium,
+            padding: EdgeInsets.zero,
+            // color: theme.colorScheme.primary,
+            onPressed: onAdd,
+          )
               : null,
-          suffixIconConstraints: BoxConstraints(maxHeight: 20), // todo media query
+          suffixIconConstraints:
+          BoxConstraints(maxHeight: Sizes.iconSizeMedium),
         ),
       ),
     );
   }
 
   Widget _buildSuggestionsList(Function(String) onTagSelected) {
-    List<String> suggestions = List.from(_suggestions);
+    final theme = Theme.of(context);
+    List<String> suggestions = List.from(_suggestions.difference(_tags));
 
-    // Only show suggestions if the text field is focused
     if (suggestions.isEmpty || !_focusNode.hasFocus) {
       return SizedBox.shrink();
     }
 
     return Container(
-      constraints: BoxConstraints(maxHeight: 150), // todo media query
+      constraints: BoxConstraints(maxHeight: Sizes.suggestionsMaxHeight),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(4), // todo media query
+        // color: Theme.of(context).colorScheme.surface,
+        // border: Border.all( color: theme.colorScheme.outline),
+        borderRadius: BorderRadius.circular(Sizes.borderRadiusSmall),
       ),
       child: ListView.builder(
         itemCount: suggestions.length,
@@ -222,6 +212,8 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return FormField<Set<String>>(
       initialValue: _tags,
       onSaved: (newValue) {
@@ -239,14 +231,15 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Sizes.paddingSmall),
               decoration: BoxDecoration(
-                color: widget.textAreaBackgroundColor,
-                border: Border.all(
-                    color: state.hasError
-                        ? Theme.of(context).colorScheme.error
-                        : widget.textAreaBorderColor ?? Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(8),
+                // color: theme.colorScheme.onPrimary,
+                // border: Border.all(
+                //     color: state.hasError
+                //         ? theme.colorScheme.error
+                //         : theme.colorScheme.surface),
+                borderRadius: BorderRadius.circular(Sizes.borderRadiusMedium),
               ),
               child: GestureDetector(
                 onTap: () {
@@ -255,8 +248,8 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
                   }
                 },
                 child: Wrap(
-                  spacing: 6.0,  // todo media query
-                  runSpacing: 0.0,  // todo media query
+                  spacing: Sizes.spacingSmall,
+                  runSpacing: Sizes.spacingNone,
                   children: [
                     ..._tags.map((tagName) =>
                         _buildTagChip(tagName, (tag) => _removeTag(state, tag))),
@@ -268,16 +261,18 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
             ),
             if (state.hasError)
               Padding(
-                padding: const EdgeInsets.only(left: 12.0, top: 4.0), // todo media query
+                padding: const EdgeInsets.only(
+                    left: Sizes.paddingMedium,
+                    top: Sizes.paddingExtraSmall),
                 child: Text(
                   state.errorText!,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
+                    // color: theme.colorScheme.error,
+                    fontSize: Sizes.fontSizeSmall,
                   ),
                 ),
               ),
-            SizedBox(height: 4),
+            SizedBox(height: Sizes.paddingExtraSmall),
             _buildSuggestionsList((tag) => _addTag(state, tag)),
           ],
         );
