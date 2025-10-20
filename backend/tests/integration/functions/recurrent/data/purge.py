@@ -3,8 +3,8 @@ from backend.tests.integration.base import *
 from backend.functions.recurrent.data.purge.index import handler
 from backend.lib.db import Origin, Data
 
-from backend.tests.integration.functions.data import metric_one_name, metric_one_display_name
-
+metric_one_name = 'metric_one'
+metric_one_display_name = 'metric one'
 
 class Test(unittest.TestCase):
 

@@ -1,11 +1,11 @@
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 from sqlalchemy import select, and_, inspect
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import Session
 
 from shared import constants
-from backend.lib.db import normalize_identifier, Metric, Tag
+from backend.lib.db import normalize_identifier, Metric, Tag, to_func_enum
 from backend.lib.func.http import RequestContext, handler_factory, post_factory, get_offset_and_limit
 from backend.lib.util import HttpMethod, get_or_create_tags
 
@@ -41,8 +41,12 @@ def get(session: Session, context: RequestContext) -> Tuple[List[Dict[str, Any]]
     return [{
         constants.id: metric.id,
         constants.name: metric.display_name,
+        constants.default_units: metric.default_units,
+        constants.default_aggregator_function: metric.default_aggregator_function.value if metric.default_aggregator_function else None,
+        constants.default_aggregation_period_seconds: metric.default_aggregation_period_seconds,
         constants.tags: [tag.display_name for tag in metric.tags],
     } for metric in metrics], 200
+
 
 
 def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
@@ -53,6 +57,11 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
 
     description = body.get(constants.description)
     display_name = body.get(constants.name)
+
+    default_units = body.get(constants.default_units)
+    default_aggregator_function = to_func_enum(body.get(constants.default_aggregator_function))
+    default_aggregation_period_seconds = body.get(constants.default_aggregation_period_seconds)
+
 
     if not id:
         return {constants.error: constants.id_is_required}, 400
@@ -71,13 +80,22 @@ def patch(session: Session, context: RequestContext) -> (Dict[str, Any], int):
     if display_name:
         metric_for_update.display_name = display_name
         metric_for_update.name = normalize_identifier(display_name)
-    if tags_for_update or description or display_name:
+    if default_units:
+        metric_for_update.default_units = default_units
+
+    if default_aggregator_function:
+        metric_for_update.default_aggregator_function = default_aggregator_function
+
+    if tags_for_update or description or display_name or default_units or default_aggregator_function or default_aggregation_period_seconds:
          session.commit()
     return {constants.status: constants.success}, 204
 
 
 post_handler = lambda context, session: Metric(user_id=context.user.id,
                                              name=normalize_identifier(context.body[constants.name]),
+                                               default_aggregator_function=to_func_enum(context.body.get(constants.default_aggregator_function)),
+                                               default_aggregation_period_seconds=context.body.get(constants.default_aggregation_period_seconds),
+                                               default_units=context.body.get(constants.default_units),
                                     display_name=context.body[constants.name],
                                                tagged = len(context.body.get(constants.tags, []) ) > 0,
                                     tags=list(get_or_create_tags(context.user.id, session, set(context.body.get(constants.tags, []))).values()))

@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     Numeric,
+    Enum as SQLEnum,
     UniqueConstraint,
     Index,
     create_engine,
@@ -26,13 +27,14 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
     sessionmaker,
-    validates
+    validates, Session
 )
 
+from shared import constants
 from shared.variables import *
 
 id_cant_be_empty = 'Identifier cannot be empty.'
-
+seconds_in_day = 24 * 60 * 60
 
 class Origin(str, Enum):
     text = 'text'
@@ -179,6 +181,15 @@ class Note(Base):
     def __repr__(self) -> str:
         return f'Note(id={self.id!r}, user_id={self.user_id!r}, time={self.time})'
 
+class AggregationFunction(str, Enum):
+    sum = 'sum'
+    avg = 'avg'
+    min = 'min'
+    max = 'max'
+    last = 'last'
+    median = 'median'
+    count = 'count'
+    none = 'none'
 
 class Metric(Base):
     __tablename__ = 'metric'
@@ -195,6 +206,11 @@ class Metric(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(500))
     display_name: Mapped[str] = mapped_column(String(500))
+    default_units: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    default_aggregator_function: Mapped[AggregationFunction | None] = mapped_column(
+        SQLEnum(AggregationFunction), nullable=True
+    )
+    default_aggregation_period_seconds: Mapped[int] = mapped_column(BigInteger, nullable=True)
 
     tagged: Mapped[bool] = mapped_column(Boolean, default=False)
     tags: Mapped[List['Tag']] = relationship(
@@ -223,6 +239,25 @@ class Metric(Base):
     def validate_name(self, _, name):
         return normalize_identifier(name)
 
+    @validates('default_units')
+    def validate_name(self, _, default_units):
+        if not default_units:
+            return default_units
+
+        return normalize_identifier(default_units)
+
+class UnitConversion(Base):
+    __tablename__ = 'unit_conversion'
+    __table_args__ = (
+        UniqueConstraint('from_unit', 'to_unit',  name='uq_unit_conversion'),
+        Index('idx_from_unit', 'from_unit'),
+        Index('idx_to_unit', 'to_unit'),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    from_unit: Mapped[str] = mapped_column(String(100), nullable=False)
+    to_unit: Mapped[str] = mapped_column(String(100), nullable=False)
+    coefficient: Mapped[Decimal] = mapped_column(Numeric(10, 5), nullable=False)
 
 class Data(Base):
     __tablename__ = 'data'
@@ -244,6 +279,12 @@ class Data(Base):
         return (f'Data(id={self.id!r}, metric_id={self.metric_id!r}, '
                 f'value={self.value!r}, units={self.units!r})')
 
+    @validates('units')
+    def validate_name(self, _, units):
+        if not units:
+            return units
+
+        return normalize_identifier(units)
 
 class DataSchedule(Base):
     __tablename__ = 'data_schedule'
@@ -419,6 +460,38 @@ class Occurrence(Base):
                 f'priority={self.priority!r}, completed={self.completed!r})')
 
 
+default_conversions = [
+    # Weight (Mass)
+    {constants.from_unit: 'kg', constants.to_unit: 'lbs', constants.coefficient: 2.20462},
+    {constants.from_unit: 'lbs', constants.to_unit: 'kg', constants.coefficient: 0.45359},
+    {constants.from_unit: 'g', constants.to_unit: 'oz', constants.coefficient: 0.03527},
+    {constants.from_unit: 'oz', constants.to_unit: 'g', constants.coefficient: 28.3495},
+    {constants.from_unit: 'mg', constants.to_unit: 'g', constants.coefficient: 0.001},
+    {constants.from_unit: 'g', constants.to_unit: 'mg', constants.coefficient: 1000},
+    {constants.from_unit: 'mcg', constants.to_unit: 'mg', constants.coefficient: 0.001},
+    {constants.from_unit: 'mg', constants.to_unit: 'mcg', constants.coefficient: 1000},
+
+    # Distance
+    {constants.from_unit: 'km', constants.to_unit: 'miles', constants.coefficient: 0.62137},
+    {constants.from_unit: 'miles', constants.to_unit: 'km', constants.coefficient: 1.60934},
+    {constants.from_unit: 'm', constants.to_unit: 'km', constants.coefficient: 0.001},
+    {constants.from_unit: 'km', constants.to_unit: 'm', constants.coefficient: 1000},
+    {constants.from_unit: 'm', constants.to_unit: 'feet', constants.coefficient: 3.28084},
+    {constants.from_unit: 'feet', constants.to_unit: 'm', constants.coefficient: 0.3048},
+
+    # Volume (Fluid)
+    {constants.from_unit: 'l', constants.to_unit: 'fl_oz_us', constants.coefficient: 33.814},
+    {constants.from_unit: 'fl_oz_us', constants.to_unit: 'l', constants.coefficient: 0.02957},
+    {constants.from_unit: 'ml', constants.to_unit: 'fl_oz_us', constants.coefficient: 0.03381},
+    {constants.from_unit: 'fl_oz_us', constants.to_unit: 'ml', constants.coefficient: 29.5735},
+    {constants.from_unit: 'l', constants.to_unit: 'ml', constants.coefficient: 1000},
+    {constants.from_unit: 'ml', constants.to_unit: 'l', constants.coefficient: 0.001},
+
+    # Energy (Nutrition)
+    {constants.from_unit: 'kcal', constants.to_unit: 'kj', constants.coefficient: 4.184},
+    {constants.from_unit: 'kj', constants.to_unit: 'kcal', constants.coefficient: 0.23901},
+]
+
 secret_arn = os.getenv(db_secret_arn)
 db_endpoint = os.getenv(db_endpoint)
 db_name = os.getenv(db_name)
@@ -427,6 +500,22 @@ db_port = os.getenv(db_port)
 
 secrets_client = boto3.client('secretsmanager', region_name=os.getenv(aws_region))
 
+def populate_units_conversion(session: Session):
+    count = session.query(UnitConversion).count()
+    if count == 0:
+        print("Populating default unit conversions...")
+        conversions_to_add = [
+            UnitConversion(
+                from_unit=item[constants.from_unit],
+                to_unit=item[constants.to_unit],
+                coefficient=item[constants.coefficient],
+            ) for item in default_conversions
+        ]
+        session.bulk_save_objects(conversions_to_add)
+        session.commit()
+        print(f"Successfully added {len(conversions_to_add)} default conversions.")
+    else:
+        print("Unit conversion table is not empty. Skipping population.")
 
 def begin_session(auto_flush=True):
     engine = setup_engine()
@@ -455,3 +544,11 @@ def setup_engine(fix_auth=False):
             connection.execute(text('FLUSH PRIVILEGES;'))
             connection.commit()
     return engine
+
+def to_func_enum(value: str) -> Optional[AggregationFunction]:
+    if not value:
+        return None
+    try:
+        return  AggregationFunction(value)
+    except ValueError:
+        return None

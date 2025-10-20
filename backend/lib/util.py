@@ -143,6 +143,8 @@ def cron_expression_from_schedule(schedule: Any) -> str:
 
 
 def enrich_schedule_map_with_next_timestamp(data_from_the_client: Dict[str, str]) -> Dict[str, str]:
+    if constants.next_run in data_from_the_client and data_from_the_client[constants.next_run]:
+        return data_from_the_client
     #  if no keys it will fail and that's what it should do
     next_run = get_next_run_timestamp(cron_expression_from_dict(data_from_the_client), period_seconds=data_from_the_client.get(constants.period_seconds))
     data_from_the_client[constants.next_run] = next_run
