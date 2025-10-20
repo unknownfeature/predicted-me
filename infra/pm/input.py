@@ -382,6 +382,15 @@ class Recurrent:
         schedule_params=Schedule(rule_name='pm_db_occurrence_generation_rule',
                                  schedule=events.Schedule.cron(minute='*')))
 
+    metric_units_and_aggregation_function = ScheduledFunction(
+        name='pm_units_and_aggregation_func',
+        timeout=Duration.minutes(5),
+        memory_size=4096,
+        code_path='recurrent/metric/units_and_aggregation',
+        role_name='pm_units_and_aggregation_func_role',
+        schedule_params=Schedule(rule_name='pm_units_and_aggregation_rule',
+                                 schedule=events.Schedule.cron(minute='1', hour='*')))
+
 class Api:
     stack_name = 'PmApiStack'
     name = 'pm_api'

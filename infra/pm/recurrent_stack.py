@@ -1,13 +1,15 @@
 import os
+from typing import Callable
 
 from aws_cdk import (
     Stack,
-    aws_lambda as lmbd)
+    aws_lambda as lmbd,
+    aws_iam as iam)
 from constructs import Construct
 
 from shared.variables import *
 from .input import Recurrent, Common, ScheduledFunction
-from .constants import true
+from .constants import true, bedrock_invoke_policy_statement
 from .db_stack import PmDbStack
 from .function_factories import FunctionFactoryParams, create_role_with_db_access_factory, schedule_cb_factory, \
     allow_connection_function_factory
@@ -30,9 +32,10 @@ class PmRecurrentStack(Stack):
 
         self.occurrence_generation_lambda = self._create_scheduled_function_with_db(db_stack, vpc_stack,
                                                                                     Recurrent.occurrence_generation_function)
+        self.units_and_aggregation_lambda = self._create_scheduled_function_with_db(db_stack, vpc_stack, Recurrent.metric_units_and_aggregation_function, lambda role: role.add_to_policy(bedrock_invoke_policy_statement))
 
     def _create_scheduled_function_with_db(self, db_stack: PmDbStack, vpc_stack: PmVpcStack,
-                                           function_params: ScheduledFunction) -> lmbd.Function:
+                                           function_params: ScheduledFunction, on_role: Callable[[iam.Role], None] = None) -> lmbd.Function:
         return create_function(self, FunctionFactoryParams(
             function_params=function_params,
             build_args={
@@ -45,7 +48,7 @@ class PmRecurrentStack(Stack):
                 db_name: os.getenv(db_name),
                 db_port: db_stack.db_instance.db_instance_endpoint_port,
             },
-            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret),
+            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, on_role),
             and_then=allow_connection_function_factory(db_stack.db_proxy, schedule_cb_factory(self, function_params)),
             vpc=vpc_stack.vpc,
         ))
