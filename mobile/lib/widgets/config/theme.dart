@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dimensions.dart';
 
-const Color _background = Color(0xFFF4F3F1);
-const Color _pinkBackground = Color(0xFFE8DFE2);
-const Color _pinkBackgroundDark = Color(0xFFE8D3D0);
-const Color _pinkShadow = Color(0xFFBBAAB0);
-const Color _pinkPrimary = Color(0xFF8D6B75);
+const Color background = Color(0xFFF4F3F1);
+const Color pinkBackground = Color(0xFFE8DFE2);
+const Color pinkBackgroundDark = Color(0xFFE8D3D0);
+const Color pinkBackgroundDark_75 = Color(0xBFE8D3D0);
+const Color pinkBackgroundDark_50 = Color(0x7FE8D3D0);
+const Color pinkBackgroundDark_25 = Color(0x3FE8D3D0);
+const Color pinkBackgroundDark_15 = Color(0x26E8D3D0);
+const Color pinkShadow = Color(0xFFBBAAB0);
+const Color pinkPrimary = Color(0xFF8D6B75);
 
-const Color _greyBackground = Color(0xFFDDE0E1);
-const Color _greyBackgroundDark = Color(0xFFD2D9D7);
-const Color _greyShadow = Color(0xFF8D9BA0);
-const Color _greyPrimary = Color(0xFF506369);
+const Color greyBackground = Color(0xFFDDE0E1);
+const Color greyBackgroundDark = Color(0xFFD2D9D7);
+const Color greyShadow = Color(0xFF8D9BA0);
+const Color greyPrimary = Color(0xFF506369);
 
 const Color _error = Color(0xFFAC2E51);
 // --- End Palette ---
@@ -22,97 +26,44 @@ final ThemeData pmTheme = ThemeData(
   colorScheme: ColorScheme(
     brightness: Brightness.light,
 
-    primary: _greyPrimary,
-    onPrimary: _background,
-    primaryContainer: _greyBackgroundDark,
-    onPrimaryContainer: _greyPrimary,
+    primary: greyPrimary,
+    onPrimary: background,
+    primaryContainer: greyBackgroundDark,
+    onPrimaryContainer: greyPrimary,
 
-    secondary: _pinkPrimary,
-    onSecondary: _background,
-    secondaryContainer: _pinkBackgroundDark,
-    onSecondaryContainer: _pinkPrimary,
+    secondary: pinkPrimary,
+    onSecondary: background,
+    secondaryContainer: pinkBackgroundDark,
+    onSecondaryContainer: pinkPrimary,
 
-    tertiary: _greyShadow,
-    onTertiary: _background,
-    tertiaryContainer: _greyBackground,
-    onTertiaryContainer: _greyPrimary,
+    tertiary: greyShadow,
+    onTertiary: background,
+    tertiaryContainer: greyBackground,
+    onTertiaryContainer: greyPrimary,
 
-    background: _background,
-    onBackground: _greyPrimary,
+    background: background,
+    onBackground: greyPrimary,
 
-    surface: _pinkBackground,
-    onSurface: _greyPrimary,
+    surface: pinkBackground,
+    onSurface: greyPrimary,
 
-    surfaceVariant: _pinkBackgroundDark,
-    onSurfaceVariant: _greyPrimary,
+    surfaceVariant: pinkBackgroundDark,
+    onSurfaceVariant: greyPrimary,
 
     error: _error,
-    onError: _background,
+    onError: background,
 
-    outline: _greyShadow,
-    shadow: _pinkShadow,
+    outline: greyShadow,
+    shadow: pinkShadow,
   ),
 
   textTheme: const TextTheme().apply(
-    bodyColor: _greyPrimary,
-    displayColor: _greyPrimary,
+    bodyColor: greyPrimary,
+    displayColor: greyPrimary,
   ),
 
-  appBarTheme: const AppBarTheme(
-    backgroundColor: _greyPrimary,
-    foregroundColor: _background,
-    elevation: Dimensions.elevationNone,
-    centerTitle: true,
-  ),
-
-  elevatedButtonTheme: ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: _greyPrimary,
-      foregroundColor: _background,
-      shadowColor: _pinkShadow.withOpacity(Dimensions.opacityMedium),
-      elevation: Dimensions.elevationMedium,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Dimensions.borderRadiusMedium)),
-      padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.paddingLarge,
-          vertical: Dimensions.paddingMedium),
-    ),
-  ),
-
-  textButtonTheme: TextButtonThemeData(
-    style: TextButton.styleFrom(
-      foregroundColor: _pinkPrimary,
-    ),
-  ),
-
-  outlinedButtonTheme: OutlinedButtonThemeData(
-    style: OutlinedButton.styleFrom(
-      foregroundColor: _pinkPrimary,
-      side: const BorderSide(
-          color: _pinkPrimary, width: Dimensions.borderWidthSmall),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Dimensions.borderRadiusMedium)),
-      padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.paddingLarge,
-          vertical: Dimensions.paddingMedium),
-    ),
-  ),
-
-  cardTheme: CardThemeData(
-    color: _pinkBackground,
-    surfaceTintColor: Colors.transparent,
-    elevation: Dimensions.elevationSmall,
-    shadowColor: _pinkShadow.withOpacity(Dimensions.opacitySmall),
-    shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Dimensions.borderRadiusLarge)),
-  ),
-
-  inputDecorationTheme: InputDecorationTheme(
-    filled: true,
-    fillColor: _greyBackground,
-    hintStyle: const TextStyle(color: _greyShadow),
-    border: InputBorder.none,
-    enabledBorder: InputBorder.none,
-    focusedBorder: InputBorder.none,
-  ),
 );
+
+
+const lightOnDarkTextStyle = TextStyle(color: background);
+const darkOnLightTextStyle = TextStyle(color: greyPrimary);

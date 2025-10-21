@@ -1,0 +1,202 @@
+import 'package:flutter/material.dart';
+import 'package:pm/widgets/config/theme.dart';
+import 'base_state.dart';
+import 'config/dimensions.dart';
+
+class PredictedMeAutocompleteWidget extends StatefulWidget {
+  final Future<Iterable<String>> Function(String) suggestionsProvider;
+  final Iterable<String> Function()? excludedProvider;
+  final Function(String)? onNew;
+  final Function(String) onSelected;
+  final Function(String)? onChanged;
+  final int limit;
+  final FocusNode focusNode;
+  final bool multiValued;
+  final String hintText;
+
+  const PredictedMeAutocompleteWidget({
+    super.key,
+    required this.focusNode,
+    required this.suggestionsProvider,
+    required this.onSelected,
+    this.onChanged,
+    this.onNew,
+    this.excludedProvider,
+    this.limit = 10,
+    this.hintText = 'start typing ..',
+    this.multiValued = true,
+  });
+
+  @override
+  State<StatefulWidget> createState() => PredictedMeAutocompleteState();
+}
+
+class PredictedMeAutocompleteState
+    extends PredictedMeBaseState<PredictedMeAutocompleteWidget> {
+  final TextEditingController _textController = TextEditingController();
+
+  bool _showAddIcon() {
+    return _textController.text.length >= 3 && widget.onNew != null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(redraw);
+    _textController.addListener(redraw); // Listen to update the add icon
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(redraw);
+    _textController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onSelected(String item, FormFieldState<String> state) async {
+    await widget.onSelected(item);
+    if (widget.multiValued) {
+      _textController.clear();
+    }
+    state.didChange(_textController.text);
+    redraw();
+  }
+
+  void _onAdded(FormFieldState<String> state) {
+    if (widget.onNew != null) {
+      widget.onNew!(_textController.text.trim());
+    }
+    if (widget.multiValued) {
+      _textController.clear();
+    }
+    state.didChange(_textController.text);
+    redraw();
+  }
+
+  IconButton? _buildSuffixIcon(FormFieldState<String> state) {
+    if (!_showAddIcon()) {
+      return null;
+    }
+    return IconButton(
+      icon: const Icon(Icons.check, color: greyPrimary),
+      iconSize: Dimensions.iconSizeSmall,
+      padding: EdgeInsets.zero,
+      onPressed: () => _onAdded(state),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      initialValue: _textController.text,
+      validator: (String? value) {
+        // Validator now uses the value from the FormField
+        if (value != null && value.trim().isNotEmpty) {
+          return 'You have an unadded value. Tap the add icon or clear the text.';
+        }
+        return null;
+      },
+      builder: (FormFieldState<String> state) {
+        return RawAutocomplete<String>(
+          textEditingController: _textController,
+          focusNode: widget.focusNode,
+
+          // This runs your async 'suggestionsProvider'
+          optionsBuilder: (TextEditingValue textEditingValue) async {
+            final String text = textEditingValue.text.trim();
+            if (text.isEmpty) {
+              return const Iterable<String>.empty();
+            }
+            final results = await widget.suggestionsProvider(text);
+            if (widget.excludedProvider != null) {
+              return Set.of(results)
+                  .difference(Set.of(widget.excludedProvider!()));
+            }
+            return results;
+          },
+
+          onSelected: (String selection) {
+            _onSelected(selection, state);
+          },
+
+          fieldViewBuilder: (
+              BuildContext context,
+              TextEditingController fieldTextEditingController,
+              FocusNode fieldFocusNode,
+              VoidCallback onFieldSubmitted,
+              ) {
+
+            return SizedBox(
+              width: quoterWidth(context),
+              child: TextField(
+                controller: _textController,
+                focusNode: widget.focusNode,
+                onChanged: (text) {
+                  state.didChange(text);
+                  if (widget.onChanged != null) {
+                    widget.onChanged!(text);
+                  }
+                },
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: widget.hintText,
+                  hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
+                  fillColor: pinkBackground,
+                  border: InputBorder.none,
+                  suffixIcon: _buildSuffixIcon(state),
+                  suffixIconConstraints: BoxConstraints(
+                    maxHeight: Dimensions.iconSizeSmall,
+                  ),
+                ),
+              ),
+            );
+          },
+
+          // This builds your floating suggestion list
+          optionsViewBuilder: (
+              BuildContext context,
+              AutocompleteOnSelected<String> onSelected,
+              Iterable<String> options,
+              ) {
+            return Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: fullWidth(context),
+                child: Material(
+                elevation: Dimensions.elevationMedium,
+                // borderRadius: BorderRadius.circular(Dimensions.borderRadiusSmall),
+                child: Container(
+                  constraints: BoxConstraints(maxHeight: quoterHeight(context)),
+                  width: fullWidth(context), // Takes full width
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: options.length,
+                    itemBuilder: (context, index) {
+                      final suggestion = options.elementAt(index);
+                      return ListTile(
+                        title: Text(
+                          textAlign: TextAlign.center,
+                          suggestion,
+                          style: darkOnLightTextStyle,
+                        ),
+                        tileColor: index % 2 == 0
+                            ? pinkBackgroundDark_25
+                            : pinkBackgroundDark_50,
+                        dense: true,
+                        onTap: () {
+                          onSelected(suggestion);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+              )
+            );
+          },
+        );
+      },
+    );
+  }
+}

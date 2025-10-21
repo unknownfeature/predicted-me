@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_authenticator/amplify_authenticator.dart';
@@ -6,6 +5,14 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 
 import 'package:pm/widgets/config/theme.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
+
+final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+void showSnackBar(String message) {
+  ScaffoldMessenger.of(
+    _scaffoldKey.currentContext!,
+  ).showSnackBar(SnackBar(content: Text(message)));
+}
 
 void main() {
   runApp(const PredictedMe());
@@ -79,7 +86,7 @@ class _PredictedMeState extends State<PredictedMe> {
   @override
   Widget build(BuildContext context) {
     return Authenticator(
-      child: MaterialApp(theme: pmTheme,  home: TagSelectorExamplePage()),
+      child: MaterialApp(theme: pmTheme, home: TagSelectorExamplePage()),
     );
   }
 }
@@ -110,13 +117,15 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
   final _formKey = GlobalKey<FormState>();
 
   /// This function is passed to the widget to provide suggestions
-  Iterable<String> _myTagsProvider(String query) {
+  Future<Iterable<String>> _myTagsProvider(String query) async {
     if (query.isEmpty) {
-      return const Iterable.empty();
+      return Future.value(const Iterable.empty());
     }
     // Filter the list based on the user's typing
-    return _allAvailableTags.where(
-      (tag) => tag.toLowerCase().contains(query.toLowerCase()),
+    return Future.value(
+      _allAvailableTags.where(
+        (tag) => tag.toLowerCase().contains(query.toLowerCase()),
+      ),
     );
   }
 
@@ -127,7 +136,7 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
   }
 
   /// This function is passed to the widget to handle new tag creation
-  void _myOnNew(String newTag) {
+  Future _myOnNew(String newTag) async {
     print('--- New Tag Created ---');
     print(newTag);
     // Add the new tag to your master list
@@ -138,36 +147,41 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tag Selector Example')),
-      body: Form(
-        key: _formKey,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // --- THIS IS YOUR WIDGET ---
-              PredictedMeTagsSelectorWidget(
-                initialTagNames: _currentTags,
-                tagsProvider: _myTagsProvider,
-                onChanged: _myOnChanged,
-                onNew: _myOnNew,
-              ),
+    try {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Tag Selector Example')),
+        body: Form(
+          key: _scaffoldKey,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // --- THIS IS YOUR WIDGET ---
+                PredictedMeTagsSelectorWidget(
+                  initialTagNames: _currentTags,
+                  tagsProvider: _myTagsProvider,
+                  onChanged: _myOnChanged,
+                  onNew: _myOnNew,
+                ),
 
-              // --- END WIDGET ---
-              const SizedBox(height: 20),
+                // --- END WIDGET ---
+                const SizedBox(height: 20),
 
-              ElevatedButton(
-                onPressed: () {
-                  // This will trigger the validator
-                  _formKey.currentState?.validate();
-                },
-                child: const Text('Validate Form'),
-              ),
-            ],
+                ElevatedButton(
+                  onPressed: () {
+                    // This will trigger the validator
+                    _formKey.currentState?.validate();
+                  },
+                  child: const Text('Validate Form'),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      showSnackBar(e.toString());
+      return SizedBox.shrink();
+    }
   }
 }

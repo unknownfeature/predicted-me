@@ -21,6 +21,7 @@ class Dimensions {
   static const double tagInputWidth = 150.0;
 
   // Icons & Text
+  static const double iconSizeSmall = 15.0;
   static const double iconSizeMedium = 20.0;
   static const double fontSizeSmall = 12.0;
 
@@ -38,4 +39,12 @@ class Dimensions {
 }
 
 const fullScreenCoefficient = 0.9;
+const halfScreenCoefficient = 0.5;
+const quorterScreenCoefficient = 0.25;
 double Function(BuildContext context) fullWidth = (BuildContext context) =>  MediaQuery.of(context).size.width * fullScreenCoefficient;
+double Function(BuildContext context) halfWidth = (BuildContext context) =>  MediaQuery.of(context).size.width * halfScreenCoefficient;
+double Function(BuildContext context) quoterWidth = (BuildContext context) =>  MediaQuery.of(context).size.width * quorterScreenCoefficient;
+
+double Function(BuildContext context) fullHeight = (BuildContext context) =>  MediaQuery.of(context).size.height * fullScreenCoefficient;
+double Function(BuildContext context) halfHeight = (BuildContext context) =>  MediaQuery.of(context).size.height * halfScreenCoefficient;
+double Function(BuildContext context) quoterHeight = (BuildContext context) =>  MediaQuery.of(context).size.height * quorterScreenCoefficient;
