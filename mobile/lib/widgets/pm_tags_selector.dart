@@ -4,7 +4,7 @@ import 'package:pm/widgets/pm_autocomplete.dart';
 import 'base_state.dart';
 import 'config/dimensions.dart';
 
-class PredictedMeTagsSelectorWidget extends StatefulWidget {
+class PredictedMeTagsSelector extends StatefulWidget {
   final Set<String> initialTagNames;
   final Future<Iterable<String>> Function(String) tagsProvider;
   final Function(Set<String>) onChanged;
@@ -12,7 +12,7 @@ class PredictedMeTagsSelectorWidget extends StatefulWidget {
   final int limit;
   final bool required;
 
-  const PredictedMeTagsSelectorWidget({
+  const PredictedMeTagsSelector({
     Key? key,
     this.initialTagNames = const {},
     required this.tagsProvider,
@@ -27,7 +27,7 @@ class PredictedMeTagsSelectorWidget extends StatefulWidget {
 }
 
 class PredictedMeTagsSelectorState
-    extends PredictedMeBaseState<PredictedMeTagsSelectorWidget> {
+    extends PredictedMeBaseState<PredictedMeTagsSelector> {
   late Set<String> _tags;
 
   final FocusNode _focusNode = FocusNode();
@@ -47,7 +47,7 @@ class PredictedMeTagsSelectorState
   }
 
   @override
-  void didUpdateWidget(covariant PredictedMeTagsSelectorWidget oldWidget) {
+  void didUpdateWidget(covariant PredictedMeTagsSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialTagNames != widget.initialTagNames) {
       setState(() {
@@ -123,7 +123,7 @@ class PredictedMeTagsSelectorState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PredictedMeAutocompleteWidget(
+                    PredictedMeAutocomplete(
                       key: widget.key,
                       focusNode: _focusNode,
                       suggestionsProvider: widget.tagsProvider,

@@ -3,7 +3,7 @@ import 'package:pm/widgets/config/theme.dart';
 import 'base_state.dart';
 import 'config/dimensions.dart';
 
-class PredictedMeAutocompleteWidget extends StatefulWidget {
+class PredictedMeAutocomplete extends StatefulWidget {
   final Future<Iterable<String>> Function(String) suggestionsProvider;
   final Iterable<String> Function()? excludedProvider;
   final Function(String)? onNew;
@@ -14,7 +14,7 @@ class PredictedMeAutocompleteWidget extends StatefulWidget {
   final bool multiValued;
   final String hintText;
 
-  const PredictedMeAutocompleteWidget({
+  const PredictedMeAutocomplete({
     super.key,
     required this.focusNode,
     required this.suggestionsProvider,
@@ -32,7 +32,7 @@ class PredictedMeAutocompleteWidget extends StatefulWidget {
 }
 
 class PredictedMeAutocompleteState
-    extends PredictedMeBaseState<PredictedMeAutocompleteWidget> {
+    extends PredictedMeBaseState<PredictedMeAutocomplete> {
   final TextEditingController _textController = TextEditingController();
 
   bool _showAddIcon() {
@@ -164,7 +164,6 @@ class PredictedMeAutocompleteState
                 width: fullWidth(context),
                 child: Material(
                 elevation: Dimensions.elevationMedium,
-                // borderRadius: BorderRadius.circular(Dimensions.borderRadiusSmall),
                 child: Container(
                   constraints: BoxConstraints(maxHeight: quoterHeight(context)),
                   width: fullWidth(context), // Takes full width

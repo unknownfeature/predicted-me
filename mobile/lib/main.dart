@@ -157,7 +157,7 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
             child: Column(
               children: [
                 // --- THIS IS YOUR WIDGET ---
-                PredictedMeTagsSelectorWidget(
+                PredictedMeTagsSelector(
                   initialTagNames: _currentTags,
                   tagsProvider: _myTagsProvider,
                   onChanged: _myOnChanged,
