@@ -1,0 +1,41 @@
+
+
+import 'package:flutter/material.dart';
+
+class Dimensions {
+  // Radii
+  static const double borderRadiusSmall = 4.0;
+  static const double borderRadiusMedium = 8.0;
+  static const double borderRadiusLarge = 12.0;
+
+  // Padding & Spacing
+  static const double paddingExtraSmall = 4.0;
+  static const double paddingSmall = 8.0;
+  static const double paddingMedium = 12.0;
+  static const double paddingLarge = 24.0;
+  static const double spacingSmall = 6.0;
+  static const double spacingNone = 0.0;
+
+  // Component Sizes
+  static const double suggestionsMaxHeight = 150.0;
+  static const double tagInputWidth = 150.0;
+
+  // Icons & Text
+  static const double iconSizeMedium = 20.0;
+  static const double fontSizeSmall = 12.0;
+
+  // Elevation
+  static const double elevationNone = 0.0;
+  static const double elevationSmall = 2.0;
+  static const double elevationMedium = 5.0;
+
+  // Borders
+  static const double borderWidthSmall = 1.5;
+
+  // Opacity
+  static const double opacitySmall = 0.2;
+  static const double opacityMedium = 0.25;
+}
+
+const fullScreenCoefficient = 0.9;
+double Function(BuildContext context) fullWidth = (BuildContext context) =>  MediaQuery.of(context).size.width * fullScreenCoefficient;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'config/sizes.dart';
+import 'base_state.dart';
+import 'config/dimensions.dart';
 
 class PredictedMeTagsSelectorWidget extends StatefulWidget {
   final Set<String> initialTagNames;
@@ -21,26 +22,32 @@ class PredictedMeTagsSelectorWidget extends StatefulWidget {
   State<StatefulWidget> createState() => PredictedMeTagsSelectorState();
 }
 
-class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> {
+class PredictedMeTagsSelectorState
+    extends PredictedMeBaseState<PredictedMeTagsSelectorWidget> {
   late Set<String> _tags;
 
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  Set<String> _suggestions = {};
-  bool _showAddIcon = false;
 
+  bool _showAddIcon() {
+    return _textController.text.length >= 3 && widget.onNew != null;
+  }
+
+  bool _showEdit() {
+    return _focusNode.hasFocus && _textController.text.isNotEmpty;
+  }
   @override
   void initState() {
     super.initState();
     _tags = Set.from(widget.initialTagNames);
     _textController.addListener(_onTextChanged);
-    _focusNode.addListener(_onFocusChange);
+    _focusNode.addListener(redraw);
   }
 
   @override
   void dispose() {
     _textController.removeListener(_onTextChanged);
-    _focusNode.removeListener(_onFocusChange);
+    _focusNode.removeListener(redraw);
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -56,24 +63,11 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
     }
   }
 
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus) {
-      setState(() {
-        _suggestions = {};
-        _showAddIcon = false;
-      });
-    } else {
-      _onTextChanged();
-    }
-  }
 
   void _onTextChanged() {
     final text = _textController.text.trim();
     if (text.isEmpty) {
-      setState(() {
-        _suggestions = {};
-        _showAddIcon = false;
-      });
+      redraw();
       return;
     }
 
@@ -81,7 +75,6 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
       final results = widget.tagsProvider(text).toList();
       setState(() {
         _suggestions = Set.from(results);
-        _showAddIcon = text.length >= 3;
       });
     }
   }
@@ -100,7 +93,6 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
         _tags.add(tagName);
         _textController.clear();
         _suggestions = {};
-        _showAddIcon = false;
       });
       widget.onChanged(_tags);
       state.didChange(_tags);
@@ -114,14 +106,14 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
       return;
     }
 
-    final tagExists =
-    _tags.any((tag) => tag.toLowerCase() == newTag.toLowerCase());
+    final tagExists = _tags.any(
+      (tag) => tag.toLowerCase() == newTag.toLowerCase(),
+    );
 
     if (tagExists) {
       setState(() {
         _textController.clear();
         _suggestions = {};
-        _showAddIcon = false;
       });
       _focusNode.requestFocus();
       return;
@@ -131,7 +123,6 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
       _tags.add(newTag);
       _textController.clear();
       _suggestions = {};
-      _showAddIcon = false;
     });
 
     widget.onChanged(_tags);
@@ -141,7 +132,6 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
   }
 
   Widget _buildTagChip(String tagName, Function(String) onDeleted) {
-
     return Chip(
       label: Text(tagName),
       deleteIcon: Icon(Icons.cancel_outlined),
@@ -155,7 +145,7 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
     final theme = Theme.of(context);
 
     return SizedBox(
-      width: Sizes.tagInputWidth,
+      width: fullWidth(context),
       child: TextField(
         controller: _textController,
         focusNode: _focusNode,
@@ -165,17 +155,18 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
           // fillColor: theme.colorScheme.surface,
           // filled: true,
           border: InputBorder.none,
-          suffixIcon: _showAddIcon
+          suffixIcon: _showAddIcon()
               ? IconButton(
-            icon: const Icon(Icons.add),
-            iconSize: Sizes.iconSizeMedium,
-            padding: EdgeInsets.zero,
-            // color: theme.colorScheme.primary,
-            onPressed: onAdd,
-          )
+                  icon: const Icon(Icons.check),
+                  iconSize: Dimensions.iconSizeMedium,
+                  padding: EdgeInsets.zero,
+                  // color: theme.colorScheme.primary,
+                  onPressed: onAdd,
+                )
               : null,
-          suffixIconConstraints:
-          BoxConstraints(maxHeight: Sizes.iconSizeMedium),
+          suffixIconConstraints: BoxConstraints(
+            maxHeight: Dimensions.iconSizeMedium,
+          ),
         ),
       ),
     );
@@ -190,11 +181,11 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
     }
 
     return Container(
-      constraints: BoxConstraints(maxHeight: Sizes.suggestionsMaxHeight),
+      constraints: BoxConstraints(maxHeight: Dimensions.suggestionsMaxHeight),
       decoration: BoxDecoration(
         // color: Theme.of(context).colorScheme.surface,
         // border: Border.all( color: theme.colorScheme.outline),
-        borderRadius: BorderRadius.circular(Sizes.borderRadiusSmall),
+        borderRadius: BorderRadius.circular(Dimensions.borderRadiusSmall),
       ),
       child: ListView.builder(
         itemCount: suggestions.length,
@@ -216,9 +207,7 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
 
     return FormField<Set<String>>(
       initialValue: _tags,
-      onSaved: (newValue) {
-        widget.onChanged(newValue ?? {});
-      },
+
       validator: (Set<String>? value) {
         if (_textController.text.trim().isNotEmpty) {
           return 'You have an unadded tag. Tap the add icon or clear the text.';
@@ -232,14 +221,17 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
           children: [
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: Sizes.paddingSmall),
+                horizontal: Dimensions.paddingSmall,
+              ),
               decoration: BoxDecoration(
                 // color: theme.colorScheme.onPrimary,
                 // border: Border.all(
                 //     color: state.hasError
                 //         ? theme.colorScheme.error
                 //         : theme.colorScheme.surface),
-                borderRadius: BorderRadius.circular(Sizes.borderRadiusMedium),
+                borderRadius: BorderRadius.circular(
+                  Dimensions.borderRadiusMedium,
+                ),
               ),
               child: GestureDetector(
                 onTap: () {
@@ -248,13 +240,19 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
                   }
                 },
                 child: Wrap(
-                  spacing: Sizes.spacingSmall,
-                  runSpacing: Sizes.spacingNone,
+                  spacing: Dimensions.spacingSmall,
+                  runSpacing: Dimensions.spacingNone,
                   children: [
-                    ..._tags.map((tagName) =>
-                        _buildTagChip(tagName, (tag) => _removeTag(state, tag))),
-                    if (_tags.length < widget.limit)
-                      _buildInputTextField(() => _addNewTagFromTextField(state)),
+                    ..._tags.map(
+                      (tagName) => _buildTagChip(
+                        tagName,
+                        (tag) => _removeTag(state, tag),
+                      ),
+                    ),
+                    if (_showEdit())
+                      _buildInputTextField(
+                        () => _addNewTagFromTextField(state),
+                      ),
                   ],
                 ),
               ),
@@ -262,17 +260,18 @@ class PredictedMeTagsSelectorState extends State<PredictedMeTagsSelectorWidget> 
             if (state.hasError)
               Padding(
                 padding: const EdgeInsets.only(
-                    left: Sizes.paddingMedium,
-                    top: Sizes.paddingExtraSmall),
+                  left: Dimensions.paddingMedium,
+                  top: Dimensions.paddingExtraSmall,
+                ),
                 child: Text(
                   state.errorText!,
                   style: TextStyle(
                     // color: theme.colorScheme.error,
-                    fontSize: Sizes.fontSizeSmall,
+                    fontSize: Dimensions.fontSizeSmall,
                   ),
                 ),
               ),
-            SizedBox(height: Sizes.paddingExtraSmall),
+            SizedBox(height: Dimensions.paddingExtraSmall),
             _buildSuggestionsList((tag) => _addTag(state, tag)),
           ],
         );

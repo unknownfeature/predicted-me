@@ -1,70 +1,11 @@
+
 import 'package:flutter/material.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_authenticator/amplify_authenticator.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 
-import 'package:flutter/material.dart';
+import 'package:pm/widgets/config/theme.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
-//
-// final ThemeData appTheme = ThemeData(
-//   useMaterial3: true,
-//   brightness: Brightness.light,
-//
-//   colorScheme: ColorScheme(
-//     brightness: Brightness.light,
-//
-//     primary: _primary,
-//     onPrimary: _pinkBackground,
-//
-//     secondary: _secondary,
-//     onSecondary: _pinkBackground,
-//
-//     tertiary: _tertiary,
-//     onTertiary: _pinkBackground,
-//
-//     surface: _pinkBackground,
-//     onSurface: _primary,
-//
-//     surfaceContainerHighest: _pinkSurface,
-//     onSurfaceVariant: _primary,
-//
-//     error: _error,
-//     onError: Colors.white,
-//
-//     outline: _secondary,
-//     shadow: _secondary,
-//   ),
-//
-//   textTheme: const TextTheme().apply(
-//     bodyColor: _primary,
-//     displayColor: _primary,
-//   ),
-//
-//   appBarTheme: const AppBarTheme(
-//     backgroundColor: _primary,
-//     foregroundColor: _pinkBackground,
-//     elevation: 0,
-//   ),
-//
-//   elevatedButtonTheme: ElevatedButtonThemeData(
-//     style: ElevatedButton.styleFrom(
-//       backgroundColor: _primary,
-//       foregroundColor: _pinkBackground,
-//     ),
-//   ),
-//
-//   cardTheme: const CardThemeData(color: _pinkSurface, elevation: 1),
-//   inputDecorationTheme: InputDecorationTheme(
-//     filled: true,
-//     fillColor: _pinkBackground,
-//   ),
-//   chipTheme: ChipThemeData(
-//     backgroundColor: _tertiary,
-//     iconTheme: IconThemeData(color: _pinkBackground),
-//     labelStyle: TextStyle(color: _pinkBackground),
-//     side: BorderSide(color: _tertiary),
-//   ),
-// );
 
 void main() {
   runApp(const PredictedMe());
@@ -138,7 +79,7 @@ class _PredictedMeState extends State<PredictedMe> {
   @override
   Widget build(BuildContext context) {
     return Authenticator(
-      child: MaterialApp(theme: ThemeData.from(colorScheme: ColorScheme.highContrastLight( primary:  Color(0xFFAC2E51), secondary:Color(0xFF263B11) )),  home: TagSelectorExamplePage()),
+      child: MaterialApp(theme: pmTheme,  home: TagSelectorExamplePage()),
     );
   }
 }
