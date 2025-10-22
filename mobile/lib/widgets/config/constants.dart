@@ -1,7 +1,7 @@
 
 
 import 'package:flutter/material.dart';
-
+const String empty = '';
 class Dimensions {
   // Radii
   static const double borderRadiusSmall = 4.0;
@@ -36,7 +36,16 @@ class Dimensions {
   // Opacity
   static const double opacitySmall = 0.2;
   static const double opacityMedium = 0.25;
+
+  static const double sizedBoxExtraSmall = 4.0;
+
+  static const double borderExtraThin = 0.5;
+
+
 }
+
+const autocompleteAnimationMs = 1000;
+const tagFieldLength = 500;
 
 const fullScreenCoefficient = 0.9;
 const halfScreenCoefficient = 0.5;

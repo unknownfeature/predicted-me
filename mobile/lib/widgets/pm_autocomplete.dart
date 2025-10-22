@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pm/widgets/config/theme.dart';
 import 'base_state.dart';
-import 'config/dimensions.dart';
+import 'config/constants.dart';
 
 class PredictedMeAutocomplete extends StatefulWidget {
   final Future<Iterable<String>> Function(String) suggestionsProvider;
@@ -13,6 +13,8 @@ class PredictedMeAutocomplete extends StatefulWidget {
   final FocusNode focusNode;
   final bool multiValued;
   final String hintText;
+  final bool showCounter;
+  final int maxLength;
 
   const PredictedMeAutocomplete({
     super.key,
@@ -25,6 +27,8 @@ class PredictedMeAutocomplete extends StatefulWidget {
     this.limit = 10,
     this.hintText = 'start typing ..',
     this.multiValued = true,
+    this.maxLength = 100,
+    this.showCounter = false
   });
 
   @override
@@ -32,8 +36,11 @@ class PredictedMeAutocomplete extends StatefulWidget {
 }
 
 class PredictedMeAutocompleteState
-    extends PredictedMeBaseState<PredictedMeAutocomplete> {
+    extends PredictedMeBaseState<PredictedMeAutocomplete>
+    with TickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
+  late final AnimationController _animationController;
+  late final Animation<double> _animation;
 
   bool _showAddIcon() {
     return _textController.text.length >= 3 && widget.onNew != null;
@@ -43,13 +50,22 @@ class PredictedMeAutocompleteState
   void initState() {
     super.initState();
     widget.focusNode.addListener(redraw);
-    _textController.addListener(redraw); // Listen to update the add icon
+    _textController.addListener(redraw);
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: autocompleteAnimationMs),
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   void dispose() {
     widget.focusNode.removeListener(redraw);
     _textController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -97,6 +113,11 @@ class PredictedMeAutocompleteState
         return null;
       },
       builder: (FormFieldState<String> state) {
+        if (widget.focusNode.hasFocus) {
+          _animationController.forward();
+        } else {
+          _animationController.reverse();
+        }
         return RawAutocomplete<String>(
           textEditingController: _textController,
           focusNode: widget.focusNode,
@@ -109,8 +130,9 @@ class PredictedMeAutocompleteState
             }
             final results = await widget.suggestionsProvider(text);
             if (widget.excludedProvider != null) {
-              return Set.of(results)
-                  .difference(Set.of(widget.excludedProvider!()));
+              return Set.of(
+                results,
+              ).difference(Set.of(widget.excludedProvider!()));
             }
             return results;
           },
@@ -119,81 +141,89 @@ class PredictedMeAutocompleteState
             _onSelected(selection, state);
           },
 
-          fieldViewBuilder: (
-              BuildContext context,
-              TextEditingController fieldTextEditingController,
-              FocusNode fieldFocusNode,
-              VoidCallback onFieldSubmitted,
+          fieldViewBuilder:
+              (
+                BuildContext context,
+                TextEditingController fieldTextEditingController,
+                FocusNode fieldFocusNode,
+                VoidCallback onFieldSubmitted,
               ) {
-
-            return SizedBox(
-              width: quoterWidth(context),
-              child: TextField(
-                controller: _textController,
-                focusNode: widget.focusNode,
-                onChanged: (text) {
-                  state.didChange(text);
-                  if (widget.onChanged != null) {
-                    widget.onChanged!(text);
-                  }
-                },
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: widget.hintText,
-                  hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
-                  fillColor: pinkBackground,
-                  border: InputBorder.none,
-                  suffixIcon: _buildSuffixIcon(state),
-                  suffixIconConstraints: BoxConstraints(
-                    maxHeight: Dimensions.iconSizeSmall,
+                return SizedBox(
+                  width: quoterWidth(context),
+                  child: TextField(
+                    maxLength: widget.maxLength,
+                    controller: _textController,
+                    focusNode: widget.focusNode,
+                    onChanged: (text) {
+                      state.didChange(text);
+                      if (widget.onChanged != null) {
+                        widget.onChanged!(text);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: widget.hintText,
+                      counterText: widget.showCounter ? null : empty,
+                      hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
+                      fillColor: pinkBackground,
+                      border: InputBorder.none,
+                      suffixIcon: _buildSuffixIcon(state),
+                      suffixIconConstraints: BoxConstraints(
+                        maxHeight: Dimensions.iconSizeSmall,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          },
+                );
+              },
 
           // This builds your floating suggestion list
-          optionsViewBuilder: (
-              BuildContext context,
-              AutocompleteOnSelected<String> onSelected,
-              Iterable<String> options,
+          optionsViewBuilder:
+              (
+                BuildContext context,
+                AutocompleteOnSelected<String> onSelected,
+                Iterable<String> options,
               ) {
-            return Align(
-              alignment: Alignment.topCenter,
-              child: SizedBox(
-                width: fullWidth(context),
-                child: Material(
-                elevation: Dimensions.elevationMedium,
-                child: Container(
-                  constraints: BoxConstraints(maxHeight: quoterHeight(context)),
-                  width: fullWidth(context), // Takes full width
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final suggestion = options.elementAt(index);
-                      return ListTile(
-                        title: Text(
-                          textAlign: TextAlign.center,
-                          suggestion,
-                          style: darkOnLightTextStyle,
+                return FadeTransition(
+                  opacity: _animation,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: fullWidth(context),
+                      child: Material(
+                        elevation: Dimensions.elevationMedium,
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxHeight: quoterHeight(context),
+                          ),
+                          width: fullWidth(context), // Takes full width
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final suggestion = options.elementAt(index);
+                              return ListTile(
+                                title: Text(
+                                  textAlign: TextAlign.center,
+                                  suggestion,
+                                  style: darkOnLightTextStyle,
+                                ),
+                                tileColor: index % 2 == 0
+                                    ? pinkBackgroundDark_25
+                                    : pinkBackgroundDark_50,
+                                dense: true,
+                                onTap: () {
+                                  onSelected(suggestion);
+                                },
+                              );
+                            },
+                          ),
                         ),
-                        tileColor: index % 2 == 0
-                            ? pinkBackgroundDark_25
-                            : pinkBackgroundDark_50,
-                        dense: true,
-                        onTap: () {
-                          onSelected(suggestion);
-                        },
-                      );
-                    },
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              )
-            );
-          },
+                );
+              },
         );
       },
     );

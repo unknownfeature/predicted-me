@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pm/common/constants.dart';
 import 'package:pm/widgets/config/theme.dart';
 import 'package:pm/widgets/pm_autocomplete.dart';
 import 'base_state.dart';
-import 'config/dimensions.dart';
+import 'config/constants.dart';
 
 class PredictedMeTagsSelector extends StatefulWidget {
   final Set<String> initialTagNames;
@@ -131,6 +132,7 @@ class PredictedMeTagsSelectorState
                       onSelected: (s) => _addTag(state, s, false),
                       onNew: (s) => _addTag(state, s, true),
                       hintText: 'type to add tags',
+                      maxLength: tagFieldLength,
                     ),
                     Wrap(
                       spacing: Dimensions.spacingSmall,

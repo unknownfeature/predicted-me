@@ -4,6 +4,7 @@ import 'package:amplify_authenticator/amplify_authenticator.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 
 import 'package:pm/widgets/config/theme.dart';
+import 'package:pm/widgets/pm_nav_bar.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
 
 final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -90,7 +91,6 @@ class _PredictedMeState extends State<PredictedMe> {
     );
   }
 }
-
 class TagSelectorExamplePage extends StatefulWidget {
   const TagSelectorExamplePage({Key? key}) : super(key: key);
 
@@ -99,47 +99,45 @@ class TagSelectorExamplePage extends StatefulWidget {
 }
 
 class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
-  // This is your pre-initialized list of tags
   final List<String> _allAvailableTags = [
-    'Flutter',
-    'Dart',
-    'Firebase',
-    'Productivity',
-    'Health',
-    'Fitness',
-    'Groceries',
-    'Personal',
-    'Work',
+    'Flutter', 'Dart', 'Firebase', 'Productivity', 'Health',
+    'Fitness', 'Groceries', 'Personal', 'Work',
   ];
 
-  // This holds the currently selected tags
   final Set<String> _currentTags = {'Flutter'};
   final _formKey = GlobalKey<FormState>();
 
-  /// This function is passed to the widget to provide suggestions
+  // --- State for the Nav Bar ---
+  int _currentIndex = 0;
+
+  void _onNavTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    // You would add your page navigation logic here
+    print('Tapped index $index');
+  }
+  // --- End Nav Bar State ---
+
   Future<Iterable<String>> _myTagsProvider(String query) async {
     if (query.isEmpty) {
       return Future.value(const Iterable.empty());
     }
-    // Filter the list based on the user's typing
     return Future.value(
       _allAvailableTags.where(
-        (tag) => tag.toLowerCase().contains(query.toLowerCase()),
+            (tag) => tag.toLowerCase().contains(query.toLowerCase()),
       ),
     );
   }
 
-  /// This function is passed to the widget to handle changes
   void _myOnChanged(Set<String> tags) {
     print('--- Tags Changed ---');
     print(tags);
   }
 
-  /// This function is passed to the widget to handle new tag creation
   Future _myOnNew(String newTag) async {
     print('--- New Tag Created ---');
     print(newTag);
-    // Add the new tag to your master list
     setState(() {
       _allAvailableTags.add(newTag);
     });
@@ -147,29 +145,33 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
 
   @override
   Widget build(BuildContext context) {
+    // --- Define your Nav items here ---
+    final List<Nav> navItems = [
+      Nav("Home", Icons.home_outlined, () => _onNavTapped(0)),
+      Nav("Search", Icons.search, () => _onNavTapped(1)),
+      Nav("Add", Icons.add_circle_outline, () => _onNavTapped(2)),
+      Nav("Profile", Icons.person_outline, () => _onNavTapped(3)),
+    ];
+
     try {
       return Scaffold(
+        key: _scaffoldKey, // Attach the key to the Scaffold
         appBar: AppBar(title: const Text('Tag Selector Example')),
         body: Form(
-          key: _scaffoldKey,
+          key: _formKey, // Attach the key to the Form
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // --- THIS IS YOUR WIDGET ---
                 PredictedMeTagsSelector(
                   initialTagNames: _currentTags,
                   tagsProvider: _myTagsProvider,
                   onChanged: _myOnChanged,
                   onNew: _myOnNew,
                 ),
-
-                // --- END WIDGET ---
                 const SizedBox(height: 20),
-
                 ElevatedButton(
                   onPressed: () {
-                    // This will trigger the validator
                     _formKey.currentState?.validate();
                   },
                   child: const Text('Validate Form'),
@@ -177,6 +179,11 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
               ],
             ),
           ),
+        ),
+        // --- ADD THE BOTTOM NAV BAR HERE ---
+        bottomNavigationBar: PredictedNavBar(
+          navs: navItems,
+          currentIndex: _currentIndex,
         ),
       );
     } catch (e) {
