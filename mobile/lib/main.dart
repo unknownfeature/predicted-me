@@ -168,7 +168,6 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
     print('--- FILTER CRITERIA UPDATED ---');
     print('Text: $text, Range: ${range.toDisplayString}, Tags: $tags');
   }
-
   @override
   Widget build(BuildContext context) {
     final List<Nav> navItems = [
@@ -179,49 +178,42 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
       Nav("Note", Icons.note_alt_outlined, () => _onNavTapped(4)),
     ];
 
-    try {
+
       return Scaffold(
         key: _scaffoldKey,
 
-        appBar: AppBar(title: const Text('Tag Selector Example')), body: Form(
-          key: _formKey, // 5. FIX: Point this to the _formKey
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                PredictedMeFilter(
-                  initialDateTime: initialDateTime,
-                  initialTags: initialTags,
-                  initialText: initialText,
-                  onCriteriaChanged: _onFilterChanged,
-                  tagsSuggestionsProvider: _myTagsProvider,
-                ),
-                // This is your separate tag selector for testing
-                PredictedMeTagsSelector(
-                  initialTagNames: _currentTags,
-                  tagsProvider: _myTagsProvider,
-                  onChanged: _myOnChanged,
-                  onNew: _myOnNew,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    _formKey.currentState?.validate();
-                  },
-                  child: const Text('Validate Form'),
-                ),
-              ],
-            ),
-          ),
+        appBar: PredictedMeFilter(
+          initialDateTime: initialDateTime,
+          initialTags: initialTags,
+          initialText: initialText,
+          onCriteriaChanged: _onFilterChanged,
+          tagsSuggestionsProvider: _myTagsProvider,
         ),
+
+        body: CustomScrollView(
+          slivers: [
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                    (BuildContext context, int index) {
+                  return ListTile(
+                    title: Text('Search Result Item $index'),
+                    subtitle: Text(
+                        'Based on: text: "${initialText ?? ''}", '
+                            'range: ${initialDateTime.toDisplayString}, '
+                    ),
+                  );
+                },
+                childCount: 50, // Example content
+              ),
+            ),
+          ],
+        ),
+
         bottomNavigationBar: PredictedNavBar(
           navs: navItems,
           currentIndex: _currentIndex,
         ),
       );
-    } catch (e) {
-      showSnackBar(e.toString());
-      return SizedBox.shrink();
-    }
+
   }
 }

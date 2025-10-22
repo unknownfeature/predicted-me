@@ -56,7 +56,7 @@ class Dimensions {
 
 }
 
-const autocompleteAnimationMs = 1000;
+const animationDuration = 1000;
 const tagFieldLength = 500;
 
 const fullScreenCoefficient = 0.9;

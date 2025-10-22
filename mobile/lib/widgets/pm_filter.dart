@@ -54,8 +54,6 @@ extension DateRangePresetExtension on DateRange {
   }
 }
 
-
-// --- PredictedMeFilter (Implements PreferredSizeWidget) ---
 class PredictedMeFilter extends StatefulWidget implements PreferredSizeWidget {
   final Function(String?, DateRange, Set<String>?) onCriteriaChanged;
   final Future<Iterable<String>> Function(String) tagsSuggestionsProvider;
@@ -76,22 +74,21 @@ class PredictedMeFilter extends StatefulWidget implements PreferredSizeWidget {
   State<StatefulWidget> createState() => PredictedMeFilterState();
 
   @override
-  Size get preferredSize {
-
-    return const Size.fromHeight(kToolbarHeight);
-  }
+  Size get preferredSize =>
+      const Size.fromHeight(250.0); // Set this to your max expected height
 }
 
-class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
-    with TickerProviderStateMixin { // Use TickerProviderStateMixin for animation
-
+class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
   late final TextEditingController _textController;
   late DateRange _currentDateRange;
   late Set<String> _currentTags;
   bool _expanded = false;
 
-  late final AnimationController _animationController;
-  late final Animation<double> _animation;
+  // --- Define the heights for the animation ---
+  // This is the height of just the search bar + padding
+  final double _collapsedHeight = kToolbarHeight + Dimensions.paddingMedium;
+  // This is an estimate of the full height. You can adjust this.
+  final double _expandedHeight = 250.0;
 
   @override
   void initState() {
@@ -99,35 +96,19 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
     _textController = TextEditingController(text: widget.initialText ?? empty);
     _currentDateRange = widget.initialDateTime;
     _currentTags = widget.initialTags;
-
     _textController.addListener(_onTextChanged);
-
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300), // Animation speed
-    );
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
   }
 
   @override
   void dispose() {
     _textController.removeListener(_onTextChanged);
     _textController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
   void _onToggleExpand() {
     setState(() {
       _expanded = !_expanded;
-      if (_expanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
     });
   }
 
@@ -135,19 +116,22 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
     setState(() {
       _currentDateRange = range;
     });
-    widget.onCriteriaChanged(_textController.text.trim(), _currentDateRange, _currentTags);
+    widget.onCriteriaChanged(
+        _textController.text.trim(), _currentDateRange, _currentTags);
   }
 
   void _onTextChanged() {
-    redraw(); // Redraw to show/hide the close icon
-    widget.onCriteriaChanged(_textController.text.trim(), _currentDateRange, _currentTags);
+    redraw();
+    widget.onCriteriaChanged(
+        _textController.text.trim(), _currentDateRange, _currentTags);
   }
 
   void _onTagsChanged(Set<String> newTags) {
     setState(() {
       _currentTags = newTags;
     });
-    widget.onCriteriaChanged(_textController.text.trim(), _currentDateRange, _currentTags);
+    widget.onCriteriaChanged(
+        _textController.text.trim(), _currentDateRange, _currentTags);
   }
 
   Widget? _buildSuffixIcon() {
@@ -160,7 +144,7 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
       padding: EdgeInsets.zero,
       onPressed: () {
         _textController.clear();
-        _onTextChanged(); // Manually trigger the update
+        _onTextChanged();
       },
     );
   }
@@ -175,20 +159,16 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
       child: InkResponse(
         onTap: () => _onDateToggled(range),
         splashColor: pinkPrimary_50,
-        radius: size,
+        radius: size * 0.8,
         customBorder: CircleBorder(),
         child: Padding(
           padding: const EdgeInsets.all(Dimensions.paddingSmall),
-          child: Column(
-            children: [
-              Text(
-                range.toDisplayString,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
+          child: Text(
+            range.toDisplayString,
+            style: TextStyle(
+              color: color,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ),
       ),
@@ -198,9 +178,8 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
   Widget _buildDateToggles() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: DateRange.values
-          .map((range) => _buildDateToggle(range))
-          .toList(),
+      children:
+      DateRange.values.map((range) => _buildDateToggle(range)).toList(),
     );
   }
 
@@ -214,9 +193,8 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  Dimensions.borderRadiusExtraLarge,
-                ),
+                borderRadius:
+                BorderRadius.circular(Dimensions.borderRadiusExtraLarge),
                 borderSide: BorderSide.none,
               ),
               isDense: true,
@@ -232,7 +210,6 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
             ),
           ),
         ),
-        // The filter toggle button
         IconButton(
           icon: Icon(
             _expanded
@@ -249,40 +226,48 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
   }
 
   Widget _buildExpandedContent() {
-    return SizeTransition(
-      sizeFactor: _animation,
-      axis: Axis.vertical,
-      child: Column(
-        children: [
-          const SizedBox(height: Dimensions.sizedBoxExtraLarge),
-          _buildDateToggles(),
-          const SizedBox(height: Dimensions.sizedBoxExtraLarge),
-          PredictedMeTagsSelector(
-            initialTagNames: _currentTags,
-            tagsProvider: widget.tagsSuggestionsProvider,
-            onChanged: _onTagsChanged,
-
-          ),
-        ],
-      ),
+    // This Column contains the filters
+    return Column(
+      children: [
+        const SizedBox(height: Dimensions.sizedBoxExtraLarge),
+        _buildDateToggles(),
+        const SizedBox(height: Dimensions.sizedBoxExtraLarge),
+        PredictedMeTagsSelector(
+          initialTagNames: _currentTags,
+          tagsProvider: widget.tagsSuggestionsProvider,
+          onChanged: _onTagsChanged,
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      height: _expanded ? _expandedHeight : _collapsedHeight,
       color: background,
       child: SafeArea(
-        bottom: false,
+        bottom: false, // AppBar only needs top safe area
         child: Padding(
           padding: const EdgeInsets.all(Dimensions.paddingMedium),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildSearchBarRow(),
-              _buildExpandedContent(),
-            ],
+
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSearchBarRow(),
+
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: animationDuration),
+                  opacity: _expanded ? 1.0 : 0.0,
+                  child: _expanded ? _buildExpandedContent() : null,
+                ),
+              ],
+            ),
           ),
         ),
       ),

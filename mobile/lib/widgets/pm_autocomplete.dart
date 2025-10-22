@@ -55,7 +55,7 @@ class PredictedMeAutocompleteState
     _textController.addListener(redraw);
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: autocompleteAnimationMs),
+      duration: const Duration(milliseconds: animationDuration),
     );
     _animation = CurvedAnimation(
       parent: _animationController,
@@ -172,10 +172,10 @@ class PredictedMeAutocompleteState
                     hintText: widget.hintText,
                     counterText: widget.showCounter ? null : empty,
                     hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
-                    filled: true,
+                    filled: widget.focusNode.hasFocus,
                     fillColor: widget.focusNode.hasFocus
                         ? greyBackground_50
-                        : pinkBackground,
+                        : Colors.transparent,
                     suffixIcon: _buildSuffixIcon(state),
                     suffixIconConstraints: BoxConstraints(
                       maxHeight: Dimensions.fontSizeMedium,
