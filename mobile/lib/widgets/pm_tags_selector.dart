@@ -84,13 +84,14 @@ class PredictedMeTagsSelectorState
 
   Widget _buildTagChip(FormFieldState<Set<String>> state, String tagName) {
     return Chip(
-      label: Text(tagName, style: lightOnDarkTextStyle),
+      label: Text(tagName, style: lightWithGreyShadows),
       side: BorderSide.none,
-      backgroundColor: greyPrimary,
-      deleteIcon: Icon(Icons.close_outlined, color: background),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadiusDirectional.circular(Dimensions.borderRadiusExtraLarge)),
+      shadowColor: pinkShadow,
+      backgroundColor: greyPrimary_75,
+      deleteIcon: Icon(Icons.close_outlined, color: background, shadows: [greyPrimaryShadow],),
       onDeleted: () => _removeTag(state, tagName),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.only(left: Dimensions.paddingExtraSmall),
     );
   }
 
@@ -124,6 +125,14 @@ class PredictedMeTagsSelectorState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Wrap(
+                      spacing: Dimensions.spacingSmall,
+                      runSpacing: Dimensions.spacingNone,
+                      children: List.of(
+                        _tags.map((tagName) => _buildTagChip(state, tagName)),
+                      ),
+                    ),
+                    SizedBox(height: Dimensions.sizedBoxExtraSmall,),
                     PredictedMeAutocomplete(
                       key: widget.key,
                       focusNode: _focusNode,
@@ -134,13 +143,7 @@ class PredictedMeTagsSelectorState
                       hintText: 'type to add tags',
                       maxLength: tagFieldLength,
                     ),
-                    Wrap(
-                      spacing: Dimensions.spacingSmall,
-                      runSpacing: Dimensions.spacingNone,
-                      children: List.of(
-                        _tags.map((tagName) => _buildTagChip(state, tagName)),
-                      ),
-                    ),
+
 
                   ],
                 ),

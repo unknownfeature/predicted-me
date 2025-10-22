@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:pm/widgets/config/constants.dart';
 import 'package:pm/widgets/config/theme.dart'; // Import your theme colors
@@ -26,33 +28,29 @@ class PredictedNavBar extends StatefulWidget {
 }
 
 class PredictedNavBarState extends PredictedMeBaseState<PredictedNavBar> {
-  Widget _buildNavItem(Nav nav, bool isActive) {
-    final Color color = isActive ? background : greyBackgroundDark;
+  Widget _buildNavItem(Nav nav, bool active) {
+    final Color color = active ? background : pinkBackgroundDark;
 
+    double size = Dimensions.iconSizeLarge;
     return Expanded(
       child: Material(
         color: Colors.transparent,
-
-        child: InkWell(
+        child: InkResponse(
           onTap: nav.onTap,
-          splashColor: pinkPrimary_75,
+          splashColor: pinkPrimary_50,
+          radius: size * 0.8,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               vertical: Dimensions.paddingSmall,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(nav.icon, color: color),
-                const SizedBox(height: Dimensions.sizedBoxExtraSmall),
-                Text(
-                  nav.text,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ],
+            child: Icon(
+              nav.icon,
+              shadows: active ? [
+                Shadow(color: pinkBackgroundDark,
+                    blurRadius: size * .1)
+              ] : null,
+              color: color,
+              size: size,
             ),
           ),
         ),
@@ -62,17 +60,22 @@ class PredictedNavBarState extends PredictedMeBaseState<PredictedNavBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: pinkPrimary,
-      padding: EdgeInsets.only(top: Dimensions.paddingSmall),
-      child: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: widget.navs.asMap().entries.map((entry) {
-            final int index = entry.key;
-            final Nav nav = entry.value;
-            return _buildNavItem(nav, index == widget.currentIndex);
-          }).toList(),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: Container(
+          color: pinkPrimary_75,
+          padding: EdgeInsets.only(top: Dimensions.paddingSmall),
+          child: SafeArea(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: widget.navs.asMap().entries.map((entry) {
+                final int index = entry.key;
+                final Nav nav = entry.value;
+                return _buildNavItem(nav, index == widget.currentIndex);
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );

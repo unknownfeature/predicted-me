@@ -7,7 +7,7 @@ class Dimensions {
   static const double borderRadiusSmall = 4.0;
   static const double borderRadiusMedium = 8.0;
   static const double borderRadiusLarge = 12.0;
-
+  static const double borderRadiusExtraLarge = 20.0;
   // Padding & Spacing
   static const double paddingExtraSmall = 4.0;
   static const double paddingSmall = 8.0;
@@ -23,7 +23,11 @@ class Dimensions {
   // Icons & Text
   static const double iconSizeSmall = 15.0;
   static const double iconSizeMedium = 20.0;
+  static const double iconSizeLarge = 25.0;
+
   static const double fontSizeSmall = 12.0;
+  static const double fontSizeMedium = 15.0;
+
 
   // Elevation
   static const double elevationNone = 0.0;
@@ -38,6 +42,14 @@ class Dimensions {
   static const double opacityMedium = 0.25;
 
   static const double sizedBoxExtraSmall = 4.0;
+  static const double sizedBoxSmall = 10.0;
+  static const double sizedBoxMedium = 15.0;
+  static const double sizedBoxLarge = 20.0;
+  static const double sizedBoxExtraLarge = 25.0;
+
+
+
+
 
   static const double borderExtraThin = 0.5;
 
@@ -57,3 +69,6 @@ double Function(BuildContext context) quoterWidth = (BuildContext context) =>  M
 double Function(BuildContext context) fullHeight = (BuildContext context) =>  MediaQuery.of(context).size.height * fullScreenCoefficient;
 double Function(BuildContext context) halfHeight = (BuildContext context) =>  MediaQuery.of(context).size.height * halfScreenCoefficient;
 double Function(BuildContext context) quoterHeight = (BuildContext context) =>  MediaQuery.of(context).size.height * quorterScreenCoefficient;
+
+
+const msInSec = 1000;

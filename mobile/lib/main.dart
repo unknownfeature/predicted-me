@@ -6,7 +6,7 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:pm/widgets/config/theme.dart';
 import 'package:pm/widgets/pm_nav_bar.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
-
+import 'package:pm/widgets/pm_filter.dart';
 final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
 void showSnackBar(String message) {
@@ -91,6 +91,7 @@ class _PredictedMeState extends State<PredictedMe> {
     );
   }
 }
+
 class TagSelectorExamplePage extends StatefulWidget {
   const TagSelectorExamplePage({Key? key}) : super(key: key);
 
@@ -107,27 +108,37 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
   final Set<String> _currentTags = {'Flutter'};
   final _formKey = GlobalKey<FormState>();
 
-  // --- State for the Nav Bar ---
   int _currentIndex = 0;
+
+  late DateRange initialDateTime;
+  late Set<String> initialTags;
+  late String? initialText;
+
+  @override
+  void initState() {
+    super.initState();
+
+        initialTags = {'Health'};
+        initialDateTime = DateRange.m1;
+        initialText = "Initial Text";
+
+  }
 
   void _onNavTapped(int index) {
     setState(() {
       _currentIndex = index;
     });
-    // You would add your page navigation logic here
     print('Tapped index $index');
   }
-  // --- End Nav Bar State ---
 
   Future<Iterable<String>> _myTagsProvider(String query) async {
     if (query.isEmpty) {
       return Future.value(const Iterable.empty());
     }
-    return Future.value(
-      _allAvailableTags.where(
-            (tag) => tag.toLowerCase().contains(query.toLowerCase()),
-      ),
-    );
+    await Future.delayed(Duration(milliseconds: 100)); // Simulate network
+    return _allAvailableTags.where(
+          (tag) => tag.toLowerCase().contains(query.toLowerCase()),
+    ).take(10);
   }
 
   void _myOnChanged(Set<String> tags) {
@@ -143,26 +154,49 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
     });
   }
 
+  // --- 3. ADD A CALLBACK FOR THE FILTER ---
+  void _onFilterChanged(String? text, DateRange range, Set<String>? tags) {
+    setState(() {
+
+
+      initialTags =tags ?? {};
+      initialDateTime = range;
+      initialText = text;
+
+
+    });
+    print('--- FILTER CRITERIA UPDATED ---');
+    print('Text: $text, Range: ${range.toDisplayString}, Tags: $tags');
+  }
+
   @override
   Widget build(BuildContext context) {
-    // --- Define your Nav items here ---
     final List<Nav> navItems = [
       Nav("Home", Icons.home_outlined, () => _onNavTapped(0)),
       Nav("Search", Icons.search, () => _onNavTapped(1)),
       Nav("Add", Icons.add_circle_outline, () => _onNavTapped(2)),
       Nav("Profile", Icons.person_outline, () => _onNavTapped(3)),
+      Nav("Note", Icons.note_alt_outlined, () => _onNavTapped(4)),
     ];
 
     try {
       return Scaffold(
-        key: _scaffoldKey, // Attach the key to the Scaffold
-        appBar: AppBar(title: const Text('Tag Selector Example')),
-        body: Form(
-          key: _formKey, // Attach the key to the Form
+        key: _scaffoldKey,
+
+        appBar: AppBar(title: const Text('Tag Selector Example')), body: Form(
+          key: _formKey, // 5. FIX: Point this to the _formKey
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                PredictedMeFilter(
+                  initialDateTime: initialDateTime,
+                  initialTags: initialTags,
+                  initialText: initialText,
+                  onCriteriaChanged: _onFilterChanged,
+                  tagsSuggestionsProvider: _myTagsProvider,
+                ),
+                // This is your separate tag selector for testing
                 PredictedMeTagsSelector(
                   initialTagNames: _currentTags,
                   tagsProvider: _myTagsProvider,
@@ -180,7 +214,6 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
             ),
           ),
         ),
-        // --- ADD THE BOTTOM NAV BAR HERE ---
         bottomNavigationBar: PredictedNavBar(
           navs: navItems,
           currentIndex: _currentIndex,

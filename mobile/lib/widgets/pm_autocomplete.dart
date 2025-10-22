@@ -9,12 +9,12 @@ class PredictedMeAutocomplete extends StatefulWidget {
   final Function(String)? onNew;
   final Function(String) onSelected;
   final Function(String)? onChanged;
-  final int limit;
   final FocusNode focusNode;
   final bool multiValued;
   final String hintText;
   final bool showCounter;
   final int maxLength;
+  final OptionsViewOpenDirection optionsViewOpenDirection;
 
   const PredictedMeAutocomplete({
     super.key,
@@ -24,11 +24,11 @@ class PredictedMeAutocomplete extends StatefulWidget {
     this.onChanged,
     this.onNew,
     this.excludedProvider,
-    this.limit = 10,
     this.hintText = 'start typing ..',
     this.multiValued = true,
     this.maxLength = 100,
-    this.showCounter = false
+    this.showCounter = false,
+    this.optionsViewOpenDirection = OptionsViewOpenDirection.down,
   });
 
   @override
@@ -43,7 +43,9 @@ class PredictedMeAutocompleteState
   late final Animation<double> _animation;
 
   bool _showAddIcon() {
-    return _textController.text.length >= 3 && widget.onNew != null;
+    return _textController.text.length >= 3 &&
+        widget.onNew != null &&
+        widget.focusNode.hasFocus;
   }
 
   @override
@@ -95,7 +97,7 @@ class PredictedMeAutocompleteState
     }
     return IconButton(
       icon: const Icon(Icons.check, color: greyPrimary),
-      iconSize: Dimensions.iconSizeSmall,
+      iconSize: Dimensions.iconSizeMedium,
       padding: EdgeInsets.zero,
       onPressed: () => _onAdded(state),
     );
@@ -119,6 +121,7 @@ class PredictedMeAutocompleteState
           _animationController.reverse();
         }
         return RawAutocomplete<String>(
+          optionsViewOpenDirection: widget.optionsViewOpenDirection,
           textEditingController: _textController,
           focusNode: widget.focusNode,
 
@@ -148,29 +151,34 @@ class PredictedMeAutocompleteState
                 FocusNode fieldFocusNode,
                 VoidCallback onFieldSubmitted,
               ) {
-                return SizedBox(
-                  width: quoterWidth(context),
-                  child: TextField(
-                    maxLength: widget.maxLength,
-                    controller: _textController,
-                    focusNode: widget.focusNode,
-                    onChanged: (text) {
-                      state.didChange(text);
-                      if (widget.onChanged != null) {
-                        widget.onChanged!(text);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: widget.hintText,
-                      counterText: widget.showCounter ? null : empty,
-                      hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
-                      fillColor: pinkBackground,
-                      border: InputBorder.none,
-                      suffixIcon: _buildSuffixIcon(state),
-                      suffixIconConstraints: BoxConstraints(
-                        maxHeight: Dimensions.iconSizeSmall,
+                return TextField(
+                  maxLength: widget.maxLength,
+                  controller: _textController,
+                  focusNode: widget.focusNode,
+                  onChanged: (text) {
+                    state.didChange(text);
+                    if (widget.onChanged != null) {
+                      widget.onChanged!(text);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.borderRadiusExtraLarge,
                       ),
+                      borderSide: BorderSide.none,
+                    ),
+                    isDense: true,
+                    hintText: widget.hintText,
+                    counterText: widget.showCounter ? null : empty,
+                    hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
+                    filled: true,
+                    fillColor: widget.focusNode.hasFocus
+                        ? greyBackground_50
+                        : pinkBackground,
+                    suffixIcon: _buildSuffixIcon(state),
+                    suffixIconConstraints: BoxConstraints(
+                      maxHeight: Dimensions.fontSizeMedium,
                     ),
                   ),
                 );
