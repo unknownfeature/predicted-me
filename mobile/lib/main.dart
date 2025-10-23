@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_authenticator/amplify_authenticator.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter/rendering.dart';
+import 'package:pm/widgets/config/constants.dart';
 
 import 'package:pm/widgets/config/theme.dart';
 import 'package:pm/widgets/pm_nav_bar.dart';
@@ -99,29 +101,64 @@ class TagSelectorExamplePage extends StatefulWidget {
   _TagSelectorExamplePageState createState() => _TagSelectorExamplePageState();
 }
 
-class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
+class _TagSelectorExamplePageState extends State<TagSelectorExamplePage>
+    with TickerProviderStateMixin {
   final List<String> _allAvailableTags = [
     'Flutter', 'Dart', 'Firebase', 'Productivity', 'Health',
     'Fitness', 'Groceries', 'Personal', 'Work',
   ];
-
-  final Set<String> _currentTags = {'Flutter'};
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   int _currentIndex = 0;
+  late DateRange _currentDateRange;
+  late Set<String> _currentTags;
+  late String? _currentText;
 
-  late DateRange initialDateTime;
-  late Set<String> initialTags;
-  late String? initialText;
+  // --- Animation and Scroll Controllers ---
+  late final AnimationController _slideController;
+  late final Animation<Offset> _slideAnimation;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _currentTags = {'Health'};
+    _currentDateRange = DateRange.m1;
+    _currentText = "Initial Text";
 
-        initialTags = {'Health'};
-        initialDateTime = DateRange.m1;
-        initialText = "Initial Text";
+    // --- Initialize Controllers ---
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
 
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0, -1.0), // Slide up (off-screen)
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.fastOutSlowIn,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    final direction = _scrollController.position.userScrollDirection;
+    if (direction == ScrollDirection.reverse) {
+      _slideController.forward(); // Hide
+    } else if (direction == ScrollDirection.forward) {
+      _slideController.reverse(); // Show
+    }
   }
 
   void _onNavTapped(int index) {
@@ -141,33 +178,16 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
     ).take(10);
   }
 
-  void _myOnChanged(Set<String> tags) {
-    print('--- Tags Changed ---');
-    print(tags);
-  }
-
-  Future _myOnNew(String newTag) async {
-    print('--- New Tag Created ---');
-    print(newTag);
-    setState(() {
-      _allAvailableTags.add(newTag);
-    });
-  }
-
-  // --- 3. ADD A CALLBACK FOR THE FILTER ---
   void _onFilterChanged(String? text, DateRange range, Set<String>? tags) {
     setState(() {
-
-
-      initialTags =tags ?? {};
-      initialDateTime = range;
-      initialText = text;
-
-
+      _currentText = text;
+      _currentDateRange = range;
+      _currentTags = tags ?? {};
     });
     print('--- FILTER CRITERIA UPDATED ---');
     print('Text: $text, Range: ${range.toDisplayString}, Tags: $tags');
   }
+
   @override
   Widget build(BuildContext context) {
     final List<Nav> navItems = [
@@ -178,42 +198,55 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage> {
       Nav("Note", Icons.note_alt_outlined, () => _onNavTapped(4)),
     ];
 
+    return Scaffold(
+      key: _scaffoldKey,
 
-      return Scaffold(
-        key: _scaffoldKey,
-
-        appBar: PredictedMeFilter(
-          initialDateTime: initialDateTime,
-          initialTags: initialTags,
-          initialText: initialText,
-          onCriteriaChanged: _onFilterChanged,
-          tagsSuggestionsProvider: _myTagsProvider,
-        ),
-
-        body: CustomScrollView(
-          slivers: [
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                    (BuildContext context, int index) {
-                  return ListTile(
-                    title: Text('Search Result Item $index'),
-                    subtitle: Text(
-                        'Based on: text: "${initialText ?? ''}", '
-                            'range: ${initialDateTime.toDisplayString}, '
-                    ),
-                  );
-                },
-                childCount: 50, // Example content
+      // --- The Body is now a Stack ---
+      body: Stack(
+        children: [
+          // --- Child 1: The Scrollable Content ---
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // This dummy sliver adds space at the top so the list
+              // starts below the collapsed filter bar.
+              SliverPadding(
+                padding: const EdgeInsets.only(top: kToolbarHeight + Dimensions.paddingMedium * 2),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                        (BuildContext context, int index) {
+                      return ListTile(
+                        title: Text('Search Result Item $index'),
+                        subtitle: Text(
+                          'Based on: text: "${_currentText ?? ''}", '
+                              'range: ${_currentDateRange.toDisplayString}, ',
+                        ),
+                      );
+                    },
+                    childCount: 50,
+                  ),
+                ),
               ),
+            ],
+          ),
+
+          // --- Child 2: The Animated, Floating Filter Bar ---
+          SlideTransition(
+            position: _slideAnimation,
+            child: PredictedMeFilter(
+              initialDateTime: _currentDateRange,
+              initialTags: _currentTags,
+              initialText: _currentText,
+              onCriteriaChanged: _onFilterChanged,
+              tagsSuggestionsProvider: _myTagsProvider,
             ),
-          ],
-        ),
-
-        bottomNavigationBar: PredictedNavBar(
-          navs: navItems,
-          currentIndex: _currentIndex,
-        ),
-      );
-
+          ),
+        ],
+      ),
+      bottomNavigationBar: PredictedNavBar(
+        navs: navItems,
+        currentIndex: _currentIndex,
+      ),
+    );
   }
 }

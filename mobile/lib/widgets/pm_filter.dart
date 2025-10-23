@@ -5,8 +5,8 @@ import 'package:pm/widgets/pm_tags_selector.dart';
 
 import 'config/theme.dart';
 
+// ... (Your DateRange, DateRangePresetExtension, and FiltrationCriteria classes) ...
 enum DateRange { d1, w1, m1, m3, m6, y1 }
-
 extension DateRangePresetExtension on DateRange {
   String get toDisplayString {
     return switch (this) {
@@ -21,40 +21,26 @@ extension DateRangePresetExtension on DateRange {
 
   (int?, int?) get toUtcTimestamps {
     final now = DateTime.now().toUtc();
-
     final endTime = DateTime.utc(now.year, now.month, now.day, 23, 59, 59);
-
     DateTime? startTime;
-
     switch (this) {
-      case DateRange.d1:
-        startTime = now.subtract(const Duration(days: 1));
-        break;
-      case DateRange.w1:
-        startTime = now.subtract(const Duration(days: 7));
-        break;
-      case DateRange.m1:
-        startTime = now.subtract(const Duration(days: 30));
-        break;
-      case DateRange.m3:
-        startTime = now.subtract(const Duration(days: 90));
-        break;
-      case DateRange.m6:
-        startTime = now.subtract(const Duration(days: 182));
-        break;
-      case DateRange.y1:
-        startTime = now.subtract(const Duration(days: 365));
-        break;
+      case DateRange.d1: startTime = now.subtract(const Duration(days: 1)); break;
+      case DateRange.w1: startTime = now.subtract(const Duration(days: 7)); break;
+      case DateRange.m1: startTime = now.subtract(const Duration(days: 30)); break;
+      case DateRange.m3: startTime = now.subtract(const Duration(days: 90)); break;
+      case DateRange.m6: startTime = now.subtract(const Duration(days: 182)); break;
+      case DateRange.y1: startTime = now.subtract(const Duration(days: 365)); break;
     }
-
     return (
-      startTime.millisecondsSinceEpoch ~/ msInSec,
-      endTime.millisecondsSinceEpoch ~/ msInSec,
+    startTime.millisecondsSinceEpoch ~/ msInSec,
+    endTime.millisecondsSinceEpoch ~/ msInSec,
     );
   }
 }
-
-class PredictedMeFilter extends StatefulWidget implements PreferredSizeWidget {
+class FiltrationCriteria {
+  // ...
+}
+class PredictedMeFilter extends StatefulWidget {
   final Function(String?, DateRange, Set<String>?) onCriteriaChanged;
   final Future<Iterable<String>> Function(String) tagsSuggestionsProvider;
   final DateRange initialDateTime;
@@ -72,23 +58,14 @@ class PredictedMeFilter extends StatefulWidget implements PreferredSizeWidget {
 
   @override
   State<StatefulWidget> createState() => PredictedMeFilterState();
-
-  @override
-  Size get preferredSize =>
-      const Size.fromHeight(250.0); // Set this to your max expected height
 }
 
-class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
+class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
+    with TickerProviderStateMixin {
   late final TextEditingController _textController;
   late DateRange _currentDateRange;
   late Set<String> _currentTags;
   bool _expanded = false;
-
-  // --- Define the heights for the animation ---
-  // This is the height of just the search bar + padding
-  final double _collapsedHeight = kToolbarHeight + Dimensions.paddingMedium;
-  // This is an estimate of the full height. You can adjust this.
-  final double _expandedHeight = 250.0;
 
   @override
   void initState() {
@@ -113,25 +90,30 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
   }
 
   void _onDateToggled(DateRange range) {
-    setState(() {
-      _currentDateRange = range;
-    });
+    setState(() => _currentDateRange = range);
     widget.onCriteriaChanged(
-        _textController.text.trim(), _currentDateRange, _currentTags);
+      _textController.text.trim(),
+      _currentDateRange,
+      _currentTags,
+    );
   }
 
   void _onTextChanged() {
-    redraw();
+    setState(() {}); // Redraw to show/hide close icon
     widget.onCriteriaChanged(
-        _textController.text.trim(), _currentDateRange, _currentTags);
+      _textController.text.trim(),
+      _currentDateRange,
+      _currentTags,
+    );
   }
 
   void _onTagsChanged(Set<String> newTags) {
-    setState(() {
-      _currentTags = newTags;
-    });
+    setState(() => _currentTags = newTags);
     widget.onCriteriaChanged(
-        _textController.text.trim(), _currentDateRange, _currentTags);
+      _textController.text.trim(),
+      _currentDateRange,
+      _currentTags,
+    );
   }
 
   Widget? _buildSuffixIcon() {
@@ -150,24 +132,21 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
   }
 
   Widget _buildDateToggle(DateRange range) {
-    final bool isActive = _currentDateRange == range;
-    final Color color = isActive ? greyPrimary : greyShadow;
-    final size = Dimensions.iconSizeMedium * 1.2;
-
+    final bool active = _currentDateRange == range;
     return Material(
       color: Colors.transparent,
       child: InkResponse(
         onTap: () => _onDateToggled(range),
         splashColor: pinkPrimary_50,
-        radius: size * 0.8,
+        radius: Dimensions.iconSizeMedium * 1.2,
         customBorder: CircleBorder(),
         child: Padding(
           padding: const EdgeInsets.all(Dimensions.paddingSmall),
           child: Text(
             range.toDisplayString,
             style: TextStyle(
-              color: color,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color: active ? greyPrimary : greyShadow,
+              fontWeight: active ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ),
@@ -193,12 +172,13 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(
-                borderRadius:
-                BorderRadius.circular(Dimensions.borderRadiusExtraLarge),
+                borderRadius: BorderRadius.circular(
+                  Dimensions.borderRadiusExtraLarge,
+                ),
                 borderSide: BorderSide.none,
               ),
               isDense: true,
-              hintText: 'search for ...',
+              hintText: 'type something ...',
               counterText: empty,
               hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
               filled: true,
@@ -228,6 +208,7 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
   Widget _buildExpandedContent() {
     // This Column contains the filters
     return Column(
+      mainAxisSize: MainAxisSize.min, // Takes only the space it needs
       children: [
         const SizedBox(height: Dimensions.sizedBoxExtraLarge),
         _buildDateToggles(),
@@ -243,29 +224,25 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
 
   @override
   Widget build(BuildContext context) {
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    return AnimatedSize(
+      duration: const Duration(milliseconds: animationDuration),
       curve: Curves.easeInOut,
-      height: _expanded ? _expandedHeight : _collapsedHeight,
-      color: background,
-      child: SafeArea(
-        bottom: false, // AppBar only needs top safe area
-        child: Padding(
-          padding: const EdgeInsets.all(Dimensions.paddingMedium),
-
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
+      child: Material(
+        color: background,
+        elevation: 3.0,
+        shadowColor: pinkShadow.withOpacity(0.25),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.all(Dimensions.paddingMedium),
+            // This column wraps its content, so AnimatedSize can measure it
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildSearchBarRow(),
-
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: animationDuration),
-                  opacity: _expanded ? 1.0 : 0.0,
-                  child: _expanded ? _buildExpandedContent() : null,
-                ),
+                // This logic shows/hides the content instantly,
+                // but the AnimatedSize will animate the height change.
+                if (_expanded) _buildExpandedContent(),
               ],
             ),
           ),
