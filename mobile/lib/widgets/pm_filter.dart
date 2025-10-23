@@ -5,8 +5,8 @@ import 'package:pm/widgets/pm_tags_selector.dart';
 
 import 'config/theme.dart';
 
-// ... (Your DateRange, DateRangePresetExtension, and FiltrationCriteria classes) ...
 enum DateRange { d1, w1, m1, m3, m6, y1 }
+
 extension DateRangePresetExtension on DateRange {
   String get toDisplayString {
     return switch (this) {
@@ -24,28 +24,37 @@ extension DateRangePresetExtension on DateRange {
     final endTime = DateTime.utc(now.year, now.month, now.day, 23, 59, 59);
     DateTime? startTime;
     switch (this) {
-      case DateRange.d1: startTime = now.subtract(const Duration(days: 1)); break;
-      case DateRange.w1: startTime = now.subtract(const Duration(days: 7)); break;
-      case DateRange.m1: startTime = now.subtract(const Duration(days: 30)); break;
-      case DateRange.m3: startTime = now.subtract(const Duration(days: 90)); break;
-      case DateRange.m6: startTime = now.subtract(const Duration(days: 182)); break;
-      case DateRange.y1: startTime = now.subtract(const Duration(days: 365)); break;
+      case DateRange.d1:
+        startTime = now.subtract(const Duration(days: 1));
+        break;
+      case DateRange.w1:
+        startTime = now.subtract(const Duration(days: 7));
+        break;
+      case DateRange.m1:
+        startTime = now.subtract(const Duration(days: 30));
+        break;
+      case DateRange.m3:
+        startTime = now.subtract(const Duration(days: 90));
+        break;
+      case DateRange.m6:
+        startTime = now.subtract(const Duration(days: 182));
+        break;
+      case DateRange.y1:
+        startTime = now.subtract(const Duration(days: 365));
+        break;
     }
     return (
-    startTime.millisecondsSinceEpoch ~/ msInSec,
-    endTime.millisecondsSinceEpoch ~/ msInSec,
+      startTime.millisecondsSinceEpoch ~/ msInSec,
+      endTime.millisecondsSinceEpoch ~/ msInSec,
     );
   }
 }
-class FiltrationCriteria {
-  // ...
-}
+
 class PredictedMeFilter extends StatefulWidget {
-  final Function(String?, DateRange, Set<String>?) onCriteriaChanged;
+  final Function(DateRange, Set<String>) onCriteriaChanged;
   final Future<Iterable<String>> Function(String) tagsSuggestionsProvider;
   final DateRange initialDateTime;
   final Set<String> initialTags;
-  final String? initialText;
 
   PredictedMeFilter({
     Key? key,
@@ -53,82 +62,36 @@ class PredictedMeFilter extends StatefulWidget {
     required this.tagsSuggestionsProvider,
     this.initialDateTime = DateRange.d1,
     this.initialTags = const {},
-    this.initialText,
   }) : super(key: key);
 
   @override
   State<StatefulWidget> createState() => PredictedMeFilterState();
 }
 
-class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
-    with TickerProviderStateMixin {
-  late final TextEditingController _textController;
+class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
   late DateRange _currentDateRange;
   late Set<String> _currentTags;
-  bool _expanded = false;
 
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.initialText ?? empty);
     _currentDateRange = widget.initialDateTime;
     _currentTags = widget.initialTags;
-    _textController.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
-    _textController.removeListener(_onTextChanged);
-    _textController.dispose();
     super.dispose();
   }
 
-  void _onToggleExpand() {
-    setState(() {
-      _expanded = !_expanded;
-    });
-  }
-
   void _onDateToggled(DateRange range) {
-    setState(() => _currentDateRange = range);
-    widget.onCriteriaChanged(
-      _textController.text.trim(),
-      _currentDateRange,
-      _currentTags,
-    );
-  }
-
-  void _onTextChanged() {
-    setState(() {}); // Redraw to show/hide close icon
-    widget.onCriteriaChanged(
-      _textController.text.trim(),
-      _currentDateRange,
-      _currentTags,
-    );
+    redraw(cb: () => _currentDateRange = range);
+    widget.onCriteriaChanged(_currentDateRange, _currentTags);
   }
 
   void _onTagsChanged(Set<String> newTags) {
-    setState(() => _currentTags = newTags);
-    widget.onCriteriaChanged(
-      _textController.text.trim(),
-      _currentDateRange,
-      _currentTags,
-    );
-  }
-
-  Widget? _buildSuffixIcon() {
-    if (_textController.text.trim().isEmpty) {
-      return null;
-    }
-    return IconButton(
-      icon: const Icon(Icons.close_outlined, color: greyPrimary),
-      iconSize: Dimensions.iconSizeMedium,
-      padding: EdgeInsets.zero,
-      onPressed: () {
-        _textController.clear();
-        _onTextChanged();
-      },
-    );
+    redraw(cb: () => _currentTags = newTags);
+    widget.onCriteriaChanged(_currentDateRange, _currentTags);
   }
 
   Widget _buildDateToggle(DateRange range) {
@@ -157,96 +120,29 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter>
   Widget _buildDateToggles() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children:
-      DateRange.values.map((range) => _buildDateToggle(range)).toList(),
+      children: DateRange.values
+          .map((range) => _buildDateToggle(range))
+          .toList(),
     );
   }
 
-  Widget _buildSearchBarRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _textController,
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  Dimensions.borderRadiusExtraLarge,
-                ),
-                borderSide: BorderSide.none,
-              ),
-              isDense: true,
-              hintText: 'type something ...',
-              counterText: empty,
-              hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
-              filled: true,
-              fillColor: greyBackground_50,
-              suffixIcon: _buildSuffixIcon(),
-              suffixIconConstraints: BoxConstraints(
-                maxHeight: Dimensions.fontSizeMedium,
-              ),
-            ),
-          ),
-        ),
-        IconButton(
-          icon: Icon(
-            _expanded
-                ? Icons.filter_list_off_outlined
-                : Icons.filter_list_outlined,
-            color: greyPrimary,
-          ),
-          iconSize: Dimensions.iconSizeMedium,
-          padding: EdgeInsets.zero,
-          onPressed: _onToggleExpand,
-        ),
-      ],
-    );
-  }
 
-  Widget _buildExpandedContent() {
-    // This Column contains the filters
-    return Column(
-      mainAxisSize: MainAxisSize.min, // Takes only the space it needs
-      children: [
-        const SizedBox(height: Dimensions.sizedBoxExtraLarge),
-        _buildDateToggles(),
-        const SizedBox(height: Dimensions.sizedBoxExtraLarge),
-        PredictedMeTagsSelector(
-          initialTagNames: _currentTags,
-          tagsProvider: widget.tagsSuggestionsProvider,
-          onChanged: _onTagsChanged,
-        ),
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSize(
-      duration: const Duration(milliseconds: animationDuration),
-      curve: Curves.easeInOut,
-      child: Material(
-        color: background,
-        elevation: 3.0,
-        shadowColor: pinkShadow.withOpacity(0.25),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.all(Dimensions.paddingMedium),
-            // This column wraps its content, so AnimatedSize can measure it
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildSearchBarRow(),
-                // This logic shows/hides the content instantly,
-                // but the AnimatedSize will animate the height change.
-                if (_expanded) _buildExpandedContent(),
-              ],
-            ),
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min, // Takes only the space it needs
+        children: [
+          const SizedBox(height: Dimensions.sizedBoxExtraLarge),
+          _buildDateToggles(),
+          const SizedBox(height: Dimensions.sizedBoxExtraLarge),
+          PredictedMeTagsSelector(
+            initialTagNames: _currentTags,
+            tagsProvider: widget.tagsSuggestionsProvider,
+            onChanged: _onTagsChanged,
           ),
-        ),
+        ],
       ),
     );
   }

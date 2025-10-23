@@ -6,9 +6,11 @@ import 'package:flutter/rendering.dart';
 import 'package:pm/widgets/config/constants.dart';
 
 import 'package:pm/widgets/config/theme.dart';
+import 'package:pm/widgets/pm_app_bar.dart';
 import 'package:pm/widgets/pm_nav_bar.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
 import 'package:pm/widgets/pm_filter.dart';
+
 final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
 void showSnackBar(String message) {
@@ -104,8 +106,15 @@ class TagSelectorExamplePage extends StatefulWidget {
 class _TagSelectorExamplePageState extends State<TagSelectorExamplePage>
     with TickerProviderStateMixin {
   final List<String> _allAvailableTags = [
-    'Flutter', 'Dart', 'Firebase', 'Productivity', 'Health',
-    'Fitness', 'Groceries', 'Personal', 'Work',
+    'Flutter',
+    'Dart',
+    'Firebase',
+    'Productivity',
+    'Health',
+    'Fitness',
+    'Groceries',
+    'Personal',
+    'Work',
   ];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -135,13 +144,16 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage>
       duration: const Duration(milliseconds: 250),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(0, -1.0), // Slide up (off-screen)
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.fastOutSlowIn,
-    ));
+    _slideAnimation =
+        Tween<Offset>(
+          begin: Offset.zero,
+          end: const Offset(0, -1.0), // Slide up (off-screen)
+        ).animate(
+          CurvedAnimation(
+            parent: _slideController,
+            curve: Curves.fastOutSlowIn,
+          ),
+        );
   }
 
   @override
@@ -173,9 +185,9 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage>
       return Future.value(const Iterable.empty());
     }
     await Future.delayed(Duration(milliseconds: 100)); // Simulate network
-    return _allAvailableTags.where(
-          (tag) => tag.toLowerCase().contains(query.toLowerCase()),
-    ).take(10);
+    return _allAvailableTags
+        .where((tag) => tag.toLowerCase().contains(query.toLowerCase()))
+        .take(10);
   }
 
   void _onFilterChanged(String? text, DateRange range, Set<String>? tags) {
@@ -188,6 +200,13 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage>
     print('Text: $text, Range: ${range.toDisplayString}, Tags: $tags');
   }
 
+  void _onSearchTextChanged(String text) {
+    setState(() {
+      _currentText = text;
+    });
+    print('--- FILTER CRITERIA UPDATED --- ${text}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Nav> navItems = [
@@ -198,55 +217,38 @@ class _TagSelectorExamplePageState extends State<TagSelectorExamplePage>
       Nav("Note", Icons.note_alt_outlined, () => _onNavTapped(4)),
     ];
 
-    return Scaffold(
-      key: _scaffoldKey,
-
-      // --- The Body is now a Stack ---
-      body: Stack(
-        children: [
-          // --- Child 1: The Scrollable Content ---
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // This dummy sliver adds space at the top so the list
-              // starts below the collapsed filter bar.
-              SliverPadding(
-                padding: const EdgeInsets.only(top: kToolbarHeight + Dimensions.paddingMedium * 2),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (BuildContext context, int index) {
+    return   Scaffold(
+          key: _scaffoldKey,
+          body:
+              CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  PredictedMeAppBar(onTextChanged: _onSearchTextChanged, onDrawerTapped: () {}, onFilterTapped: (){},),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((
+                      BuildContext context,
+                      int index,
+                    ) {
                       return ListTile(
                         title: Text('Search Result Item $index'),
                         subtitle: Text(
                           'Based on: text: "${_currentText ?? ''}", '
-                              'range: ${_currentDateRange.toDisplayString}, ',
+                          'range: ${_currentDateRange.toDisplayString}, ',
                         ),
                       );
-                    },
-                    childCount: 50,
+                    }, childCount: 50),
                   ),
-                ),
+                ],
               ),
-            ],
+
+
+
+          bottomNavigationBar: PredictedNavBar(
+            navs: navItems,
+            currentIndex: _currentIndex,
           ),
 
-          // --- Child 2: The Animated, Floating Filter Bar ---
-          SlideTransition(
-            position: _slideAnimation,
-            child: PredictedMeFilter(
-              initialDateTime: _currentDateRange,
-              initialTags: _currentTags,
-              initialText: _currentText,
-              onCriteriaChanged: _onFilterChanged,
-              tagsSuggestionsProvider: _myTagsProvider,
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: PredictedNavBar(
-        navs: navItems,
-        currentIndex: _currentIndex,
-      ),
+
     );
   }
 }

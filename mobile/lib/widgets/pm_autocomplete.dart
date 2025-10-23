@@ -108,7 +108,6 @@ class PredictedMeAutocompleteState
     return FormField<String>(
       initialValue: _textController.text,
       validator: (String? value) {
-        // Validator now uses the value from the FormField
         if (value != null && value.trim().isNotEmpty) {
           return 'You have an unadded value. Tap the add icon or clear the text.';
         }
