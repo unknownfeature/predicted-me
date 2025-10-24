@@ -5,7 +5,7 @@ import 'package:pm/widgets/config/constants.dart';
 import 'config/theme.dart';
 
 class PredictedMeAppBar extends StatefulWidget {
-  final Function(String) onTextChanged;
+  final void Function(String) onTextChanged;
   final String? initialText;
   final Widget? leading;
   final List<Widget>? actions;

@@ -23,7 +23,7 @@ const Color greyPrimary = Color(0xFF506369);
 const Color greyPrimary_75 = Color(0xBF506369);
 const Color greyPrimary_50 = Color(0x7F506369);
 
-const Color _error = Color(0xFFAC2E51);
+const Color darkRaspberry = Color(0xFFAC2E51);
 // --- End Palette ---
 
 final ThemeData pmTheme = ThemeData(
@@ -57,7 +57,7 @@ final ThemeData pmTheme = ThemeData(
     surfaceVariant: pinkBackgroundDark,
     onSurfaceVariant: greyPrimary,
 
-    error: _error,
+    error: darkRaspberry,
     onError: background,
 
     outline: greyShadow,

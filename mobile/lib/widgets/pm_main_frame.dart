@@ -9,22 +9,23 @@ import 'package:pm/widgets/pm_filter.dart';
 import 'package:pm/widgets/pm_nav_bar.dart';
 import 'package:pm/widgets/pm_search_list.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
+import 'package:pm/widgets/config/theme.dart';
+
+import 'controllers/base_controller.dart';
 
 final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-enum Mode { note, data, graph, link, task }
+enum Mode { note, data, link, task, graph }
 
-class FilterCriteria{
-  String? text;
-  DateRange dateRange;
-  Set<String> tags;
-}
-class ModeConfig<T> {
+
+class Config<T extends Identifiable> {
   final Widget Function(BuildContext, T, int) listItemWidgetBuilder;
   final Widget Function(BuildContext, T, int) detailsWidgetBuilder;
-  Future<List<T>> Function(FilterCriteria, int) itemsProvider
-  final Icon navIcon;
+  Controller controller;
+
+  final IconData navIcon;
 }
+
 
 void showSnackBar(String message) {
   ScaffoldMessenger.of(
@@ -32,11 +33,8 @@ void showSnackBar(String message) {
   ).showSnackBar(SnackBar(content: Text(message)));
 }
 
-class PredictedMeMainFrame<T> extends StatefulWidget {
-  final ModeConfig<Note> noteConfig;
-  final ModeConfig<DataPoint> dataConfig;
-  final ModeConfig<Link> linkConfig;
-  final ModeConfig<Task> taskConfig;
+class PredictedMeMainFrame extends StatefulWidget {
+  final Map<Mode, Config> configs;
   final Mode initialMode;
   final FilterCriteria initialCriteria;
 
@@ -46,68 +44,144 @@ class PredictedMeMainFrame<T> extends StatefulWidget {
   State<StatefulWidget> createState() => PredictedMeMainFrameState();
 }
 
-class PredictedMeMainFrameState<T>
-    extends PredictedMeBaseState<PredictedMeMainFrame<T>>
+class PredictedMeMainFrameState
+    extends PredictedMeBaseState<PredictedMeMainFrame>
     with TickerProviderStateMixin {
   late PanelController _panelController;
+  late AnimationController _navBarController;
   bool _listView = true;
+  bool _showNavs = true;
   int _page = 0;
-  late Mode _currentMode;
-  late _criteria = widget.initialCriteria;
+  late Mode _mode;
+  late SearchCriteria _criteria;
 
   @override
   void initState() {
     _panelController = PanelController();
-    _currentMode = widget.initialMode;
+    _navBarController = AnimationController(
+        vsync: this, duration: Duration(milliseconds: animationDuration))
+    _mode = widget.initialMode;
+    _criteria = widget.initialCriteria;
     super.initState();
   }
 
-  ModeConfig<dynamic> _findModeConfig(){
-    if (_currentMode == Mode.note){
-      return widget.noteConfig;
-    }
 
-  }
-
-  Future<List<dynamic>> Function(int) _buildItemsProvider(
-      ModeConfig<dynamic> config) {
+  Future<List<Identifiable>> Function(int) _buildItemsProvider(
+      Config<Identifiable> config) {
     return (page) {
       redraw(cb: () => _page = page);
-      return config.itemsProvider(_criteria, page);
+      return config.controller.list(_criteria, page);
     };
   }
-  PredictedMeSearchGrid _buildSearchGrid(ModeConfig<dynamic> config){
-    return  PredictedMeSearchGrid(itemBuilder: config.listItemWidgetBuilder, itemsProvider: _buildItemsProvider(config),);
+
+  void _onScroll(ScrollDirection scrollDirection) {
+    redraw(cb: () => scrollDirection == ScrollDirection.reverse);
+  }
+
+  void _notifyListRefreshNeeded(BuildContext context) {
+    RefreshNeededNotification().dispatch(context);
+  }
+
+  Future _delete(Controller controller, Identifiable item,
+      BuildContext context) async {
+    return await controller.delete(item.id)
+        .then((_) => _notifyListRefreshNeeded(context));
+  }
+
+  Future _save(Controller controller, Identifiable item,
+      BuildContext context) async {
+    return await controller.save(item)
+        .then((_) => _notifyListRefreshNeeded(context));
+  }
+
+  Function(DismissDirection) _getItemDeleteHandler(Controller controller,
+      Identifiable item, BuildContext context) {
+    return (DismissDirection) async => await _delete(controller, item, context);
+  }
+
+  Widget Function(BuildContext, Identifiable, int) _getItemBuilder(
+      Config<Identifiable> config,) {
+    return (BuildContext context, Identifiable item, int index) =>
+        Dismissible(
+          key: ValueKey(item.hashCode),
+          direction: DismissDirection.horizontal,
+          background: Container(
+            color: darkRaspberry,
+            alignment: Alignment.centerRight,
+            padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingLarge,
+                vertical: Dimensions.paddingSmall),
+            child: Icon(Icons.delete_outline, color: background,
+              size: Dimensions.iconSizeLarge,),
+          ),
+          onDismissed: _getItemDeleteHandler(config.controller, item, context),
+          child: config.listItemWidgetBuilder(context, item, index),
+        );
+  }
+
+  void Function(String) _getOnTextChanged(BuildContext context) {
+    return (text) {
+      redraw(cb: () =>
+      _criteria = SearchCriteria(
+          dateRange: _criteria.dateRange, tags: _criteria.tags, text: text));
+      _notifyListRefreshNeeded(context);
+    }
+  }
+
+  PredictedMeSearchList _buildSearchGrid(Config<Identifiable> config) {
+    return PredictedMeSearchList(
+      itemBuilder: config.listItemWidgetBuilder,
+      itemsProvider: _buildItemsProvider(config),
+      onScroll: _onScroll,
+      initialPage: _page,);
+  }
+
+  void Function() _onNav(Mode mode) {
+    return () => redraw(cb: () => _mode = mode);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_showNavs) {
+      _navBarController.forward();
+    } else {
+      _navBarController.reverse();
+    }
     return Scaffold(
-      key: _scaffoldKey,
-      body: Stack(
-        children: [
-          CustomScrollView(
-            slivers: [
-              PredictedMeAppBar(onTextChanged: _onSearchTextChanged),
-              PredictedMeSearchGrid(),
-            ],
-          ),
-          SlidingUpPanel(
-            controller: _panelController,
-            maxHeight: fullHeight(context),
-            minHeight: 0,
-            defaultPanelState: _listView ? PanelState.CLOSED : PanelState.OPEN,
-            onPanelClosed: () => redraw(cb: () => _listView = true),
-            panel: Center(
-              child: _listView ? SizedBox.shrink() : _getEditingForm(),
+        key: _scaffoldKey,
+        body: Stack(
+          children: [
+            CustomScrollView(
+              slivers: [
+                PredictedMeAppBar(onTextChanged: _getOnTextChanged(context)),
+                _buildSearchGrid(widget.configs[_mode]!),
+              ],
             ),
+            SlidingUpPanel(
+              controller: _panelController,
+              maxHeight: fullHeight(context),
+              minHeight: 0,
+              defaultPanelState: _listView ? PanelState.CLOSED : PanelState
+                  .OPEN,
+              onPanelClosed: () => redraw(cb: () => _listView = true),
+              panel: Center(
+                child: _listView ? SizedBox.shrink() : _getEditingForm(),
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: AnimatedContainer(
+          duration: Duration(milliseconds: animationDuration),
+          height: _showNavs ? Dimensions.iconSizeLarge * 3 : 0.0,
+          child: PredictedNavBar(
+            navs: _toNavs(),
+            currentIndex: _mode.index,
           ),
-        ],
-      ),
-      bottomNavigationBar: PredictedNavBar(
-        navs: navItems,
-        currentIndex: _currentIndex,
-      ),
-    );
+
+        ));
+  }
+
+  List<Nav> _toNavs() {
+    return widget.configs.entries
+        .map((e) => Nav(e.value.navIcon, _onNav(e.key))).toList();
   }
 }

@@ -71,4 +71,3 @@ double Function(BuildContext context) halfHeight = (BuildContext context) =>  Me
 double Function(BuildContext context) quoterHeight = (BuildContext context) =>  MediaQuery.of(context).size.height * quorterScreenCoefficient;
 
 
-const msInSec = 1000;

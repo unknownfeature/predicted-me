@@ -6,11 +6,10 @@ import 'package:pm/widgets/config/theme.dart'; // Import your theme colors
 import 'base_state.dart';
 
 class Nav {
-  final String text;
   final IconData icon; // Use IconData for better flexibility
   final VoidCallback onTap;
 
-  Nav(this.text, this.icon, this.onTap);
+  Nav(this.icon, this.onTap);
 }
 
 class PredictedNavBar extends StatefulWidget {

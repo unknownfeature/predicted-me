@@ -1,8 +1,15 @@
 import 'constants.dart';
 
+
+
+abstract class Identifiable {
+  int get id;
+}
+
 // --- Base Models ---
 
-class Tag {
+class Tag implements Identifiable {
+  @override
   final int id;
   final String name;
 
@@ -16,7 +23,8 @@ class Tag {
   }
 }
 
-class User {
+class User implements Identifiable {
+  @override
   final int id;
   final String? name;
 
@@ -30,7 +38,8 @@ class User {
   }
 }
 
-class Note {
+class Note implements Identifiable {
+  @override
   final int id;
   final String? text;
   final int time;
@@ -71,7 +80,8 @@ class Note {
   }
 }
 
-class Link {
+class Link implements Identifiable {
+  @override
   final int id;
   final int? noteId;
   final String url;
@@ -106,7 +116,8 @@ class Link {
   }
 }
 
-class Task {
+class Task implements Identifiable {
+  @override
   final int id;
   final String summary;
   final String description;
@@ -129,7 +140,8 @@ class Task {
   }
 }
 
-class Metric {
+class Metric implements Identifiable {
+  @override
   final int id;
   final String name;
   final List<String> tags;
@@ -151,7 +163,8 @@ class Metric {
 
 // --- Nested Schedule Models ---
 
-abstract class BaseSchedule {
+abstract class BaseSchedule implements Identifiable {
+  @override
   final int id;
   final String? minute;
   final String? hour;
@@ -238,7 +251,8 @@ class OccurrenceSchedule extends BaseSchedule {
 
 // --- Nested Response Models (from GET endpoints) ---
 
-class MetricDetails {
+class MetricDetails implements Identifiable {
+  @override
   final int id;
   final String name;
   final bool tagged;
@@ -266,7 +280,8 @@ class MetricDetails {
   }
 }
 
-class DataPoint {
+class DataPoint implements Identifiable {
+  @override
   final int id;
   final int? noteId;
   final double value;
@@ -298,7 +313,8 @@ class DataPoint {
   }
 }
 
-class TaskDetails {
+class TaskDetails implements Identifiable {
+  @override
   final int id;
   final String description;
   final String summary;
@@ -329,7 +345,8 @@ class TaskDetails {
   }
 }
 
-class Occurrence {
+class Occurrence implements Identifiable {
+  @override
   final int id;
   final int? noteId;
   final int priority;
