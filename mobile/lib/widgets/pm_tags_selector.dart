@@ -7,7 +7,7 @@ import 'config/constants.dart';
 
 class PredictedMeTagsSelector extends StatefulWidget {
   final Set<String> initialTagNames;
-  final Future<Iterable<String>> Function(String) tagsProvider;
+  final Future<Iterable<String>> Function(String) tagsSupplier;
   final Function(Set<String>) onChanged;
   final Future Function(String)? onNew;
   final int limit;
@@ -16,7 +16,7 @@ class PredictedMeTagsSelector extends StatefulWidget {
   const PredictedMeTagsSelector({
     Key? key,
     this.initialTagNames = const {},
-    required this.tagsProvider,
+    required this.tagsSupplier,
     required this.onChanged,
     this.onNew,
     this.limit = 10,
@@ -86,12 +86,12 @@ class PredictedMeTagsSelectorState
     return Chip(
       label: Text(tagName, style: lightWithGreyShadows),
       side: BorderSide.none,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadiusDirectional.circular(Dimensions.borderRadiusExtraLarge)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadiusDirectional.circular(borderRadiusExtraLarge)),
       shadowColor: pinkShadow,
       backgroundColor: greyPrimary_75,
       deleteIcon: Icon(Icons.close_outlined, color: background, shadows: [greyPrimaryShadow],),
       onDeleted: () => _removeTag(state, tagName),
-      padding: EdgeInsets.only(left: Dimensions.paddingExtraSmall),
+      padding: EdgeInsets.only(left: paddingExtraSmall),
     );
   }
 
@@ -113,11 +113,11 @@ class PredictedMeTagsSelectorState
           children: [
             Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSmall,
+                horizontal: paddingSmall,
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(
-                  Dimensions.borderRadiusMedium,
+                  borderRadiusMedium,
                 ),
               ),
               child: GestureDetector(
@@ -126,18 +126,18 @@ class PredictedMeTagsSelectorState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
-                      spacing: Dimensions.spacingSmall,
-                      runSpacing: Dimensions.spacingNone,
+                      spacing: spacingSmall,
+                      runSpacing: spacingNone,
                       children: List.of(
                         _tags.map((tagName) => _buildTagChip(state, tagName)),
                       ),
                     ),
-                    SizedBox(height: Dimensions.sizedBoxExtraSmall,),
+                    SizedBox(height: sizedBoxExtraSmall,),
                     PredictedMeAutocomplete(
                       key: widget.key,
                       focusNode: _focusNode,
-                      suggestionsProvider: widget.tagsProvider,
-                      excludedProvider: () => Set.of(_tags),
+                      suggestionsSupplier: widget.tagsSupplier,
+                      excludedSupplier: () => Set.of(_tags),
                       onSelected: (s) => _addTag(state, s, false),
                       onNew: (s) => _addTag(state, s, true),
                       hintText: 'type to add tags',

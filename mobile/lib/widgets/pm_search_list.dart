@@ -8,15 +8,15 @@ import '../common/models.dart';
 class RefreshNeededNotification extends Notification {}
 
 class PredictedMeSearchList<T extends Identifiable> extends StatefulWidget {
-  final Widget Function(BuildContext, T, int) itemBuilder;
-  final Future<List<T>> Function(int) itemsProvider;
+  final Widget Function(BuildContext, T) tile;
+  final Future<List<T>> Function(int) supplier;
   final Function(ScrollDirection) onScroll;
   final int initialPage;
 
   const PredictedMeSearchList({
     super.key,
-    required this.itemBuilder,
-    required this.itemsProvider,
+    required this.tile,
+    required this.supplier,
     required this.onScroll,
     this.initialPage = 0,
   });
@@ -52,7 +52,7 @@ class PredictedMeSearchListState<T extends Identifiable>
   }
 
   Future<List<T>> _fetchNextPage(int key) async {
-    return await widget.itemsProvider(key);
+    return await widget.supplier(key);
   }
 
   int _getNextKey(PagingState<int, T> _pagingState) =>
@@ -78,8 +78,8 @@ class PredictedMeSearchListState<T extends Identifiable>
           scrollController: _scrollController,
           fetchNextPage: fetchNextPage,
           builderDelegate: PagedChildBuilderDelegate(
-            itemBuilder: (context, item, index) {
-              return widget.itemBuilder(context, item, index);
+            itemBuilder: (context, item, _) {
+              return widget.tile(context, item);
             },
           ),
         ),

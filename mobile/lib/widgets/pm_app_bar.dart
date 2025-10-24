@@ -7,13 +7,13 @@ import 'config/theme.dart';
 class PredictedMeAppBar extends StatefulWidget {
   final void Function(String) onTextChanged;
   final String? initialText;
-  final Widget? leading;
+  final Function() onLeadingTap;
   final List<Widget>? actions;
 
   PredictedMeAppBar({
     Key? key,
     required this.onTextChanged,
-    this.leading,
+    required this.onLeadingTap,
     this.actions,
     this.initialText,
   }) : super(key: key);
@@ -23,7 +23,7 @@ class PredictedMeAppBar extends StatefulWidget {
 }
 
 class PredictedMeAppBarState extends PredictedMeBaseState<PredictedMeAppBar>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin{
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
   late final AnimationController _animationController;
@@ -33,7 +33,7 @@ class PredictedMeAppBarState extends PredictedMeBaseState<PredictedMeAppBar>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: animationDuration),
+      duration: animationDuration,
     );
     _focusNode = FocusNode();
     _textController = TextEditingController(text: widget.initialText ?? empty);
@@ -70,7 +70,7 @@ class PredictedMeAppBarState extends PredictedMeBaseState<PredictedMeAppBar>
     }
     return IconButton(
       icon: const Icon(Icons.close_outlined, color: greyPrimary),
-      iconSize: Dimensions.iconSizeMedium,
+      iconSize: iconSizeMedium,
       padding: EdgeInsets.zero,
       onPressed: () {
         _textController.clear();
@@ -86,17 +86,17 @@ class PredictedMeAppBarState extends PredictedMeBaseState<PredictedMeAppBar>
       decoration: InputDecoration(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(
-            Dimensions.borderRadiusExtraLarge,
+            borderRadiusExtraLarge,
           ),
           borderSide: BorderSide.none,
         ),
         isDense: true,
         hintText: _focusNode.hasFocus ? empty : 'find something ...',
         counterText: empty,
-        hintStyle: TextStyle(fontSize: Dimensions.fontSizeMedium),
+        hintStyle: TextStyle(fontSize: fontSizeMedium),
         suffixIcon: _buildSuffixIcon(),
         suffixIconConstraints: BoxConstraints(
-          maxHeight: Dimensions.fontSizeMedium,
+          maxHeight: fontSizeMedium,
         ),
       ),
     );
@@ -108,23 +108,29 @@ class PredictedMeAppBarState extends PredictedMeBaseState<PredictedMeAppBar>
     return SliverSafeArea(
       sliver: SliverPadding(
         padding: EdgeInsets.only(
-          left: Dimensions.paddingMedium,
-          right: Dimensions.paddingMedium,
+          left: paddingMedium,
+          right: paddingMedium,
         ),
         sliver: SliverAppBar(
           backgroundColor: background,
           shadowColor: pinkShadow,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(
-              Radius.circular(Dimensions.borderRadiusExtraLarge),
+              Radius.circular(borderRadiusExtraLarge),
             ),
           ),
           floating: true,
-          elevation: 5,
+          elevation: elevationMedium,
           forceElevated: true,
           title: _buildSearchBarRow(),
           actions: widget.actions,
-          leading: widget.leading,
+          leading: IconButton(
+            icon: AnimatedIcon(
+              icon: AnimatedIcons.search_ellipsis,
+              progress: _animationController,
+            ),
+            onPressed: widget.onLeadingTap,
+          ),
         ),
       ),
     );

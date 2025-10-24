@@ -2,11 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:pm/widgets/config/constants.dart';
-import 'package:pm/widgets/config/theme.dart'; // Import your theme colors
+import 'package:pm/widgets/config/theme.dart';
 import 'base_state.dart';
 
 class Nav {
-  final IconData icon; // Use IconData for better flexibility
+  final IconData icon;
   final VoidCallback onTap;
 
   Nav(this.icon, this.onTap);
@@ -14,7 +14,7 @@ class Nav {
 
 class PredictedNavBar extends StatefulWidget {
   final List<Nav> navs;
-  final int currentIndex; // The parent must tell the nav which index is active
+  final int currentIndex;
 
   const PredictedNavBar({
     super.key,
@@ -30,7 +30,7 @@ class PredictedNavBarState extends PredictedMeBaseState<PredictedNavBar> {
   Widget _buildNavItem(Nav nav, bool active) {
     final Color color = active ? background : pinkBackgroundDark;
 
-    double size = Dimensions.iconSizeLarge;
+    double size = iconSizeLarge;
     return Expanded(
       child: Material(
         color: Colors.transparent,
@@ -40,7 +40,7 @@ class PredictedNavBarState extends PredictedMeBaseState<PredictedNavBar> {
           radius: size * 0.8,
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              vertical: Dimensions.paddingSmall,
+              vertical: paddingSmall,
             ),
             child: Icon(
               nav.icon,
@@ -61,10 +61,10 @@ class PredictedNavBarState extends PredictedMeBaseState<PredictedNavBar> {
   Widget build(BuildContext context) {
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        filter: ImageFilter.blur(sigmaX: sigmaX, sigmaY: sigmaY),
         child: Container(
           color: pinkPrimary_75,
-          padding: EdgeInsets.only(top: Dimensions.paddingSmall),
+          padding: EdgeInsets.only(top: paddingSmall),
           child: SafeArea(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,

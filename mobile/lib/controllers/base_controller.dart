@@ -1,5 +1,5 @@
-import '../../common/constants.dart';
-import '../../common/models.dart';
+import '../common/constants.dart';
+import '../common/models.dart';
 
 enum DateRange { d1, w1, m1, m3, m6, y1 }
 
@@ -41,7 +41,7 @@ class SearchCriteria {
   DateRange dateRange;
   Set<String> tags;
 
-  SearchCriteria({this.text, required this.dateRange, required this.tags})
+  SearchCriteria({this.text, required this.dateRange, required this.tags});
 }
 
 abstract class Controller<T extends Identifiable> {
@@ -51,5 +51,5 @@ abstract class Controller<T extends Identifiable> {
 
   Future delete(int id);
 
-  Future<T> save(T);
+  Future<T> save(T item);
 }

@@ -184,6 +184,17 @@ abstract class BaseSchedule implements Identifiable {
     this.periodSeconds,
     required this.nextRun,
   });
+
+  Map<String, dynamic> toJson() => {
+    kId: id,
+    kMinute: minute,
+    kHour: hour,
+    kDayOfMonth: dayOfMonth,
+    kMonth: month,
+    kDayOfWeek: dayOfWeek,
+    kPeriodSeconds: periodSeconds,
+    kNextRun: nextRun,
+  };
 }
 
 class DataSchedule extends BaseSchedule {
@@ -217,6 +228,12 @@ class DataSchedule extends BaseSchedule {
       units: json[kUnits],
     );
   }
+
+  @override
+  Map<String, dynamic> toJson() => super.toJson()..addAll({
+    kTargetValue: targetValue,
+    kUnits: units,
+  });
 }
 
 class OccurrenceSchedule extends BaseSchedule {
@@ -247,6 +264,11 @@ class OccurrenceSchedule extends BaseSchedule {
       priority: json[kPriority],
     );
   }
+
+  @override
+  Map<String, dynamic> toJson() => super.toJson()..addAll({
+    kPriority: priority,
+  });
 }
 
 // --- Nested Response Models (from GET endpoints) ---

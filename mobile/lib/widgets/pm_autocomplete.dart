@@ -4,8 +4,8 @@ import 'base_state.dart';
 import 'config/constants.dart';
 
 class PredictedMeAutocomplete extends StatefulWidget {
-  final Future<Iterable<String>> Function(String) suggestionsProvider;
-  final Iterable<String> Function()? excludedProvider;
+  final Future<Iterable<String>> Function(String) suggestionsSupplier;
+  final Iterable<String> Function()? excludedSupplier;
   final Function(String)? onNew;
   final Function(String) onSelected;
   final Function(String)? onChanged;
@@ -19,11 +19,11 @@ class PredictedMeAutocomplete extends StatefulWidget {
   const PredictedMeAutocomplete({
     super.key,
     required this.focusNode,
-    required this.suggestionsProvider,
+    required this.suggestionsSupplier,
     required this.onSelected,
     this.onChanged,
     this.onNew,
-    this.excludedProvider,
+    this.excludedSupplier,
     this.hintText = 'start typing ..',
     this.multiValued = true,
     this.maxLength = 100,
@@ -55,7 +55,7 @@ class PredictedMeAutocompleteState
     _textController.addListener(redraw);
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: animationDuration),
+      duration: animationDuration,
     );
     _animation = CurvedAnimation(
       parent: _animationController,
@@ -97,7 +97,7 @@ class PredictedMeAutocompleteState
     }
     return IconButton(
       icon: const Icon(Icons.check, color: greyPrimary),
-      iconSize: Dimensions.iconSizeMedium,
+      iconSize: iconSizeMedium,
       padding: EdgeInsets.zero,
       onPressed: () => _onAdded(state),
     );
@@ -124,17 +124,17 @@ class PredictedMeAutocompleteState
           textEditingController: _textController,
           focusNode: widget.focusNode,
 
-          // This runs your async 'suggestionsProvider'
+          // This runs your async 'suggestionsSupplier'
           optionsBuilder: (TextEditingValue textEditingValue) async {
             final String text = textEditingValue.text.trim();
             if (text.isEmpty) {
               return const Iterable<String>.empty();
             }
-            final results = await widget.suggestionsProvider(text);
-            if (widget.excludedProvider != null) {
+            final results = await widget.suggestionsSupplier(text);
+            if (widget.excludedSupplier != null) {
               return Set.of(
                 results,
-              ).difference(Set.of(widget.excludedProvider!()));
+              ).difference(Set.of(widget.excludedSupplier!()));
             }
             return results;
           },
@@ -163,21 +163,21 @@ class PredictedMeAutocompleteState
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
-                        Dimensions.borderRadiusExtraLarge,
+                        borderRadiusExtraLarge,
                       ),
                       borderSide: BorderSide.none,
                     ),
                     isDense: true,
                     hintText: widget.hintText,
                     counterText: widget.showCounter ? null : empty,
-                    hintStyle: TextStyle(fontSize: Dimensions.fontSizeSmall),
+                    hintStyle: TextStyle(fontSize: fontSizeSmall),
                     filled: widget.focusNode.hasFocus,
                     fillColor: widget.focusNode.hasFocus
                         ? greyBackground_50
                         : Colors.transparent,
                     suffixIcon: _buildSuffixIcon(state),
                     suffixIconConstraints: BoxConstraints(
-                      maxHeight: Dimensions.fontSizeMedium,
+                      maxHeight: fontSizeMedium,
                     ),
                   ),
                 );
@@ -197,7 +197,7 @@ class PredictedMeAutocompleteState
                     child: SizedBox(
                       width: fullWidth(context),
                       child: Material(
-                        elevation: Dimensions.elevationMedium,
+                        elevation: elevationMedium,
                         child: Container(
                           constraints: BoxConstraints(
                             maxHeight: quoterHeight(context),

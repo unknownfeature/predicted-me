@@ -4,7 +4,7 @@ import 'package:pm/widgets/config/constants.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
 
 import 'config/theme.dart';
-import 'controllers/base_controller.dart';
+import '../controllers/base_controller.dart';
 
 
 extension DateRangePresetExtension on DateRange {
@@ -23,14 +23,14 @@ extension DateRangePresetExtension on DateRange {
 
 class PredictedMeFilter extends StatefulWidget {
   final Function(DateRange, Set<String>) onCriteriaChanged;
-  final Future<Iterable<String>> Function(String) tagsSuggestionsProvider;
+  final Future<Iterable<String>> Function(String) tagsSuggestionsSupplier;
   final DateRange initialDateTime;
   final Set<String> initialTags;
 
   PredictedMeFilter({
     Key? key,
     required this.onCriteriaChanged,
-    required this.tagsSuggestionsProvider,
+    required this.tagsSuggestionsSupplier,
     this.initialDateTime = DateRange.d1,
     this.initialTags = const {},
   }) : super(key: key);
@@ -72,10 +72,10 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
       child: InkResponse(
         onTap: () => _onDateToggled(range),
         splashColor: pinkPrimary_50,
-        radius: Dimensions.iconSizeMedium * 1.2,
+        radius: iconSizeMedium * 1.2,
         customBorder: CircleBorder(),
         child: Padding(
-          padding: const EdgeInsets.all(Dimensions.paddingSmall),
+          padding: const EdgeInsets.all(paddingSmall),
           child: Text(
             range.toDisplayString,
             style: TextStyle(
@@ -101,20 +101,19 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
+    return Column(
         mainAxisSize: MainAxisSize.min, // Takes only the space it needs
         children: [
-          const SizedBox(height: Dimensions.sizedBoxExtraLarge),
+          const SizedBox(height: sizedBoxExtraLarge),
           _buildDateToggles(),
-          const SizedBox(height: Dimensions.sizedBoxExtraLarge),
+          const SizedBox(height: sizedBoxExtraLarge),
           PredictedMeTagsSelector(
             initialTagNames: _currentTags,
-            tagsProvider: widget.tagsSuggestionsProvider,
+            tagsSupplier: widget.tagsSuggestionsSupplier,
             onChanged: _onTagsChanged,
           ),
         ],
-      ),
+
     );
   }
 }
