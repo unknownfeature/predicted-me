@@ -166,21 +166,21 @@ class Metric implements Identifiable {
 abstract class BaseSchedule implements Identifiable {
   @override
   final int id;
-  final String? minute;
-  final String? hour;
-  final String? dayOfMonth;
-  final String? month;
-  final String? dayOfWeek;
+  final String minute;
+  final String hour;
+  final String dayOfMonth;
+  final String month;
+  final String dayOfWeek;
   final int? periodSeconds;
   final int nextRun;
 
   BaseSchedule({
     required this.id,
-    this.minute,
-    this.hour,
-    this.dayOfMonth,
-    this.month,
-    this.dayOfWeek,
+    required this.minute,
+    required this.hour,
+    required this.dayOfMonth,
+    required this.month,
+    required this.dayOfWeek,
     this.periodSeconds,
     required this.nextRun,
   });
@@ -203,11 +203,11 @@ class DataSchedule extends BaseSchedule {
 
   DataSchedule({
     required super.id,
-    super.minute,
-    super.hour,
-    super.dayOfMonth,
-    super.month,
-    super.dayOfWeek,
+    required super.minute,
+    required super.hour,
+    required super.dayOfMonth,
+    required super.month,
+    required super.dayOfWeek,
     super.periodSeconds,
     required super.nextRun,
     required this.targetValue,
@@ -241,11 +241,11 @@ class OccurrenceSchedule extends BaseSchedule {
 
   OccurrenceSchedule({
     required super.id,
-    super.minute,
-    super.hour,
-    super.dayOfMonth,
-    super.month,
-    super.dayOfWeek,
+    required super.minute,
+    required super.hour,
+    required super.dayOfMonth,
+    required super.month,
+    required super.dayOfWeek,
     super.periodSeconds,
     required super.nextRun,
     required this.priority,
