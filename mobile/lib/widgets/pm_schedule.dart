@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pm/common/models.dart';
 import 'package:pm/widgets/base_state.dart';
+class RefreshNeededNotification extends Notification {}
+
 
 enum ScheduleFrequency { periodic, hourly, daily, weekly, monthly }
 

@@ -121,7 +121,8 @@ class PredictedMeMainFrameState
   void Function(String) _getOnTextChanged(BuildContext context) {
     return (text) {
       _criteria = SearchCriteria(
-        dateRange: _criteria.dateRange,
+        tsUtcStart: _criteria.tsUtcStart,
+        tsUtcEnd: _criteria.tsUtcEnd,
         tags: _criteria.tags,
         text: text,
       );
@@ -129,12 +130,13 @@ class PredictedMeMainFrameState
     };
   }
 
-  void Function(DateRange, Set<String>) _getOnFilterCriteriaChanged(
+  void Function(int, int, Set<String>) _getOnFilterCriteriaChanged(
     BuildContext context,
   ) {
-    return (dateRange, tags) {
+    return (start, end , tags) {
       _criteria = SearchCriteria(
-        dateRange: dateRange,
+        tsUtcStart: start,
+        tsUtcEnd: end,
         tags: tags,
         text: _criteria.text,
       );

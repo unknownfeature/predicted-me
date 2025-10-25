@@ -58,4 +58,4 @@ const String pCompleted = 'completed';
 const String vPut = 'put';
 const String vGet = 'get';
 const msInSec = 1000;
-
+const secInDay = 24 * 60 * 60;
