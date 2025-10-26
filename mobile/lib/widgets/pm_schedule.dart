@@ -1,8 +1,7 @@
+import 'package:expandable/expandable.dart'; // Add 'expandable' package
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Add 'intl' package
-import 'package:expandable/expandable.dart'; // Add 'expandable' package
 import 'package:pm/common/models.dart';
-import 'package:pm/controllers/base_controller.dart';
 import 'package:pm/widgets/base_state.dart';
 import 'package:pm/widgets/config/constants.dart';
 import 'package:pm/widgets/config/theme.dart';
@@ -11,31 +10,28 @@ import '../common/constants.dart';
 
 class SaveScheduleNotification extends Notification {}
 
-class PredictedMeSchedule<T extends BaseSchedule> extends StatefulWidget {
-  final T? initialSchedule;
-  final Function onDisable;
-  final Function(String, String, String, int) onChanged;
+class PredictedMeSchedule extends StatefulWidget {
+  final BaseSchedule initialSchedule;
+  final Function(BaseSchedule?) onChanged;
 
   const PredictedMeSchedule({
     Key? key,
-    required this.onDisable,
     required this.onChanged,
-
-    this.initialSchedule,
+    required this.initialSchedule,
   }) : super(key: key);
 
   @override
-  State<StatefulWidget> createState() => PredictedMeScheduleState<T>();
+  State<StatefulWidget> createState() => PredictedMeScheduleState();
 }
 
-class PredictedMeScheduleState<T extends BaseSchedule>
-    extends PredictedMeBaseState<PredictedMeSchedule<T>> {
+class PredictedMeScheduleState
+    extends PredictedMeBaseState<PredictedMeSchedule> {
   final _formKey = GlobalKey<FormState>();
 
   late TimeOfDay _selectedTime;
   late List<bool> _selectedWeekDays;
   late int _nextRun;
-  late T? _schedule;
+  late BaseSchedule _schedule;
 
   late ExpandableController _expandableController;
 
@@ -47,10 +43,11 @@ class PredictedMeScheduleState<T extends BaseSchedule>
 
     _selectedWeekDays = _cronToDaysOfWeek(_schedule);
     _selectedTime = _cronToTimeOfDay(_schedule);
-    _nextRun = _calculateNextRun(_selectedWeekDays, _selectedTime);
-
+    _nextRun = _schedule.nextRun > 0
+        ? _schedule.nextRun
+        : _calculateNextRun(_selectedWeekDays, _selectedTime);
     _expandableController = ExpandableController(
-      initialExpanded: _schedule != null,
+      initialExpanded: _schedule.id != null,
     );
   }
 
@@ -91,7 +88,7 @@ class PredictedMeScheduleState<T extends BaseSchedule>
     return 0;
   }
 
-  TimeOfDay _cronToTimeOfDay(T? schedule) {
+  TimeOfDay _cronToTimeOfDay(BaseSchedule? schedule) {
     if (schedule == null) {
       return const TimeOfDay(hour: 9, minute: 0); // Default
     }
@@ -125,7 +122,7 @@ class PredictedMeScheduleState<T extends BaseSchedule>
     return TimeOfDay(hour: inUtc.hour, minute: inUtc.minute);
   }
 
-  List<bool> _cronToDaysOfWeek(T? schedule) {
+  List<bool> _cronToDaysOfWeek(BaseSchedule? schedule) {
     if (schedule == null || schedule.dayOfWeek == '*') {
       return List.filled(7, true);
     }
@@ -147,18 +144,19 @@ class PredictedMeScheduleState<T extends BaseSchedule>
   }
 
   void _onToggleHeader() {
-    if (_schedule == null) {
+    if (!_expandableController.expanded) {
       redraw(
         cb: () {
           _schedule = widget.initialSchedule;
           _selectedWeekDays = _cronToDaysOfWeek(_schedule);
           _selectedTime = _cronToTimeOfDay(_schedule);
           _nextRun = _calculateNextRun(_selectedWeekDays, _selectedTime);
+          widget.onChanged(_schedule);
         },
       );
     } else {
-      widget.onDisable();
-      redraw(cb: () => _schedule = null);
+      widget.onChanged(null);
+      redraw(cb: () => _schedule = widget.initialSchedule);
     }
   }
 
@@ -254,9 +252,13 @@ class PredictedMeScheduleState<T extends BaseSchedule>
                         _selectedWeekDays,
                         _selectedTime,
                       );
+                      _schedule = _schedule.copyWithNewDayOfWeekAndNextRun(
+                        dayOfWeek: _daysOfWeekToCron(_selectedWeekDays),
+                        nextRun: _nextRun,
+                      );
                     },
                   );
-                  _notifyChanged();
+                  widget.onChanged(_schedule);
                 },
               ),
             ],
@@ -280,23 +282,21 @@ class PredictedMeScheduleState<T extends BaseSchedule>
             cb: () {
               _selectedTime = newTime;
               _nextRun = _calculateNextRun(_selectedWeekDays, _selectedTime);
+              TimeOfDay selectedTimeUtc = _timeOfDayToUtcTime(_selectedTime);
+
+              _schedule = _schedule.copyWithNewTimeAndNextRun(
+                hour: selectedTimeUtc.hour.toString(),
+                minute: selectedTimeUtc.minute.toString(),
+                nextRun: _nextRun,
+              );
             },
           );
-          _notifyChanged();
+          widget.onChanged(_schedule);
         }
       },
     );
   }
 
-  void _notifyChanged() {
-    TimeOfDay selectedUtc = _timeOfDayToUtcTime(_selectedTime);
-    widget.onChanged(
-      _daysOfWeekToCron(_selectedWeekDays),
-      selectedUtc.hour.toString(),
-      selectedUtc.minute.toString(),
-      _nextRun,
-    );
-  }
 
   Widget _buildNextRun() {
     final nextRunTime = DateTime.fromMillisecondsSinceEpoch(

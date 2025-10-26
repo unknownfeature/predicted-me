@@ -3,14 +3,14 @@ import 'constants.dart';
 
 
 abstract class Identifiable {
-  int get id;
+  int? get id;
 }
 
 // --- Base Models ---
 
 class Tag implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String name;
 
   Tag({required this.id, required this.name});
@@ -25,7 +25,7 @@ class Tag implements Identifiable {
 
 class User implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String? name;
 
   User({required this.id, this.name});
@@ -40,7 +40,7 @@ class User implements Identifiable {
 
 class Note implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String? text;
   final int time;
   final String? imageKey;
@@ -82,7 +82,7 @@ class Note implements Identifiable {
 
 class Link implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final int? noteId;
   final String url;
   final String summary;
@@ -118,7 +118,7 @@ class Link implements Identifiable {
 
 class Task implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String summary;
   final String description;
   final List<String> tags;
@@ -142,7 +142,7 @@ class Task implements Identifiable {
 
 class Metric implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String name;
   final List<String> tags;
 
@@ -165,7 +165,7 @@ class Metric implements Identifiable {
 
 abstract class BaseSchedule implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String minute;
   final String hour;
   final String dayOfMonth;
@@ -195,6 +195,9 @@ abstract class BaseSchedule implements Identifiable {
     kPeriodSeconds: periodSeconds,
     kNextRun: nextRun,
   };
+
+  BaseSchedule copyWithNewTimeAndNextRun({required String minute, required String hour, required int nextRun});
+  BaseSchedule copyWithNewDayOfWeekAndNextRun({required String dayOfWeek, required int nextRun});
 }
 
 class DataSchedule extends BaseSchedule {
@@ -226,6 +229,55 @@ class DataSchedule extends BaseSchedule {
       nextRun: json[kNextRun],
       targetValue: (json[kTargetValue] as num).toDouble(),
       units: json[kUnits],
+    );
+  }
+  factory DataSchedule.dailyMetric({
+    required int id,
+    required double targetValue,
+    String? units,
+  }) {
+    return DataSchedule(
+      id: id,
+      minute: '0',                   // Default minute: 0
+      hour: '9',                     // Default hour: 9
+      dayOfMonth: '*',             // Default dayOfMonth: '*'
+      month: '*',                  // Default month: '*'
+      dayOfWeek: '*',              // Default dayOfWeek: '*'
+      periodSeconds: null,
+      nextRun: 0,                  // Assume 0 or logic to calculate next run
+      targetValue: targetValue,
+      units: units,
+    );
+  }
+
+  DataSchedule copyWithNewTimeAndNextRun({required String minute, required String hour, required int nextRun}) {
+    return DataSchedule(
+      id: id,
+      minute: minute, // NEW
+      hour: hour,     // NEW
+      dayOfMonth: dayOfMonth,
+      month: month,
+      dayOfWeek: dayOfWeek,
+      periodSeconds: periodSeconds,
+      nextRun: nextRun,
+      targetValue: targetValue,
+      units: units,
+    );
+  }
+
+  /// Returns a copy of the object with the specified day of week changed.
+  DataSchedule copyWithNewDayOfWeekAndNextRun({required String dayOfWeek, required int nextRun}) {
+    return DataSchedule(
+      id: id,
+      minute: minute,
+      hour: hour,
+      dayOfMonth: dayOfMonth,
+      month: month,
+      dayOfWeek: dayOfWeek, // NEW
+      periodSeconds: periodSeconds,
+      nextRun: nextRun,
+      targetValue: targetValue,
+      units: units,
     );
   }
 
@@ -265,6 +317,51 @@ class OccurrenceSchedule extends BaseSchedule {
     );
   }
 
+  factory OccurrenceSchedule.dailyOccurrence({
+    required int id,
+    required int priority,
+  }) {
+    return OccurrenceSchedule(
+      id: id,
+      minute: '0',                   // Default minute: 0
+      hour: '9',                     // Default hour: 9
+      dayOfMonth: '*',             // Default dayOfMonth: '*'
+      month: '*',                  // Default month: '*'
+      dayOfWeek: '*',              // Default dayOfWeek: '*'
+      periodSeconds: null,
+      nextRun: 0,                  // Assume 0 or logic to calculate next run
+      priority: priority,
+    );
+  }
+  OccurrenceSchedule copyWithNewTimeAndNextRun({required String minute, required String hour, required int nextRun}) {
+    return OccurrenceSchedule(
+      id: id,
+      minute: minute, // NEW
+      hour: hour,     // NEW
+      dayOfMonth: dayOfMonth,
+      month: month,
+      dayOfWeek: dayOfWeek,
+      periodSeconds: periodSeconds,
+      nextRun: nextRun,
+      priority: priority,
+    );
+  }
+
+  /// Returns a copy of the object with the specified day of week changed.
+  OccurrenceSchedule copyWithNewDayOfWeekAndNextRun({required String dayOfWeek, required int nextRun}) {
+    return OccurrenceSchedule(
+      id: id,
+      minute: minute,
+      hour: hour,
+      dayOfMonth: dayOfMonth,
+      month: month,
+      dayOfWeek: dayOfWeek, // NEW
+      periodSeconds: periodSeconds,
+      nextRun: nextRun,
+      priority: priority,
+    );
+  }
+
   @override
   Map<String, dynamic> toJson() => super.toJson()..addAll({
     kPriority: priority,
@@ -275,7 +372,7 @@ class OccurrenceSchedule extends BaseSchedule {
 
 class MetricDetails implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String name;
   final bool tagged;
   final List<String> tags;
@@ -304,7 +401,7 @@ class MetricDetails implements Identifiable {
 
 class DataPoint implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final int? noteId;
   final double value;
   final String? units;
@@ -337,7 +434,7 @@ class DataPoint implements Identifiable {
 
 class TaskDetails implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final String description;
   final String summary;
   final bool tagged;
@@ -369,7 +466,7 @@ class TaskDetails implements Identifiable {
 
 class Occurrence implements Identifiable {
   @override
-  final int id;
+  final int? id;
   final int? noteId;
   final int priority;
   final bool completed;

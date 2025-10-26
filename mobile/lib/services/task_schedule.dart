@@ -31,8 +31,8 @@ class TaskScheduleService {
     );
   }
 
-  Future<void> update(
-    int id, {
+  Future<void> update({
+    int? id,
     int? priority,
     String? minute,
     String? hour,

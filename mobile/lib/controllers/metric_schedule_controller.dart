@@ -29,7 +29,7 @@ class MetricScheduleController implements Controller<DataSchedule> {
     } else {
       // Existing schedule, call update
       await _service.update(
-        item.id,
+        id: item.id,
         value: item.targetValue,
         units: item.units,
         minute: item.minute,

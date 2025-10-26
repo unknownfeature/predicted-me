@@ -9,8 +9,8 @@ class MetricScheduleService {
 
   Future<Map<String, dynamic>> create(
     int metricId,
-    double value,
-    {String? units,
+    double value, {
+    String? units,
     String? minute,
     String? hour,
     String? dayOfMonth,
@@ -33,8 +33,8 @@ class MetricScheduleService {
     );
   }
 
-  Future<void> update(
-    int id, {
+  Future<void> update({
+    int? id,
     double? value,
     String? units,
     String? minute,

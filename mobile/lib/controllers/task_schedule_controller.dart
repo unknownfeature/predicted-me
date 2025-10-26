@@ -26,7 +26,7 @@ class TaskScheduleController implements Controller<OccurrenceSchedule> {
       return OccurrenceSchedule.fromJson(item.toJson()..[kId] = result[kId]);
     } else {
       await _service.update(
-        item.id,
+        id: item.id,
         priority: item.priority,
         minute: item.minute,
         hour: item.hour,
