@@ -26,6 +26,6 @@ class MockMetricScheduleController implements Controller<DataSchedule> {
   @override
   Future<DataSchedule> get(int id) { throw UnimplementedError(); }
   @override
-  Future<List<DataSchedule>> list(SearchCriteria criteria, int page) { throw UnimplementedError(); }
+  Future<List<DataSchedule>> list(SearchCriteria criteria, [int page = 0, int limit = defaultPageSize]) { throw UnimplementedError(); }
 }
 

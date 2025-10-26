@@ -26,5 +26,5 @@ class MockTaskScheduleController implements Controller<OccurrenceSchedule> {
   @override
   Future<OccurrenceSchedule> get(int id) { throw UnimplementedError(); }
   @override
-  Future<List<OccurrenceSchedule>> list(SearchCriteria criteria, int page) { throw UnimplementedError(); }
+  Future<List<OccurrenceSchedule>> list(SearchCriteria criteria, [int page = 0, int limit = defaultPageSize]) { throw UnimplementedError(); }
 }

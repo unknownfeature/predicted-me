@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:pm/common/constants.dart';
 import 'package:pm/widgets/config/theme.dart';
+import '../common/models.dart';
 import 'base_state.dart';
 import 'config/constants.dart';
 
 class PredictedMeAutocomplete extends StatefulWidget {
-  final Future<Iterable<String>> Function(String) suggestionsSupplier;
+  final Future<Iterable<Named>> Function(String, int) suggestionsSupplier;
   final Iterable<String> Function()? excludedSupplier;
   final Function(String)? onNew;
-  final Function(String) onSelected;
+  final Function(Named) onSelected;
   final Function(String)? onChanged;
   final FocusNode focusNode;
   final bool multiValued;
@@ -15,6 +17,8 @@ class PredictedMeAutocomplete extends StatefulWidget {
   final bool showCounter;
   final int maxLength;
   final OptionsViewOpenDirection optionsViewOpenDirection;
+  final String? initialValue;
+  final int limit;
 
   const PredictedMeAutocomplete({
     super.key,
@@ -24,11 +28,13 @@ class PredictedMeAutocomplete extends StatefulWidget {
     this.onChanged,
     this.onNew,
     this.excludedSupplier,
+    this.initialValue,
     this.hintText = 'start typing ..',
     this.multiValued = true,
     this.maxLength = 100,
     this.showCounter = false,
     this.optionsViewOpenDirection = OptionsViewOpenDirection.down,
+    this.limit = defaultPageSize
   });
 
   @override
@@ -51,6 +57,7 @@ class PredictedMeAutocompleteState
   @override
   void initState() {
     super.initState();
+    _textController.text = widget.initialValue ?? empty;
     widget.focusNode.addListener(redraw);
     _textController.addListener(redraw);
     _animationController = AnimationController(
@@ -71,7 +78,7 @@ class PredictedMeAutocompleteState
     super.dispose();
   }
 
-  Future<void> _onSelected(String item, FormFieldState<String> state) async {
+  Future<void> _onSelected(Named item, FormFieldState<String> state) async {
     await widget.onSelected(item);
     if (widget.multiValued) {
       _textController.clear();
@@ -119,7 +126,7 @@ class PredictedMeAutocompleteState
         } else {
           _animationController.reverse();
         }
-        return RawAutocomplete<String>(
+        return RawAutocomplete<Named>(
           optionsViewOpenDirection: widget.optionsViewOpenDirection,
           textEditingController: _textController,
           focusNode: widget.focusNode,
@@ -128,9 +135,9 @@ class PredictedMeAutocompleteState
           optionsBuilder: (TextEditingValue textEditingValue) async {
             final String text = textEditingValue.text.trim();
             if (text.isEmpty) {
-              return const Iterable<String>.empty();
+              return const Iterable<Named>.empty();
             }
-            final results = await widget.suggestionsSupplier(text);
+            final results = await widget.suggestionsSupplier(text, widget.limit);
             if (widget.excludedSupplier != null) {
               return Set.of(
                 results,
@@ -139,7 +146,7 @@ class PredictedMeAutocompleteState
             return results;
           },
 
-          onSelected: (String selection) {
+          onSelected: (Named selection) {
             _onSelected(selection, state);
           },
 
@@ -187,8 +194,8 @@ class PredictedMeAutocompleteState
           optionsViewBuilder:
               (
                 BuildContext context,
-                AutocompleteOnSelected<String> onSelected,
-                Iterable<String> options,
+                AutocompleteOnSelected<Named> onSelected,
+                Iterable<Named> options,
               ) {
                 return FadeTransition(
                   opacity: _animation,
@@ -212,7 +219,7 @@ class PredictedMeAutocompleteState
                               return ListTile(
                                 title: Text(
                                   textAlign: TextAlign.center,
-                                  suggestion,
+                                  suggestion.name,
                                   style: darkOnLightTextStyle,
                                 ),
                                 tileColor: index % 2 == 0

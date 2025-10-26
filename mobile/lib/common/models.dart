@@ -6,9 +6,14 @@ abstract class Identifiable {
   int? get id;
 }
 
+abstract class Named {
+  String get name;
+}
+
+
 // --- Base Models ---
 
-class Tag implements Identifiable {
+class Tag implements Identifiable, Named {
   @override
   final int? id;
   final String name;
@@ -37,7 +42,6 @@ class User implements Identifiable {
     );
   }
 }
-
 class Note implements Identifiable {
   @override
   final int? id;
@@ -52,7 +56,7 @@ class Note implements Identifiable {
   final String? audioText;
 
   Note({
-    required this.id,
+    this.id, // Changed to optional
     this.text,
     required this.time,
     this.imageKey,
@@ -78,9 +82,35 @@ class Note implements Identifiable {
       audioText: json[kAudioText],
     );
   }
+
+  Note copy({
+    int? id,
+    String? text,
+    int? time,
+    String? imageKey,
+    String? audioKey,
+    bool? imageDescribed,
+    bool? audioTranscribed,
+    String? imageText,
+    String? imageDescription,
+    String? audioText,
+  }) {
+    return Note(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      time: time ?? this.time,
+      imageKey: imageKey ?? this.imageKey,
+      audioKey: audioKey ?? this.audioKey,
+      imageDescribed: imageDescribed ?? this.imageDescribed,
+      audioTranscribed: audioTranscribed ?? this.audioTranscribed,
+      imageText: imageText ?? this.imageText,
+      imageDescription: imageDescription ?? this.imageDescription,
+      audioText: audioText ?? this.audioText,
+    );
+  }
 }
 
-class Link implements Identifiable {
+class Link implements Identifiable, Named {
   @override
   final int? id;
   final int? noteId;
@@ -92,7 +122,7 @@ class Link implements Identifiable {
   final List<String> tags;
 
   Link({
-    required this.id,
+    this.id, // Changed to optional
     this.noteId,
     required this.url,
     required this.summary,
@@ -101,6 +131,9 @@ class Link implements Identifiable {
     required this.time,
     required this.tags,
   });
+
+  @override
+  String get name => summary;
 
   factory Link.fromJson(Map<String, dynamic> json) {
     return Link(
@@ -114,9 +147,31 @@ class Link implements Identifiable {
       tags: List<String>.from(json[kTags] ?? []),
     );
   }
+
+  Link copy({
+    int? id,
+    int? noteId,
+    String? url,
+    String? summary,
+    String? description,
+    bool? tagged,
+    int? time,
+    List<String>? tags,
+  }) {
+    return Link(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      url: url ?? this.url,
+      summary: summary ?? this.summary,
+      description: description ?? this.description,
+      tagged: tagged ?? this.tagged,
+      time: time ?? this.time,
+      tags: tags ?? this.tags,
+    );
+  }
 }
 
-class Task implements Identifiable {
+class Task implements Identifiable, Named {
   @override
   final int? id;
   final String summary;
@@ -124,7 +179,7 @@ class Task implements Identifiable {
   final List<String> tags;
 
   Task({
-    required this.id,
+    this.id,
     required this.summary,
     required this.description,
     required this.tags,
@@ -138,16 +193,31 @@ class Task implements Identifiable {
       tags: List<String>.from(json[kTags] ?? []),
     );
   }
-}
 
-class Metric implements Identifiable {
+  @override
+  String get name => summary;
+
+  Task copy({
+    int? id,
+    String? summary,
+    String? description,
+    List<String>? tags,
+  }) {
+    return Task(id: id ?? this.id,
+        summary: summary ?? this.summary,
+        description: description ?? this.description,
+        tags: tags ?? this.tags);
+  }
+}
+class Metric implements Identifiable, Named {
   @override
   final int? id;
+  @override
   final String name;
   final List<String> tags;
 
   Metric({
-    required this.id,
+    this.id, // Changed to optional
     required this.name,
     required this.tags,
   });
@@ -157,6 +227,18 @@ class Metric implements Identifiable {
       id: json[kId],
       name: json[kName],
       tags: List<String>.from(json[kTags] ?? []),
+    );
+  }
+
+  Metric copy({
+    int? id,
+    String? name,
+    List<String>? tags,
+  }) {
+    return Metric(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      tags: tags ?? this.tags,
     );
   }
 }
@@ -239,7 +321,7 @@ class DataSchedule extends BaseSchedule {
     );
   }
   factory DataSchedule.dailyMetric({
-    required int id,
+    int? id,
     required double targetValue,
     String? units,
   }) {
@@ -365,19 +447,22 @@ class OccurrenceSchedule extends BaseSchedule {
 
 // --- Nested Response Models (from GET endpoints) ---
 
-class MetricDetails implements Identifiable {
+class MetricDetails implements Identifiable, Named {
   @override
   final int? id;
+  @override
   final String name;
+  final String? defaultUnits;
   final bool tagged;
   final List<String> tags;
   final DataSchedule? schedule;
 
   MetricDetails({
-    required this.id,
+    this.id,
     required this.name,
     required this.tagged,
     required this.tags,
+    this.defaultUnits,
     this.schedule,
   });
 
@@ -387,29 +472,46 @@ class MetricDetails implements Identifiable {
       name: json[kName],
       tagged: json[kTagged],
       tags: List<String>.from(json[kTags] ?? []),
+      defaultUnits: json[kDefaultUnits],
       schedule: json[kSchedule] != null && (json[kSchedule] as Map).isNotEmpty
           ? DataSchedule.fromJson(json[kSchedule])
           : null,
     );
   }
-}
 
+  MetricDetails copy({
+    int? id,
+    String? name,
+    bool? tagged,
+    List<String>? tags,
+    DataSchedule? schedule,
+    String? defaultUnits
+  }) {
+    return MetricDetails(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      tagged: tagged ?? this.tagged,
+      tags: tags ?? this.tags,
+      schedule: schedule ?? this.schedule,
+      defaultUnits: defaultUnits ?? this.defaultUnits
+    );
+  }
+}
 class DataPoint implements Identifiable {
   @override
-  final int? id;
+  final int? id; // Made nullable
   final int? noteId;
   final double value;
   final String? units;
-  final String origin;
+
   final int time;
   final MetricDetails metric;
 
   DataPoint({
-    required this.id,
+    this.id, // Made optional
     this.noteId,
     required this.value,
     this.units,
-    required this.origin,
     required this.time,
     required this.metric,
   });
@@ -420,9 +522,26 @@ class DataPoint implements Identifiable {
       noteId: json[kNoteId],
       value: (json[kValue] as num).toDouble(),
       units: json[kUnits],
-      origin: json[kOrigin],
       time: json[kTime],
       metric: MetricDetails.fromJson(json[kMetric]),
+    );
+  }
+
+  DataPoint copy({
+    int? id,
+    int? noteId,
+    double? value,
+    String? units,
+    int? time,
+    MetricDetails? metric,
+  }) {
+    return DataPoint(
+      id: id ?? this.id,
+      noteId: noteId ?? this.noteId,
+      value: value ?? this.value,
+      units: units ?? this.units,
+      time: time ?? this.time,
+      metric: metric ?? this.metric,
     );
   }
 }

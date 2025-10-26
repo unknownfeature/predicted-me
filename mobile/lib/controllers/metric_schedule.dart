@@ -54,7 +54,7 @@ class MetricScheduleController implements Controller<DataSchedule> {
   }
 
   @override
-  Future<List<DataSchedule>> list(SearchCriteria criteria, int page) {
+  Future<List<DataSchedule>> list(SearchCriteria criteria, [int page = 0, int limit = defaultPageSize]) {
     throw UnimplementedError("Schedule is fetched with its parent (Metric/Task)");
   }
 }

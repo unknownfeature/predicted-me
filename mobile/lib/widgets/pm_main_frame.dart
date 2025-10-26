@@ -5,7 +5,7 @@ import 'package:pm/common/models.dart';
 import 'package:pm/widgets/base_state.dart';
 import 'package:pm/widgets/config/constants.dart';
 import 'package:pm/widgets/pm_app_bar.dart';
-import 'package:pm/widgets/pm_base_item.dart';
+import 'package:pm/widgets/item/pm_base_item.dart';
 import 'package:pm/widgets/pm_filter.dart';
 import 'package:pm/widgets/pm_nav_bar.dart';
 import 'package:pm/widgets/pm_search_list.dart';
@@ -48,7 +48,7 @@ class PredictedMeMainFrame extends StatefulWidget {
   final Map<Mode, Config> configs;
   final Mode initialMode;
   final SearchCriteria initialCriteria;
-  final Future<Iterable<String>> Function(String) tagsSupplier;
+  final Future<Iterable<Tag>> Function(String, int) tagsSupplier;
 
   const PredictedMeMainFrame({
     super.key,

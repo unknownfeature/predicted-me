@@ -10,9 +10,9 @@ import '../common/constants.dart';
 
 class SaveScheduleNotification extends Notification {}
 
-class PredictedMeSchedule extends StatefulWidget {
+class PredictedMeSchedule<T extends BaseSchedule> extends StatefulWidget {
   final BaseSchedule initialSchedule;
-  final Function(BaseSchedule?) onChanged;
+  final Function(T?) onChanged;
 
   const PredictedMeSchedule({
     Key? key,

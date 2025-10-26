@@ -22,7 +22,7 @@ class MetricService {
 
   Future<List<MetricDetails>> list({Map<String, String>? queryParams}) async {
     final response = await _apiClient.get(_path, queryParams: queryParams);
-    return response.map((metric) => MetricDetails.fromJson(metric)).toList();
+    return response.map((metric) => Metric.fromJson(metric)).toList();
   }
 
 

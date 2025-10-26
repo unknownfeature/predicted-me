@@ -50,7 +50,7 @@ class TaskScheduleController implements Controller<OccurrenceSchedule> {
   }
 
   @override
-  Future<List<OccurrenceSchedule>> list(SearchCriteria criteria, int page) {
+  Future<List<OccurrenceSchedule>> list(SearchCriteria criteria, [int page = 0, int limit = defaultPageSize]) {
     throw UnimplementedError("Schedule is fetched with its parent (Metric/Task)");
   }
 }

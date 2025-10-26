@@ -14,9 +14,9 @@ class TagService {
     return await _apiClient.post(_path, body: body);
   }
 
-  Future<List<MetricDetails>> list({Map<String, String>? queryParams}) async {
+  Future<List<Tag>> list({Map<String, String>? queryParams}) async {
     final response = await _apiClient.get(_path, queryParams: queryParams);
-    return response.map((metric) => MetricDetails.fromJson(metric)).toList();
+    return response.map((tags) => Tag.fromJson(tags)).toList();
   }
 
 }

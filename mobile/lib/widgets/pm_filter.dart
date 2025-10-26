@@ -4,6 +4,7 @@ import 'package:pm/widgets/config/constants.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
 
 import '../common/constants.dart';
+import '../common/models.dart';
 import 'config/theme.dart';
 
 DateTime getUtcDateTimeEndForToday() {
@@ -118,7 +119,7 @@ extension DateRangeExtension on DateRange {
 
 class PredictedMeFilter extends StatefulWidget {
   final Function(int, int, Set<String>) onCriteriaChanged;
-  final Future<Iterable<String>> Function(String) tagsSuggestionsSupplier;
+  final Future<Iterable<Tag>> Function(String, int) tagsSuggestionsSupplier;
   final int? initialTsUtcStart;
   final int? initialTsUtcEnd;
   final Set<String> initialTags;

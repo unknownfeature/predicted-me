@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:pm/common/constants.dart';
 import 'package:pm/widgets/config/theme.dart';
 import 'package:pm/widgets/pm_autocomplete.dart';
+import '../common/models.dart';
 import 'base_state.dart';
 import 'config/constants.dart';
 
 class PredictedMeTagsSelector extends StatefulWidget {
   final Set<String> initialTagNames;
-  final Future<Iterable<String>> Function(String) tagsSupplier;
+  final Future<Iterable<Tag>> Function(String, int) tagsSupplier;
   final Function(Set<String>) onChanged;
   final Future Function(String)? onNew;
+  final int maxTags;
   final int limit;
   final bool required;
 
@@ -19,7 +21,8 @@ class PredictedMeTagsSelector extends StatefulWidget {
     required this.tagsSupplier,
     required this.onChanged,
     this.onNew,
-    this.limit = 10,
+    this.limit = defaultPageSize,
+    this.maxTags = 3,
     this.required = false,
   }) : super(key: key);
 
@@ -68,7 +71,7 @@ class PredictedMeTagsSelectorState
     String tagName,
     bool newTag,
   ) async {
-    if (_tags.length < widget.limit) {
+    if (_tags.length < widget.maxTags) {
       if (_tags.any((tag) => tag.toLowerCase() == tagName.toLowerCase())) {
         return;
       }
@@ -138,10 +141,11 @@ class PredictedMeTagsSelectorState
                       focusNode: _focusNode,
                       suggestionsSupplier: widget.tagsSupplier,
                       excludedSupplier: () => Set.of(_tags),
-                      onSelected: (s) => _addTag(state, s, false),
+                      onSelected: (s) => _addTag(state, s.name, false),
                       onNew: (s) => _addTag(state, s, true),
                       hintText: 'type to add tags',
                       maxLength: tagFieldLength,
+                      limit: widget.limit,
                     ),
 
 
