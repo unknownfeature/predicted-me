@@ -20,7 +20,7 @@ def on_create():
 
     try:
 
-        engine = setup_engine(fix_auth=True)
+        engine = setup_engine()
 
         print('Connecting to the database and creating db...')
         Base.metadata.create_all(engine)

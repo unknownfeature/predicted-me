@@ -20,6 +20,7 @@ from aws_cdk import (
     aws_iam as iam)
 
 from shared.variables import *
+from .constants import rds_generate_auth_token_policy_statement
 from .input import Function, ApiFunction, ScheduledFunction, CustomResourceTriggeredFunction
 
 
@@ -147,21 +148,22 @@ def create_lambda_role(stack: Stack, role_name: str, and_then: Callable[[iam.Rol
     return role
 
 
-def add_db_access_to_role_cb_factory(db_proxy: rds.DatabaseProxy, db_secret: rds.DatabaseSecret,
+def add_db_access_to_role_cb_factory(db_instance: rds.DatabaseInstance, db_secret: rds.DatabaseSecret,
                                      and_then: Callable[[iam.Role], None] = None) -> Callable[[iam.Role], None]:
     def on_role(role: iam.Role):
-        db_proxy.grant_connect(role)
+        db_instance.grant_connect(role)
         db_secret.grant_read(role)
+        role.add_to_policy(rds_generate_auth_token_policy_statement)
         if and_then:
             and_then(role)
 
     return on_role
 
 
-def create_role_with_db_access_factory(db_proxy: rds.DatabaseProxy, db_secret: rds.DatabaseSecret,
+def create_role_with_db_access_factory(db_instance: rds.DatabaseInstance, db_secret: rds.DatabaseSecret,
                                        and_then: Callable[[iam.Role], None] = None) -> Callable[
     [Stack, Function], iam.Role]:
-    return create_function_role_factory(add_db_access_to_role_cb_factory(db_proxy, db_secret, and_then))
+    return create_function_role_factory(add_db_access_to_role_cb_factory(db_instance, db_secret, and_then))
 
 
 def create_function_role_factory(on_role: Callable[[iam.Role], None]) -> Callable[
@@ -169,10 +171,10 @@ def create_function_role_factory(on_role: Callable[[iam.Role], None]) -> Callabl
     return lambda stack, params: create_lambda_role(stack, params.role_name, on_role)
 
 
-def allow_connection_function_factory(db_proxy: rds.DatabaseProxy, and_then: Callable[[lmbd.Function], None] = None) -> \
+def allow_connection_function_factory(db_instance: rds.DatabaseInstance, and_then: Callable[[lmbd.Function], None] = None) -> \
 Callable[[lmbd.Function], None]:
     def composed(func: lmbd.Function):
-        func.connections.allow_to(db_proxy, port_range=ec2.Port.tcp(int(os.getenv(db_port))))
+        func.connections.allow_to(db_instance, port_range=ec2.Port.tcp(int(os.getenv(db_port))))
         and_then(func)
 
     return composed

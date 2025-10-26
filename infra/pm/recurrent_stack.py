@@ -48,8 +48,8 @@ class PmRecurrentStack(Stack):
                 db_name: os.getenv(db_name),
                 db_port: db_stack.db_instance.db_instance_endpoint_port,
             },
-            role_supplier=create_role_with_db_access_factory(db_stack.db_proxy, db_stack.db_secret, on_role),
-            and_then=allow_connection_function_factory(db_stack.db_proxy, schedule_cb_factory(self, function_params)),
+            role_supplier=create_role_with_db_access_factory(db_stack.db_instance, db_stack.db_secret, on_role),
+            and_then=allow_connection_function_factory(db_stack.db_instance, schedule_cb_factory(self, function_params)),
             vpc=vpc_stack.vpc,
         ))
 

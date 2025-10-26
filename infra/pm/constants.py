@@ -5,3 +5,8 @@ bedrock_invoke_policy_statement = iam.PolicyStatement(
                     resources=['*'],
                     effect=iam.Effect.ALLOW
                 )
+
+rds_generate_auth_token_policy_statement = iam.PolicyStatement(
+    actions=["rds:GenerateDBAuthToken"],
+    resources=["*"],
+)

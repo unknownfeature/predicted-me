@@ -8,7 +8,6 @@ from typing import List, Optional
 import boto3
 from slugify import slugify
 from sqlalchemy import (
-    text,
     BigInteger,
     Boolean,
     String,
@@ -499,6 +498,7 @@ db_test = os.getenv(db_test)
 db_port = os.getenv(db_port)
 
 secrets_client = boto3.client('secretsmanager', region_name=os.getenv(aws_region))
+rds_client = boto3.client('rds', region_name=os.getenv(aws_region))
 
 def populate_units_conversion(session: Session):
     count = session.query(UnitConversion).count()
@@ -522,8 +522,7 @@ def begin_session(auto_flush=True):
 
     return sessionmaker(bind=engine, autoflush=auto_flush)()
 
-
-def setup_engine(fix_auth=False):
+def setup_engine():
     if not db_test:
         secret_response = secrets_client.get_secret_value(SecretId=secret_arn)
         secret_dict = json.loads(secret_response['SecretString'])
@@ -533,16 +532,12 @@ def setup_engine(fix_auth=False):
     else:
         username = os.getenv(db_user)
         password = os.getenv(db_pass)
+
     connection_string = (
         f'mysql+mysqlconnector://{username}:{password}@{db_endpoint}:{db_port}/{db_name}'
     )
-    engine = create_engine(connection_string, pool_recycle=300, echo=db_test is not None)
-    if fix_auth and not db_test:
-        sql_command = text(f"ALTER USER '{username}'@'%' IDENTIFIED WITH mysql_native_password BY '{password}';")
-        with engine.connect() as connection:
-            connection.execute(sql_command)
-            connection.execute(text('FLUSH PRIVILEGES;'))
-            connection.commit()
+
+    engine = create_engine(connection_string,  pool_recycle=300, echo=db_test is not None)
     return engine
 
 def to_func_enum(value: str) -> Optional[AggregationFunction]:

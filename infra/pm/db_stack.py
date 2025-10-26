@@ -46,20 +46,16 @@ class PmDbStack(Stack):
                                                 ),
                                                 instance_type=ec2.InstanceType.of(ec2.InstanceClass.T3,
                                                                                   ec2.InstanceSize.LARGE),
+
                                                 vpc=vpc_stack.vpc,
                                                 security_groups=[self.db_sec_group],
                                                 database_name=os.getenv(db_name),
                                                 credentials=self.db_creds,
                                                 subnet_group=self.db_subnet_group,
-
+                                                multi_az=False
                                                 )
 
-        self.db_proxy = rds.DatabaseProxy(self, Db.proxy_name,
-                                          proxy_target=rds.ProxyTarget.from_instance(self.db_instance),
-                                          secrets=[self.db_secret],
-                                          vpc=vpc_stack.vpc,
-                                          iam_auth=True
-                                          )
+
 
         self.initializer_function = self._create_initializer_function(vpc_stack, Db.initializer_function)
 
@@ -80,8 +76,8 @@ class PmDbStack(Stack):
                 Common.install_mysql_arg: true,
             },
             environment=env,
-            role_supplier=create_role_with_db_access_factory(self.db_proxy, self.db_secret),
-            and_then=allow_connection_function_factory(self.db_proxy, custom_resource_trigger_cb_factory(self, {}, function_params )),
+            role_supplier=create_role_with_db_access_factory(self.db_instance, self.db_secret),
+            and_then=allow_connection_function_factory(self.db_instance, custom_resource_trigger_cb_factory(self, {}, function_params )),
             vpc=vpc_stack.vpc,
         ))
 
