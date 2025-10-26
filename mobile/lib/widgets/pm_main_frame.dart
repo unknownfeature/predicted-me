@@ -21,15 +21,20 @@ enum Mode { note, data, link, task, graph }
 class Config<T extends Identifiable> {
   final EditWidgetSupplier editSupplier;
   final TileWidgetSupplier tileSupplier;
-  final Future<List<T>> Function(SearchCriteria criteria, int page)
-  itemsSupplier;
+  final FloatingWidgetSupplier floatingActionSupplier;
+
+  final Future<List<T>> Function(SearchCriteria criteria, int page) itemsSupplier;
+
   final IconData navIcon;
+  final bool latestItemAtTheBottomOfTheList;
 
   Config({
     required this.editSupplier,
     required this.tileSupplier,
     required this.itemsSupplier,
+    required this.floatingActionSupplier,
     required this.navIcon,
+    required this.latestItemAtTheBottomOfTheList
   });
 }
 
@@ -160,6 +165,7 @@ class PredictedMeMainFrameState
       supplier: _buildItemsSupplier(config),
       onScroll: _onScroll,
       initialPage: _page,
+      reverse: config.latestItemAtTheBottomOfTheList,
     );
   }
 
@@ -279,10 +285,10 @@ class PredictedMeMainFrameState
           ),
         ),
       ),
-
+      floatingActionButton: config.floatingActionSupplier(onSubmit: () => _notifyListRefreshNeeded(context)),
       bottomNavigationBar: AnimatedContainer(
         duration: animationDuration,
-        height: _showNavs ? iconSizeLarge * 3 : 0.0,
+        height: _showNavs ? iconSizeLarge * 3 : 0.0, // todo calc this better
         child: PredictedNavBar(navs: _toNavs(), currentIndex: _mode.index),
       ),
     );

@@ -12,6 +12,7 @@ class PredictedMeSearchList<T extends Identifiable> extends StatefulWidget {
   final Future<List<T>> Function(int) supplier;
   final Function(ScrollDirection) onScroll;
   final int initialPage;
+  final bool reverse;
 
   const PredictedMeSearchList({
     super.key,
@@ -19,6 +20,7 @@ class PredictedMeSearchList<T extends Identifiable> extends StatefulWidget {
     required this.supplier,
     required this.onScroll,
     this.initialPage = 0,
+    this.reverse = false
   });
 
   @override
@@ -74,6 +76,7 @@ class PredictedMeSearchListState<T extends Identifiable>
       child: PagingListener(
         controller: _pagingController,
         builder: (context, state, fetchNextPage) => PagedListView<int, T>(
+          reverse: widget.reverse,
           state: state,
           scrollController: _scrollController,
           fetchNextPage: fetchNextPage,

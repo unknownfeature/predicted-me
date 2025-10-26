@@ -3,13 +3,16 @@ import 'package:pm/common/models.dart';
 
 typedef EditWidgetSupplier =
     Widget Function({
-      Function(bool, BuildContext) onDoneEditing,
-      Identifiable item,
+      required Function(bool, BuildContext) onDoneEditing,
+      required Identifiable item,
     });
 
 typedef TileWidgetSupplier =
     Widget Function({
-      Function(BuildContext) onDelete,
-      Function(Identifiable) onTap,
-      Identifiable item,
+      required Function(BuildContext) onDelete,
+      required Function(Identifiable) onTap,
+      required Identifiable item,
     });
+
+typedef FloatingWidgetSupplier =
+    Widget Function({required Function() onSubmit});

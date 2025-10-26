@@ -196,8 +196,15 @@ abstract class BaseSchedule implements Identifiable {
     kNextRun: nextRun,
   };
 
-  BaseSchedule copyWithNewTimeAndNextRun({required String minute, required String hour, required int nextRun});
-  BaseSchedule copyWithNewDayOfWeekAndNextRun({required String dayOfWeek, required int nextRun});
+  BaseSchedule copy({
+    String? minute,
+    String? hour,
+    String? dayOfMonth,
+    String? month,
+    String? dayOfWeek,
+    int? periodSeconds,
+    int? nextRun,
+  });
 }
 
 class DataSchedule extends BaseSchedule {
@@ -250,32 +257,24 @@ class DataSchedule extends BaseSchedule {
     );
   }
 
-  DataSchedule copyWithNewTimeAndNextRun({required String minute, required String hour, required int nextRun}) {
+  DataSchedule copy({
+    String? minute,
+    String? hour,
+    String? dayOfMonth,
+    String? month,
+    String? dayOfWeek,
+    int? periodSeconds,
+    int? nextRun,
+  }) {
     return DataSchedule(
       id: id,
-      minute: minute, // NEW
-      hour: hour,     // NEW
-      dayOfMonth: dayOfMonth,
-      month: month,
-      dayOfWeek: dayOfWeek,
-      periodSeconds: periodSeconds,
-      nextRun: nextRun,
-      targetValue: targetValue,
-      units: units,
-    );
-  }
-
-  /// Returns a copy of the object with the specified day of week changed.
-  DataSchedule copyWithNewDayOfWeekAndNextRun({required String dayOfWeek, required int nextRun}) {
-    return DataSchedule(
-      id: id,
-      minute: minute,
-      hour: hour,
-      dayOfMonth: dayOfMonth,
-      month: month,
-      dayOfWeek: dayOfWeek, // NEW
-      periodSeconds: periodSeconds,
-      nextRun: nextRun,
+      minute: minute ?? this.minute,
+      hour: hour ?? this.hour,
+      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      month: month ?? this.month,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+      periodSeconds: periodSeconds ?? this.periodSeconds,
+      nextRun: nextRun ?? this.nextRun,
       targetValue: targetValue,
       units: units,
     );
@@ -333,34 +332,30 @@ class OccurrenceSchedule extends BaseSchedule {
       priority: priority,
     );
   }
-  OccurrenceSchedule copyWithNewTimeAndNextRun({required String minute, required String hour, required int nextRun}) {
+
+
+  OccurrenceSchedule copy({
+    String? minute,
+    String? hour,
+    String? dayOfMonth,
+    String? month,
+    String? dayOfWeek,
+    int? periodSeconds,
+    int? nextRun,
+  }) {
     return OccurrenceSchedule(
       id: id,
-      minute: minute, // NEW
-      hour: hour,     // NEW
-      dayOfMonth: dayOfMonth,
-      month: month,
-      dayOfWeek: dayOfWeek,
-      periodSeconds: periodSeconds,
-      nextRun: nextRun,
+      minute: minute ?? this.minute,
+      hour: hour ?? this.hour,
+      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      month: month ?? this.month,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+      periodSeconds: periodSeconds ?? this.periodSeconds,
+      nextRun: nextRun ?? this.nextRun,
       priority: priority,
     );
   }
 
-  /// Returns a copy of the object with the specified day of week changed.
-  OccurrenceSchedule copyWithNewDayOfWeekAndNextRun({required String dayOfWeek, required int nextRun}) {
-    return OccurrenceSchedule(
-      id: id,
-      minute: minute,
-      hour: hour,
-      dayOfMonth: dayOfMonth,
-      month: month,
-      dayOfWeek: dayOfWeek, // NEW
-      periodSeconds: periodSeconds,
-      nextRun: nextRun,
-      priority: priority,
-    );
-  }
 
   @override
   Map<String, dynamic> toJson() => super.toJson()..addAll({

@@ -163,7 +163,6 @@ class PredictedMeScheduleState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bool isEnabled = _schedule != null;
 
     return Form(
       key: _formKey,
@@ -187,13 +186,13 @@ class PredictedMeScheduleState
                 children: [
                   Icon(
                     Icons.repeat_outlined,
-                    color: isEnabled ? greyPrimary : greyShadow,
+                    color: _expandableController.expanded ? greyPrimary : greyShadow,
                   ),
                   const SizedBox(width: paddingSmall),
                   Text(
                     "Repeat on:",
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: isEnabled ? greyPrimary : greyShadow,
+                      color: _expandableController.expanded  ? greyPrimary : greyShadow,
                     ),
                   ),
                 ],
@@ -214,10 +213,10 @@ class PredictedMeScheduleState
               Text("At:", style: theme.textTheme.titleSmall),
               _buildTimeSelector(),
 
-              if (isEnabled && _schedule!.nextRun > 0)
+              if (_expandableController.expanded  && _schedule!.nextRun > 0)
                 const SizedBox(height: sizedBoxExtraLarge),
 
-              if (isEnabled && _schedule!.nextRun > 0) _buildNextRun(),
+              if (_expandableController.expanded  && _schedule!.nextRun > 0) _buildNextRun(),
             ],
           ),
         ),
@@ -252,7 +251,7 @@ class PredictedMeScheduleState
                         _selectedWeekDays,
                         _selectedTime,
                       );
-                      _schedule = _schedule.copyWithNewDayOfWeekAndNextRun(
+                      _schedule = _schedule.copy(
                         dayOfWeek: _daysOfWeekToCron(_selectedWeekDays),
                         nextRun: _nextRun,
                       );
@@ -284,7 +283,7 @@ class PredictedMeScheduleState
               _nextRun = _calculateNextRun(_selectedWeekDays, _selectedTime);
               TimeOfDay selectedTimeUtc = _timeOfDayToUtcTime(_selectedTime);
 
-              _schedule = _schedule.copyWithNewTimeAndNextRun(
+              _schedule = _schedule.copy(
                 hour: selectedTimeUtc.hour.toString(),
                 minute: selectedTimeUtc.minute.toString(),
                 nextRun: _nextRun,
