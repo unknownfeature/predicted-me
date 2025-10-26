@@ -2,6 +2,7 @@ import json
 import traceback
 from typing import Callable, Dict, Any, List, Set, Tuple
 
+from sqlalchemy import Result
 from sqlalchemy.orm import Session
 
 from shared import constants
@@ -23,7 +24,7 @@ class RequestContext:
         self.user = user
 
 
-def delete_factory(handler: Callable[[Session, int, int], None]) -> Callable[
+def delete_factory(handler: Callable[[Session, int, int], Result]) -> Callable[
     [Session, RequestContext], Tuple[Dict[str, Any], int]]:
     def delete(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
         path_params = request_context.path_params
@@ -38,7 +39,7 @@ def delete_factory(handler: Callable[[Session, int, int], None]) -> Callable[
     return delete
 
 
-def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[str, str], int, Dict[str, str]], None]) -> Callable[
+def patch_factory(updatable_fields: Set[str], handler: Callable[[Session, Dict[str, str], int, Dict[str, str]], Result]) -> Callable[
     [Session, RequestContext], Tuple[Dict[str, Any], int]]:
     def patch(session: Session, request_context: RequestContext) -> (Dict[str, Any], int):
         body = request_context.body
