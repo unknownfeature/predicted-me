@@ -5,13 +5,13 @@ import '../common/models.dart';
 import 'base_state.dart';
 import 'config/constants.dart';
 
-class PredictedMeAutocomplete extends StatefulWidget {
-  final Future<Iterable<Named>> Function(String, int) suggestionsSupplier;
+class PredictedMeAutocomplete<T extends Named> extends StatefulWidget {
+  final Future<Iterable<T>> Function(String, int) suggestionsSupplier;
   final Iterable<String> Function()? excludedSupplier;
   final Function(String)? onNew;
-  final Function(Named) onSelected;
+  final Function(T) onSelected;
   final Function(String)? onChanged;
-  final FocusNode focusNode;
+  final FocusNode? focusNode;
   final bool multiValued;
   final String hintText;
   final bool showCounter;
@@ -22,7 +22,6 @@ class PredictedMeAutocomplete extends StatefulWidget {
 
   const PredictedMeAutocomplete({
     super.key,
-    required this.focusNode,
     required this.suggestionsSupplier,
     required this.onSelected,
     this.onChanged,
@@ -34,31 +33,34 @@ class PredictedMeAutocomplete extends StatefulWidget {
     this.maxLength = 100,
     this.showCounter = false,
     this.optionsViewOpenDirection = OptionsViewOpenDirection.down,
-    this.limit = defaultPageSize
+    this.limit = defaultPageSize,
+    this.focusNode,
   });
 
   @override
   State<StatefulWidget> createState() => PredictedMeAutocompleteState();
 }
 
-class PredictedMeAutocompleteState
-    extends PredictedMeBaseState<PredictedMeAutocomplete>
+class PredictedMeAutocompleteState<T extends Named>
+    extends PredictedMeBaseState<PredictedMeAutocomplete<T>>
     with TickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   late final AnimationController _animationController;
   late final Animation<double> _animation;
+  late FocusNode _focusNode;
 
   bool _showAddIcon() {
     return _textController.text.length >= 3 &&
         widget.onNew != null &&
-        widget.focusNode.hasFocus;
+        _focusNode.hasFocus;
   }
 
   @override
   void initState() {
     super.initState();
     _textController.text = widget.initialValue ?? empty;
-    widget.focusNode.addListener(redraw);
+    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode.addListener(redraw);
     _textController.addListener(redraw);
     _animationController = AnimationController(
       vsync: this,
@@ -72,13 +74,16 @@ class PredictedMeAutocompleteState
 
   @override
   void dispose() {
-    widget.focusNode.removeListener(redraw);
+    _focusNode.removeListener(redraw);
+    if (widget.focusNode == null) {
+      _focusNode.dispose(); // only dispose if we created
+    }
     _textController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  Future<void> _onSelected(Named item, FormFieldState<String> state) async {
+  Future<void> _onSelected(T item, FormFieldState<String> state) async {
     await widget.onSelected(item);
     if (widget.multiValued) {
       _textController.clear();
@@ -121,12 +126,12 @@ class PredictedMeAutocompleteState
         return null;
       },
       builder: (FormFieldState<String> state) {
-        if (widget.focusNode.hasFocus) {
+        if (_focusNode.hasFocus) {
           _animationController.forward();
         } else {
           _animationController.reverse();
         }
-        return RawAutocomplete<Named>(
+        return RawAutocomplete<T>(
           optionsViewOpenDirection: widget.optionsViewOpenDirection,
           textEditingController: _textController,
           focusNode: widget.focusNode,
@@ -135,9 +140,12 @@ class PredictedMeAutocompleteState
           optionsBuilder: (TextEditingValue textEditingValue) async {
             final String text = textEditingValue.text.trim();
             if (text.isEmpty) {
-              return const Iterable<Named>.empty();
+              return Iterable<T>.empty();
             }
-            final results = await widget.suggestionsSupplier(text, widget.limit);
+            final results = await widget.suggestionsSupplier(
+              text,
+              widget.limit,
+            );
             if (widget.excludedSupplier != null) {
               return Set.of(
                 results,
@@ -146,7 +154,7 @@ class PredictedMeAutocompleteState
             return results;
           },
 
-          onSelected: (Named selection) {
+          onSelected: (T selection) {
             _onSelected(selection, state);
           },
 
@@ -178,8 +186,8 @@ class PredictedMeAutocompleteState
                     hintText: widget.hintText,
                     counterText: widget.showCounter ? null : empty,
                     hintStyle: TextStyle(fontSize: fontSizeSmall),
-                    filled: widget.focusNode.hasFocus,
-                    fillColor: widget.focusNode.hasFocus
+                    filled: _focusNode.hasFocus,
+                    fillColor: _focusNode.hasFocus
                         ? greyBackground_50
                         : Colors.transparent,
                     suffixIcon: _buildSuffixIcon(state),
@@ -190,12 +198,11 @@ class PredictedMeAutocompleteState
                 );
               },
 
-          // This builds your floating suggestion list
           optionsViewBuilder:
               (
                 BuildContext context,
-                AutocompleteOnSelected<Named> onSelected,
-                Iterable<Named> options,
+                AutocompleteOnSelected<T> onSelected,
+                Iterable<T> options,
               ) {
                 return FadeTransition(
                   opacity: _animation,

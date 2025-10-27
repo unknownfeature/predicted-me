@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:pm/common/constants.dart';
 import 'package:pm/common/models.dart';
 import 'package:pm/controllers/base_controller.dart';
-import 'package:pm/controllers/metric_schedule.dart';
 import 'package:pm/widgets/base_state.dart';
 import 'package:pm/widgets/config/constants.dart';
 import 'package:pm/widgets/config/theme.dart';
-import 'package:pm/widgets/pm_messages.dart';
 import 'package:pm/widgets/pm_autocomplete.dart';
+import 'package:pm/widgets/pm_messages.dart';
 import 'package:pm/widgets/pm_schedule.dart';
 import 'package:pm/widgets/pm_tags_selector.dart';
 
@@ -35,170 +35,147 @@ class PredictedMeEditDataPoint extends StatefulWidget {
   State<StatefulWidget> createState() => _PredictedMeEditDataPointState();
 }
 
-class _PredictedMeEditDataPointState extends PredictedMeBaseState<PredictedMeEditDataPoint> {
+class _PredictedMeEditDataPointState
+    extends PredictedMeBaseState<PredictedMeEditDataPoint> {
   final _formKey = GlobalKey<FormState>();
 
   late DataPoint _dataPoint;
-  late MetricDetails _metricDetails;
-  late DataSchedule? _schedule;
-
-
-  final FocusNode _metricNameFocusNode = FocusNode();
 
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize the draft state from the widget.item
-    _dataPoint = widget.item.copy();
-    _metricDetails = widget.item.metric.copy();
-    _schedule = widget.item.metric.schedule?.copy();
-
+    _dataPoint = widget.item;
   }
 
   @override
   void dispose() {
-    _metricNameFocusNode.dispose();
     super.dispose();
   }
 
+  void _load(bool load) {
+    setState(() => _isLoading = load);
+  }
 
+  void _handleError(BuildContext context, Object e) {
+    showSnackBar(context, e.toString());
+    _load(false);
+  }
 
-  Future<void> _onSave() async {
-    // 1. Validate the form
+  Future<void> _onSave(BuildContext context) async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    // 2. Save all FormField data into their variables
     _formKey.currentState!.save();
 
-    setState(() { _isLoading = true; });
+    _load(true);
 
     try {
-      final savedMetric = await widget.metricController.save(_metricDetails);
+      final savedMetric = await widget.metricController.save(_dataPoint.metric);
 
-      if (_schedule != null) {
-        await widget.scheduleController.save(_schedule!);
+      if (_dataPoint.metric.schedule != null) {
+        await widget.scheduleController.save(_dataPoint.metric.schedule!);
       } else if (widget.item.metric.schedule != null &&
           widget.item.metric.schedule!.id != null) {
-        await widget.scheduleController.delete(_schedule!.id!);
+        await widget.scheduleController.delete(
+          widget.item.metric.schedule!.id!,
+        );
       }
 
-      final dataToSave = _dataPoint.copy(metric: savedMetric);
+      final dataToSave = _dataPoint.copy(
+        metric: savedMetric,
+      ); // todo I think it's impossible to do now, need to add
+
       await widget.dataController.save(dataToSave);
 
-      // 6. Close the panel
       widget.onDoneEditing(true, context);
-
     } catch (e) {
-      showSnackBar(e.toString());
-      setState(() { _isLoading = false; });
+      _handleError(context, e);
     }
   }
 
-  Future<void> _onDelete() async {
+  Future<void> _onDelete(BuildContext context) async {
     final bool didConfirm = await showDeleteConfirmationDialog(context);
     if (didConfirm && _dataPoint.id != null) {
-      setState(() { _isLoading = true; });
+      setState(() => _isLoading = true);
       try {
         await widget.dataController.delete(_dataPoint.id!);
         widget.onDoneEditing(true, context);
       } catch (e) {
-        showSnackBar(e.toString());
-        setState(() { _isLoading = false; });
+        _handleError(context, e);
       }
     }
   }
 
-  // --- Autocomplete Callbacks ---
-
-  Future<Iterable<MetricDetails>> _metricSuggestions(String query) async {
-    final criteria = SearchCriteria(
-      text: query,
-      tsUtcStart: 0, // Not used for name search
-      tsUtcEnd: 0, // Not used for name search
+  void _updateMetricAndUnitsIfNull(MetricDetails metric) {
+    setState(
+      () => _dataPoint = _dataPoint.copy(
+        metric: metric,
+        units: _dataPoint.units ?? metric.defaultUnits,
+      ),
     );
-    final metrics = await widget.metricController.list(criteria, 0);
-    return await widget.metricController.list(criteria, 0);
   }
 
-  Future<void> _onMetricSelected(String name) async {
-    final metric = (await widget.metricController.list(
-        SearchCriteria(text: name, tsUtcStart: 0, tsUtcEnd: 0), 0)
-    ).firstWhere((m) => m.name == name);
+  void _updateScheduleOrSetToNull(DataSchedule? schedule) {
+    setState(
+      () => _dataPoint = _dataPoint.copy(
+        metric: _dataPoint.metric.copy(schedule: schedule),
+      ),
+    );
+  }
 
-    setState(() {
-      _metricDetails = metric;
-      _schedule = metric.schedule?.copy();
-      // Update units if the new metric has a default
-      if (metric.defaultUnits != null) {
-        _dataPoint = _dataPoint.copy(units: metric.defaultUnits);
-      }
-    });
+  Future<Iterable<MetricDetails>> _metricSuggestions(
+    String query,
+    int limit,
+  ) async {
+    final criteria = SearchCriteria(text: query);
+    return await widget.metricController.list(criteria, 0, limit);
   }
 
   Future<void> _onNewMetric(String name, BuildContext context) async {
     try {
       final newMetric = await widget.metricController.save(
-        MetricDetails(name: name, tagged: false, tags: []),
+        MetricDetails(
+          name: name,
+          tagged: false,
+          tags: [],
+          defaultUnits: _dataPoint.units,
+        ),
       );
-      setState(() {
-        _metricDetails = newMetric;
-        _schedule = null;
-      });
+      _updateMetricAndUnitsIfNull(newMetric);
     } catch (e) {
-      showSnackBar( context, e.toString());
+      showSnackBar(context, e.toString());
     }
   }
 
-  // --- Schedule Callbacks ---
-
-  void _onScheduleDisable() {
-    // Set the local schedule to null
-    setState(() {
-      _schedule = null;
-    });
-    // You can also call the controller here to delete the schedule
-    // if widget.item.metric.schedule != null {
-    //   widget.scheduleController.delete(widget.item.metric.schedule!.id);
-    // }
-  }
-
-  void _onScheduleChanged(DataSchedule? newScheduleOrNull) {
-    _schedule = newScheduleOrNull;
-  }
-
+  //  change this todo
   Widget _buildTimeSelector(BuildContext context) {
-    // 1. Get the local time by converting the UTC timestamp from the state
     final localTime = DateTime.fromMillisecondsSinceEpoch(
-      _dataPoint.time * 1000, // Convert seconds to milliseconds
+      _dataPoint.time * msInSec,
       isUtc: true,
     ).toLocal();
 
-    final formattedTime = DateFormat('MMM d, yyyy – hh:mm a').format(localTime);
+    final formattedTime = DateFormat(dateFormat).format(localTime);
 
     return ListTile(
       title: Text(formattedTime),
       trailing: const Icon(Icons.edit_outlined, color: greyPrimary),
       onTap: () async {
-        // 3. Show the Date Picker first
         final newDate = await showDatePicker(
           context: context,
           initialDate: localTime,
-          firstDate: DateTime(2000), // Allow picking dates from the past
-          lastDate: DateTime.now().add(const Duration(days: 365)), // Allow 1 year in future
+          firstDate: DateTime(2000),
+          lastDate: DateTime.now().add(const Duration(days: 1)),
         );
-        if (newDate == null) return; // User canceled
+        if (newDate == null) return;
 
-        // 4. If they picked a date, show the Time Picker
         final newTime = await showTimePicker(
           context: context,
           initialTime: TimeOfDay.fromDateTime(localTime),
         );
-        if (newTime == null) return; // User canceled
+        if (newTime == null) return;
 
-        // 5. Combine the new date and time
         final newLocalTime = DateTime(
           newDate.year,
           newDate.month,
@@ -207,119 +184,158 @@ class _PredictedMeEditDataPointState extends PredictedMeBaseState<PredictedMeEdi
           newTime.minute,
         );
 
-        // 6. Update the state, converting the local time back to a UTC timestamp
         setState(() {
           _dataPoint = _dataPoint.copy(
-            time: newLocalTime.toUtc().millisecondsSinceEpoch ~/ 1000,
+            time: newLocalTime.toUtc().millisecondsSinceEpoch ~/ msInSec,
           );
         });
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
-    // DO NOT return a Scaffold.
-    // Return the form content directly.
+    String? units = _dataPoint.units ?? _dataPoint.metric.defaultUnits;
     return Form(
       key: _formKey,
       child: Column(
         children: [
-          // --- 1. A Custom App Bar Row ---
-          // This is not a real AppBar, just a Row that looks like one.
           Padding(
             padding: const EdgeInsets.all(paddingSmall),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => widget.onDoneEditing(false, context),
-                ),
-                const Text('Edit Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Row(
+                Wrap(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: error),
-                      onPressed: _onDelete,
+                      icon: const Icon(Icons.close),
+                      onPressed: () => widget.onDoneEditing(false, context),
                     ),
+
                     IconButton(
                       icon: const Icon(Icons.check, color: greyPrimary),
-                      onPressed: _onSave,
+                      onPressed: () => _onSave(context),
                     ),
                   ],
+                ),
+
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: darkRaspberry),
+                  onPressed: () => _onDelete(context),
                 ),
               ],
             ),
           ),
 
-          // --- 2. The Form Content ---
           _isLoading
-              ? const Expanded(child: Center(child: CircularProgressIndicator()))
-              : Expanded( // Use Expanded to make the content scrollable
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(paddingLarge),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Metric Name", style: Theme.of(context).textTheme.titleSmall),
-                  PredictedMeAutocomplete(
-                    focusNode: _metricNameFocusNode,
-                    initialValue: _metricDetails.name,
-                    suggestionsSupplier: _metricSuggestions,
-                    onSelected: _onMetricSelected,
-                    onNew: _onNewMetric,
-                    onChanged: (val) => _metricDetails = _metricDetails.copy(name: val),
-                    multiValued: false,
+              ? const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(paddingLarge),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PredictedMeAutocomplete(
+                          initialValue: _dataPoint.metric.name,
+                          suggestionsSupplier: _metricSuggestions,
+                          onSelected: _updateMetricAndUnitsIfNull,
+                          onNew: (name) => _onNewMetric(name, context),
+                          multiValued: false,
+                          maxLength:
+                              500, // todo set normal limits for these fields
+                        ),
+                        const SizedBox(height: sizedBoxExtraLarge),
+
+                        TextFormField(
+                          initialValue: _dataPoint.value.toString(),
+                          decoration: const InputDecoration(
+                            hintText: 'the value',
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d+\.?\d*'),
+                            ),
+                          ],
+                          validator: (val) => (val == null || val.isEmpty)
+                              ? "Value is required"
+                              : null,
+                          onSaved: (val) => _dataPoint = _dataPoint.copy(
+                            value: double.parse(val!),
+                          ),
+                        ),
+                        const SizedBox(height: sizedBoxExtraLarge),
+                        // todo add set as default checkbox
+                        TextFormField(
+                          initialValue: units,
+                          decoration: const InputDecoration(
+                            hintText: 'e.g., lbs, kg, mg',
+                          ),
+                          onSaved: (val) => _dataPoint = _dataPoint.copy(
+                            units: val,
+                            metric: _dataPoint.metric.copy(
+                              defaultUnits:
+                                  _dataPoint.metric.defaultUnits ?? val,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: sizedBoxMedium),
+                        SwitchListTile(
+                          title: const Text("use these as default"),
+                          value:
+                              (units) == _dataPoint.metric.defaultUnits &&
+                              (units) != null,
+                          onChanged: (bool newValue) =>
+                              _updateMetricAndUnitsIfNull(
+                                _dataPoint.metric.copy(
+                                  defaultUnits: _dataPoint.units,
+                                ),
+                              ),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          activeThumbColor: greyPrimary,
+                        ),
+
+                        const SizedBox(height: sizedBoxExtraLarge),
+
+                        _buildTimeSelector(context),
+
+                        const SizedBox(height: sizedBoxExtraLarge),
+
+                        PredictedMeTagsSelector(
+                          initialTagNames: _dataPoint.metric.tags.toSet(),
+                          tagsSupplier: (pieceOfName, limit) =>
+                              widget.tagController.list(
+                                SearchCriteria(text: pieceOfName),
+                                0,
+                                limit,
+                              ),
+                          onChanged: (tags) => _updateMetricAndUnitsIfNull(
+                            _dataPoint.metric.copy(tags: tags.toList()),
+                          ),
+                          onNew: (newTag) async {
+                            // todo maybe not needed as it'll crete a non existing tag
+                            await widget.tagController.save(Tag(name: newTag));
+                          },
+                        ),
+                        const SizedBox(height: sizedBoxExtraLarge),
+
+                        PredictedMeSchedule<DataSchedule>(
+                          initialSchedule:
+                              _dataPoint.metric.schedule ??
+                              DataSchedule.dailyMetric(
+                                targetValue: _dataPoint.value,
+                              ),
+                          onChanged: _updateScheduleOrSetToNull,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: sizedBoxExtraLarge),
-
-                  // --- Data Value ---
-                  Text("Value", style: Theme.of(context).textTheme.titleSmall),
-                  TextFormField(
-                    initialValue: _dataPoint.value.toString(),
-                    decoration: const InputDecoration(hintText: 'Enter value'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*')),
-                    ],
-                    validator: (val) => (val == null || val.isEmpty) ? "Value is required" : null,
-                    onSaved: (val) => _dataPoint = _dataPoint.copy(value: double.parse(val!)),
-                  ),
-                  const SizedBox(height: sizedBoxExtraLarge),
-
-                  // --- Data Units ---
-                  Text("Units", style: Theme.of(context).textTheme.titleSmall),
-                  TextFormField(
-                    initialValue: _dataPoint.units ?? _metricDetails.defaultUnits,
-                    decoration: const InputDecoration(hintText: 'e.g., lbs, kg, mg'),
-                    onSaved: (val) => _dataPoint = _dataPoint.copy(units: val),
-                  ),
-                  const SizedBox(height: sizedBoxExtraLarge),
-
-                  Text("Time", style: Theme.of(context).textTheme.titleSmall),
-                  _buildTimeSelector(context),
-                  const SizedBox(height: sizedBoxExtraLarge),
-
-                  PredictedMeTagsSelector(
-                    initialTagNames: _metricDetails.tags.toSet(),
-                    tagsSupplier: (pieceOfName, limit) => widget.tagController.list(SearchCriteria(text: pieceOfName), 0),
-                    onChanged: (tags) => _metricDetails = _metricDetails.copy(tags: tags.toList()),
-                    onNew: (newTag) async {
-                      await widget.tagController.save(Tag(id: null, name: newTag));
-                    },
-                  ),
-                  const SizedBox(height: sizedBoxExtraLarge),
-
-                  PredictedMeSchedule<DataSchedule>(
-                    initialSchedule: _schedule ?? DataSchedule.dailyMetric(targetValue: _dataPoint.value),
-                    onChanged: _onScheduleChanged,
-
-                  ),
-
-                ],
-              ),
-            ),
-          ),
+                ),
         ],
       ),
     );

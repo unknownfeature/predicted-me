@@ -158,8 +158,7 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
   }
 
   void _onDateToggled(DateRange range) {
-    redraw(
-      cb: () {
+    setState( () {
         final (start, end) = range.toUtcTimestamps;
         _tsUtcStart = start;
         _tsUtcEnd = end;
@@ -180,8 +179,7 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
       return;
     }
 
-    redraw(
-      cb: () {
+    setState( () {
         _tsUtcStart =
             range.start.toUtc().millisecondsSinceEpoch / ~msInSec as int;
         _tsUtcEnd = range.end.toUtc().millisecondsSinceEpoch / ~msInSec as int;
@@ -191,7 +189,7 @@ class PredictedMeFilterState extends PredictedMeBaseState<PredictedMeFilter> {
   }
 
   void _onTagsChanged(Set<String> newTags) {
-    redraw(cb: () => _currentTags = newTags);
+    setState(() => _currentTags = newTags);
     widget.onCriteriaChanged(_tsUtcStart, _tsUtcEnd, _currentTags);
   }
 

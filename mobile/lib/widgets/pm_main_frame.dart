@@ -96,7 +96,7 @@ class PredictedMeMainFrameState
   }
 
   void _onScroll(ScrollDirection scrollDirection) {
-    redraw(cb: () => _showNavs = scrollDirection == ScrollDirection.reverse);
+    setState(() => _showNavs = scrollDirection == ScrollDirection.reverse);
   }
 
   void _notifyListRefreshNeeded(BuildContext context) {
@@ -104,8 +104,7 @@ class PredictedMeMainFrameState
   }
 
   void _startEdit(Identifiable item) {
-    redraw(
-      cb: () {
+    setState( () {
         _item = item;
         _listView = false;
       },
@@ -115,8 +114,7 @@ class PredictedMeMainFrameState
   }
 
   void _finishEdit() {
-    redraw(
-      cb: () {
+    setState( () {
         _listView = true;
       },
     );
@@ -194,8 +192,7 @@ class PredictedMeMainFrameState
   }
 
   void Function() _onNav(Mode mode) {
-    return () => redraw(
-      cb: () {
+    return () => setState( () {
         _mode = mode;
         _showNavs = false;
       },

@@ -18,7 +18,7 @@ class Tag implements Identifiable, Named {
   final int? id;
   final String name;
 
-  Tag({required this.id, required this.name});
+  Tag({this.id, required this.name});
 
   factory Tag.fromJson(Map<String, dynamic> json) {
     return Tag(
@@ -492,7 +492,7 @@ class MetricDetails implements Identifiable, Named {
       name: name ?? this.name,
       tagged: tagged ?? this.tagged,
       tags: tags ?? this.tags,
-      schedule: schedule ?? this.schedule,
+      schedule: (schedule ?? this.schedule)?.copy(),
       defaultUnits: defaultUnits ?? this.defaultUnits
     );
   }
@@ -541,7 +541,7 @@ class DataPoint implements Identifiable {
       value: value ?? this.value,
       units: units ?? this.units,
       time: time ?? this.time,
-      metric: metric ?? this.metric,
+      metric: (metric ?? this.metric).copy(),
     );
   }
 }

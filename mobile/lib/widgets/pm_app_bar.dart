@@ -61,7 +61,7 @@ class PredictedMeAppBarState extends PredictedMeBaseState<PredictedMeAppBar>
   }
 
   void _onTextChanged() {
-    redraw(cb: () => widget.onTextChanged(_textController.text.trim()));
+    setState(() => widget.onTextChanged(_textController.text.trim()));
   }
 
   Widget? _buildSuffixIcon() {

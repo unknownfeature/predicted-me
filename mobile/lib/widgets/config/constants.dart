@@ -66,3 +66,4 @@ double Function(BuildContext context) quoterHeight = (BuildContext context) =>
 
 const sigmaX = 10.0;
 const sigmaY = 10.0;
+const dateFormat = 'MMM d, yyyy – hh:mm a';

@@ -61,7 +61,7 @@ class PredictedMeTagsSelectorState
   }
 
   void _removeTag(FormFieldState<Set<String>> state, String tagName) {
-    redraw(cb: () => _tags.remove(tagName));
+    setState(() => _tags.remove(tagName));
     widget.onChanged(_tags);
     state.didChange(_tags);
   }
@@ -79,7 +79,7 @@ class PredictedMeTagsSelectorState
         await widget.onNew!(tagName);
       }
       _focusNode.requestFocus();
-      redraw(cb: () => _tags.add(tagName));
+      setState(() => _tags.add(tagName));
       widget.onChanged(_tags);
       state.didChange(_tags);
     }

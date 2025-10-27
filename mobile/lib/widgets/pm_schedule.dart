@@ -145,8 +145,7 @@ class PredictedMeScheduleState
 
   void _onToggleHeader() {
     if (!_expandableController.expanded) {
-      redraw(
-        cb: () {
+      setState( () {
           _schedule = widget.initialSchedule;
           _selectedWeekDays = _cronToDaysOfWeek(_schedule);
           _selectedTime = _cronToTimeOfDay(_schedule);
@@ -156,7 +155,7 @@ class PredictedMeScheduleState
       );
     } else {
       widget.onChanged(null);
-      redraw(cb: () => _schedule = widget.initialSchedule);
+      setState(() => _schedule = widget.initialSchedule);
     }
   }
 
@@ -244,8 +243,7 @@ class PredictedMeScheduleState
               Checkbox(
                 value: _selectedWeekDays[index],
                 onChanged: (bool? value) {
-                  redraw(
-                    cb: () {
+                  setState( () {
                       _selectedWeekDays[index] = value!;
                       _nextRun = _calculateNextRun(
                         _selectedWeekDays,
@@ -277,8 +275,8 @@ class PredictedMeScheduleState
           initialTime: _selectedTime,
         );
         if (newTime != null) {
-          redraw(
-            cb: () {
+          setState(
+               () {
               _selectedTime = newTime;
               _nextRun = _calculateNextRun(_selectedWeekDays, _selectedTime);
               TimeOfDay selectedTimeUtc = _timeOfDayToUtcTime(_selectedTime);
@@ -299,12 +297,10 @@ class PredictedMeScheduleState
 
   Widget _buildNextRun() {
     final nextRunTime = DateTime.fromMillisecondsSinceEpoch(
-      _nextRun * 1000,
+      _nextRun * msInSec,
       isUtc: true,
     ).toLocal();
-    final formattedTime = DateFormat(
-      'MMM d, yyyy – hh:mm a',
-    ).format(nextRunTime);
+    final formattedTime = DateFormat(dateFormat).format(nextRunTime);
 
     return ListTile(
       leading: const Icon(Icons.update, color: greyShadow),
